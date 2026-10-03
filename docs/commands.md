@@ -48,7 +48,9 @@ exist yet.
 
 ### `shell-init [bash|zsh|fish]`, `completion <shell>`
 
-See [shell-integration.md](shell-integration.md).
+`shell-init` prints the `cd`-following wrapper plus the completions for one shell (`eval "$(flowtree shell-init)"`);
+`completion bash|zsh|fish|powershell` prints only the completion script, to install from a file. Both are described,
+with setup steps and troubleshooting, in [shell-integration.md](shell-integration.md).
 
 ### `install-skill <dir>`
 

@@ -51,6 +51,38 @@ Completion is dynamic and reads the repository you are in:
 Completion never prints errors into your prompt; outside a repository it simply suggests nothing. Only the
 bash and fish wrappers are covered by automated tests; zsh uses the same wrapper text and cobra's zsh completion.
 
+### Completion without the wrapper
+
+`flowtree completion <shell>` prints only the completion script, for people who want completions but not the
+`cd`-following wrapper, or who prefer to load completions from a file:
+
+```sh
+# bash (needs the bash-completion package); loaded on demand from this directory
+flowtree completion bash > ~/.local/share/bash-completion/completions/flowtree
+
+# zsh: write it to a directory on your fpath, and make sure compinit runs after fpath is set
+flowtree completion zsh > "${fpath[1]}/_flowtree"
+
+# fish
+flowtree completion fish > ~/.config/fish/completions/flowtree.fish
+
+# PowerShell
+flowtree completion powershell | Out-String | Invoke-Expression
+```
+
+Open a new shell afterwards. The script asks the installed `flowtree` for suggestions each time you press Tab,
+so it keeps working after upgrades and never needs regenerating.
+
+### If completion does nothing
+
+- `flowtree` must be on your `PATH` (`which flowtree`); the script calls it by name.
+- bash: the `bash-completion` package must be installed and loaded, and `eval "$(flowtree shell-init)"` must
+  come after it is sourced in your rc file.
+- zsh: `compinit` must have run. `shell-init` runs it for you when it has not; with the file-based setup, call
+  it yourself after the `fpath` is set up.
+- Inside a repository, `flowtree __complete work finish ""` prints what would be suggested; if that is empty,
+  the problem is the repository (for example flow not set up: `flowtree init --flow`), not the shell.
+
 ## The picker
 
 `switch`, `print-dir` and `remove` without a name, and `finish`/`checkout` without a name outside a topic

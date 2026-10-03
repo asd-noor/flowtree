@@ -27,6 +27,7 @@ Documentation in [docs/](docs/): the [branch model](docs/git-flow.md), the
 ```sh
 go install flowtree/cmd/flowtree@latest     # or: mise run install  ->  builds bin/flowtree, installs it to ~/.local/bin
 eval "$(flowtree shell-init)"                  # in your shell rc: cd-ing commands + completion (bash, zsh, fish)
+                                               # completion only: flowtree completion <shell>, see docs/shell-integration.md
 ```
 
 Requires `git` 2.17+. The shell function makes `start`, `checkout`, `switch` and `add` take you into the

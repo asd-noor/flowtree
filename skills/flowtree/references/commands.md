@@ -9,7 +9,9 @@ the worktree you are in. `work` names also accept a unique prefix. Worktree name
 
 | Command | Effect |
 |---------|--------|
-| `init [--flow] [-d] [-f] [-w <dir>] [--exclude]` | Write `.flowtree.json` in the main worktree. `-d` = no prompts (use this). `--flow` also sets up git-flow: creates `master`/`develop` if missing and stores the flow settings. `-f` overwrites an existing file. `-w` sets the worktree directory. An existing file is left alone (exit 0) except that `--flow` adds a missing flow section. `--exclude` adds the file to `.git/info/exclude`. |
+| `init [--flow] [-d] [-f] [-w <dir>]` | Store settings in the repository's git config (nothing is written to the working tree). `-d` = no prompts (use this). `--flow` also sets up git-flow: creates `master`/`develop` if missing and stores the flow settings. `-w` sets the worktree directory (stored only when it differs from the default). Existing settings are left alone (exit 0) except that `--flow` adds missing flow settings; `-f` resets them first. |
+| `config [<key> [<value>]] [--global] [--unset]` | List settings with their origin, print one, set one (this repo, or `--global`) or remove one. Keys: `baseDir`, `remote`, `master`, `develop`, `workPrefix`, `releasePrefix`, `hotfixPrefix`, `versionTagPrefix`. Unknown keys are rejected. |
+| `config hooks` | Print the path of the post-create hooks file and its contents (or an example when missing). |
 | `init --flow` options | `--master <b>`, `--develop <b>`, `-p <work prefix>`, `-r <release prefix>`, `-x <hotfix prefix>`, `-t <version tag prefix>`, `--remote <name>`. |
 | `shell-init [bash\|zsh\|fish]` | Prints the shell function that follows worktrees with `cd`, plus completion. For humans; not useful to agents. |
 
@@ -17,13 +19,13 @@ the worktree you are in. `work` names also accept a unique prefix. Worktree name
 
 | Command | Effect |
 |---------|--------|
-| `add <branch>` / `add -b <new> [<commitish>]` | Create a worktree at `<base_dir>/<branch>` (existing branch, remote-only branch tracked, or a new one). Hooks run. `-q` prints only the path; `--exec <cmd>` runs a command in it afterwards. |
+| `add <branch>` / `add -b <new> [<commitish>]` | Create a worktree at `<baseDir>/<branch>` (existing branch, remote-only branch tracked, or a new one). Hooks run. `-q` prints only the path; `--exec <cmd>` runs a command in it afterwards. |
 | `list [-q]` | Worktrees with path, branch and HEAD; `-q` prints names only. |
 | `remove [-f] [--with-branch [--force-branch]] <worktree>...` | Remove worktrees. Never the main one, nor the one you are in (unless shell integration is active). `--with-branch` also deletes the branch if merged. |
 | `print-dir [<worktree>]` | Print the absolute path of an existing worktree; no name or `@` = main. Read-only. |
 | `exec <worktree> -- <command> [args...]` | Run a command in a worktree; exits with its exit code. |
 | `switch <query>` | Print the directory of a branch, moving the main checkout onto master/develop/release or creating a missing work/hotfix worktree if needed. A query must match one row exactly or by substring/fuzzy uniquely; otherwise it opens a picker (fails without a terminal). |
-| `relocate [-n]` | Move work/hotfix worktrees to `<base_dir>/<branch>` after `base_dir` changed. `-n` = dry run. Skips locked/missing/occupied; refuses if cwd is inside one that would move. |
+| `relocate [-n]` | Move work/hotfix worktrees to `<baseDir>/<branch>` after `baseDir` changed. `-n` = dry run. Skips locked/missing/occupied; refuses if cwd is inside one that would move. |
 
 ## Common to all kinds
 

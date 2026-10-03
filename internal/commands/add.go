@@ -33,7 +33,7 @@ func newAddCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <branch> | -b <new-branch> [<commitish>]",
 		Short: "Create a worktree for a branch",
-		Long: `Create a worktree at <base_dir>/<branch>. An existing branch is checked out;
+		Long: `Create a worktree at <base dir>/<branch>. An existing branch is checked out;
 one that exists only on a remote is tracked. With -b a new branch is created,
 from the optional commitish.
 

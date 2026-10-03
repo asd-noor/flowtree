@@ -35,7 +35,7 @@ worktree, and moves you out of one that `finish` or `remove` deleted.
 ## Quick start
 
 ```sh
-flowtree init --flow               # .flowtree.json, master + develop; prompts (-d for defaults)
+flowtree init --flow               # store settings in git config, create master + develop; prompts (-d for defaults)
 
 flowtree work start login          # work/login off develop, in ../worktrees/work/login
 # ...commit...
@@ -55,9 +55,10 @@ flowtree switch                    # pick where to go (built-in picker); `flowtr
 ## Commands
 
 ```
-flowtree init [--flow] [-w DIR] [-f] [-d] [--exclude]
+flowtree init [--flow] [-w DIR] [-f] [-d]
               [--master B] [--develop B] [-p work/] [-r release/] [-x hotfix/] [-t TAGPREFIX] [--remote R]
 flowtree add [-b NEW] [--exec CMD] [-q] <branch> [<commitish>]
+flowtree config [<key> [<value>]] [--global] [--unset] | config hooks
 flowtree list | remove [-f] [--with-branch] [--force-branch] <worktree>... | exec <worktree> -- CMD...
 flowtree print-dir [<worktree>]    # prints a worktree's path; read-only (`@` = main)
 flowtree switch [QUERY]            # changes your worktree; may move the main checkout or create a worktree
@@ -87,30 +88,34 @@ Run `flowtree <command> --help` for every flag. `finish` with no name uses the b
 
 ## Configuration
 
-`.flowtree.json` lives in the main worktree and is **per-machine**: worktree directories differ between
-developers, so the file is meant not to be committed. `flowtree init` offers to add it to `.git/info/exclude`
-(default: no). Each clone runs `flowtree init` once.
+Settings live in **git config**, section `flowtree`: per repository (`.git/config`, never committed, so worktree
+directories can differ between developers) or for every repository (`--global`). Nothing is added to the working
+tree. Each clone runs `flowtree init` once.
 
-```json
-{
-  "version": 1,
-  "base_dir": "../worktrees",
-  "remote": "origin",
-  "flow": { "master": "main", "develop": "develop", "work_prefix": "work/",
-            "release_prefix": "release/", "hotfix_prefix": "hotfix/", "version_tag_prefix": "" },
-  "hooks": { "post_create": [
+```sh
+flowtree config                          # every setting, with where its value comes from
+flowtree config baseDir ~/worktrees/api  # or: git config flowtree.baseDir ~/worktrees/api
+flowtree config --global remote upstream
+```
+
+Keys: `baseDir`, `remote`, `master`, `develop`, `workPrefix`, `releasePrefix`, `hotfixPrefix`, `versionTagPrefix`.
+An unknown `flowtree.*` key is an error, so typos do not go unnoticed.
+
+- `baseDir`: where worktrees go, `<baseDir>/<branch>`; relative to the main worktree, `~` is expanded. When it is
+  not set, the default is `$FLOWTREE_PARENT/<repo name>` if `FLOWTREE_PARENT` is defined, else `../worktrees`.
+  `flowtree relocate` moves existing worktrees after a change.
+- Hooks (copy a `.env`, symlink a cache, run a setup command) run after every new worktree. They live in
+  `.git/flowtree-hooks.json` (inside the git directory, so a clone cannot inject code); `flowtree config hooks`
+  shows the path and an example:
+  ```json
+  { "post_create": [
     { "type": "copy", "from": ".env" },
     { "type": "symlink", "from": ".cache", "to": ".cache" },
     { "type": "command", "command": "npm ci" }
   ] }
-}
-```
-
-- `base_dir`: where worktrees go, `<base_dir>/<branch>`; relative to the main worktree, `~` is expanded. Set
-  `FLOWTREE_PARENT=~/worktrees` to default every repo to `<parent>/<repo name>`. `flowtree relocate` moves
-  existing worktrees after a change.
-- Hooks run after every new worktree (`add`, `work start`, `hotfix start`, …). `copy` and `symlink` read from the
-  main worktree; `command` runs in the new worktree with `FLOWTREE_WORKTREE_PATH` and `FLOWTREE_REPO_ROOT` set.
+  ```
+  `copy` and `symlink` read from the main worktree; `command` runs in the new worktree with
+  `FLOWTREE_WORKTREE_PATH` and `FLOWTREE_REPO_ROOT` set.
 
 ## Scripting and agents
 

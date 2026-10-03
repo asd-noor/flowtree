@@ -103,12 +103,7 @@ func TestRelocate(t *testing.T) {
 	oldA, oldH := worktreeDir(repo, "work/a"), worktreeDir(repo, "hotfix/1.0.1")
 
 	newBase := filepath.Join(filepath.Dir(repo), "moved")
-	cfg, _ := os.ReadFile(filepath.Join(repo, ".flowtree.json"))
-	edited := strings.Replace(string(cfg), `"base_dir": "../worktrees"`, `"base_dir": "`+newBase+`"`, 1)
-	if edited == string(cfg) {
-		t.Fatalf("could not edit base_dir in:\n%s", cfg)
-	}
-	testutil.WriteFile(t, filepath.Join(repo, ".flowtree.json"), edited)
+	Run(t, repo, "config", "baseDir", newBase).MustSucceed(t)
 
 	dry := Run(t, repo, "relocate", "-n").MustSucceed(t)
 	if !strings.Contains(dry.Stdout, filepath.Join(newBase, "work/a")) || !exists(oldA) || exists(filepath.Join(newBase, "work/a")) {

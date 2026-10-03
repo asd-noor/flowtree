@@ -191,9 +191,9 @@ func TestAddAmbiguousRemoteBranch(t *testing.T) {
 func TestAddRunsHooksThenExec(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	testutil.WriteFile(t, filepath.Join(repo, ".env"), "K=1")
-	if err := config.Save(repo, config.Config{Hooks: config.Hooks{PostCreate: []config.Hook{
-		{Type: config.HookCopy, From: ".env"},
-	}}}); err != nil {
+	if err := config.SaveHooks(gitx.In(context.Background(), repo), repo, config.Hooks{PostCreate: []config.Hook{
+		{Type: config.HookCopy, From: ".env", To: ".env"},
+	}}); err != nil {
 		t.Fatal(err)
 	}
 	e := newAddEnv(t, repo, nil)
@@ -212,9 +212,9 @@ func TestAddRunsHooksThenExec(t *testing.T) {
 
 func TestAddHookFailureIsAWarning(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	if err := config.Save(repo, config.Config{Hooks: config.Hooks{PostCreate: []config.Hook{
+	if err := config.SaveHooks(gitx.In(context.Background(), repo), repo, config.Hooks{PostCreate: []config.Hook{
 		{Type: config.HookCommand, Command: "exit 1"},
-	}}}); err != nil {
+	}}); err != nil {
 		t.Fatal(err)
 	}
 	e := newAddEnv(t, repo, nil)

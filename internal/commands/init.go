@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -16,8 +14,6 @@ import (
 	"flowtree/internal/gitx"
 )
 
-const excludeLine = "/" + config.FileName
-
 // errStop ends the init pipeline early without failing the command.
 var errStop = errors.New("stop")
 
@@ -25,7 +21,6 @@ type initOpts struct {
 	baseDir  string
 	force    bool
 	defaults bool
-	exclude  bool
 	flow     flowOpts
 }
 
@@ -35,38 +30,41 @@ type initRun struct {
 	opts  initOpts
 	git   gitx.Git
 	main  string
-	cfg   config.Config
-	kept  bool          // an existing .flowtree.json is being extended, not replaced
-	stdin *bufio.Reader // one reader for every prompt, so buffered input is not lost
+	cfg   config.Config   // the configuration before init
+	pairs []config.Pair   // settings init will store
+	stdin *bufio.Reader   // one reader for every prompt, so buffered input is not lost
+	kept  bool            // existing settings are being extended, not replaced
+	flowS *flowSettingsIn // the flow settings chosen, when --flow is given
 }
 
-// initStep is one stage of init; --flow will add its own step.
+// initStep is one stage of init.
 type initStep func(context.Context, *initRun) error
 
 // initSteps is the init pipeline, in order.
-var initSteps = []initStep{checkNotInitialised, chooseBaseDir, chooseFlowSettings, writeConfig, setupFlowBranches, offerExclude}
+var initSteps = []initStep{loadSettings, checkNotInitialised, chooseBaseDir, chooseFlowSettings, writeSettings, setupFlowBranches}
 
 func newInitCmd(d Deps) *cobra.Command {
 	var o initOpts
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Write .flowtree.json for this repository",
-		Long: "Writes .flowtree.json in the main worktree.\n\n" +
-			"If the file already exists, init prints a note and changes nothing (exit 0); use --force to overwrite it.\n" +
-			"base_dir defaults to $FLOWTREE_PARENT/<repo name> when that is set, else ../worktrees.\n" +
-			"On a terminal, init asks for base_dir and whether to add the file to .git/info/exclude (default: no).\n" +
-			"With -d it never asks and never excludes; --exclude excludes without asking.\n\n" +
-			"With --flow it also sets up git-flow: it stores the branch names and prefixes, creates the master and\n" +
-			"develop branches if they are missing, and puts the main worktree on develop. On a repository that is\n" +
-			"already initialised without flow, --flow adds the flow settings and keeps the rest of the file.",
+		Short: "Configure flowtree for this repository",
+		Long: "Stores flowtree's settings in the repository's git config (section flowtree, in .git/config), so nothing\n" +
+			"is added to the working tree. Plain init only sets the worktree directory (base dir): -w, or the answer to the\n" +
+			"prompt on a terminal. When neither differs from the default (../worktrees, or $FLOWTREE_PARENT/<repo name>\n" +
+			"when FLOWTREE_PARENT is defined) nothing is stored, so the default keeps following the environment.\n\n" +
+			"If flowtree is already configured, init prints a note and changes nothing (exit 0); --force resets the\n" +
+			"repository's flowtree settings first.\n\n" +
+			"With --flow it also sets up git-flow: it stores the branch names, prefixes and tag prefix, creates the\n" +
+			"master and develop branches if they are missing, and puts the main worktree on develop. On a repository\n" +
+			"that is configured without flow, --flow adds the flow settings and keeps the rest. With -d init never asks.\n" +
+			"Use 'flowtree config' to see or change single settings later.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return runInit(cmd.Context(), d, o) },
 	}
 	f := cmd.Flags()
 	f.StringVarP(&o.baseDir, "base-dir", "w", "", "directory worktrees are created under")
-	f.BoolVarP(&o.force, "force", "f", false, "overwrite an existing .flowtree.json")
+	f.BoolVarP(&o.force, "force", "f", false, "reset the repository's flowtree settings first")
 	f.BoolVarP(&o.defaults, "defaults", "d", false, "do not prompt; use defaults")
-	f.BoolVar(&o.exclude, "exclude", false, "add .flowtree.json to .git/info/exclude without asking")
 	bindFlowFlags(f, &o.flow)
 	return cmd
 }
@@ -76,13 +74,12 @@ func runInit(ctx context.Context, d Deps, o initOpts) error {
 	if err != nil {
 		return err
 	}
-	here := gitx.Bind(ctx, d.Run, cwd)
-	main, err := gitx.MainWorktree(here)
+	main, err := gitx.MainWorktree(gitx.Bind(ctx, d.Run, cwd))
 	if err != nil || main.Path == "" {
 		return errors.New("not in a git repository")
 	}
 	run := &initRun{
-		d: d, opts: o, main: main.Path, cfg: config.Defaults(),
+		d: d, opts: o, main: main.Path,
 		git:   gitx.Bind(ctx, d.Run, main.Path),
 		stdin: bufio.NewReader(d.Stdin),
 	}
@@ -105,116 +102,93 @@ func runSteps(ctx context.Context, r *initRun, steps []initStep) error {
 
 func (r *initRun) interactive() bool { return r.d.IsTTY() && !r.opts.defaults }
 
+// loadSettings reads what is configured now. With --force a broken configuration does not block the reset.
+func loadSettings(_ context.Context, r *initRun) error {
+	cfg, err := config.Load(r.git, r.main, r.d.Getenv)
+	if err != nil && !r.opts.force {
+		return err
+	}
+	if err != nil {
+		cfg = config.Defaults()
+		cfg.Parent = r.d.Getenv(config.ParentEnv)
+	}
+	r.cfg = cfg
+	return nil
+}
+
+// configured reports whether this repository has local flowtree settings.
+func (r *initRun) configured() bool {
+	entries, err := config.Entries(r.git)
+	if err != nil {
+		return true
+	}
+	for _, e := range entries {
+		if e.Scope == "local" {
+			return true
+		}
+	}
+	return false
+}
+
 func checkNotInitialised(_ context.Context, r *initRun) error {
-	if _, err := os.Stat(config.Path(r.main)); err != nil || r.opts.force {
+	if r.opts.force || !r.configured() {
+		return nil
+	}
+	if r.opts.flow.enabled && !r.cfg.FlowEnabled() {
+		r.kept = true
 		return nil
 	}
 	if r.opts.flow.enabled {
-		return extendExisting(r)
+		r.d.Printf("flowtree flow is already set up in %s; nothing changed (use --force to reset)\n", r.main)
+	} else {
+		r.d.Printf("flowtree is already configured in %s; nothing changed (use --force to reset)\n", r.main)
 	}
-	r.d.Printf("%s already exists in %s; nothing changed (use --force to overwrite)\n", config.FileName, r.main)
 	return errStop
 }
 
+// chooseBaseDir stores a base dir only when it differs from the default, so an unset base dir keeps
+// following $FLOWTREE_PARENT.
 func chooseBaseDir(_ context.Context, r *initRun) error {
 	if r.kept {
 		return nil
 	}
-	def := config.DefaultBaseDirFor(r.main, r.d.Getenv)
+	def := r.cfg.DefaultBaseDirFor(r.main)
 	dir := r.opts.baseDir
 	if dir == "" && r.interactive() {
 		dir = ask(r.stdin, r.d.Stderr, "Worktree directory", def)
 	}
-	if dir == "" {
-		dir = def
+	if dir != "" && dir != def {
+		r.pairs = append(r.pairs, config.Pair{Key: "baseDir", Value: config.ExpandHome(dir)})
 	}
-	r.cfg.BaseDir = config.ExpandHome(dir)
 	return nil
 }
 
-func writeConfig(_ context.Context, r *initRun) error {
-	if err := config.Save(r.main, r.cfg); err != nil {
+func writeSettings(_ context.Context, r *initRun) error {
+	if r.opts.force {
+		_, _ = r.git("config", "--local", "--remove-section", "flowtree") // fails when there is none
+	}
+	if err := config.SetAll(r.git, config.Local, r.pairs); err != nil {
 		return err
 	}
-	r.d.Printf("Created %s (base_dir: %s)\n", config.Path(r.main), r.cfg.BaseDir)
-	return nil
-}
-
-func offerExclude(_ context.Context, r *initRun) error {
-	want := r.opts.exclude
-	if !want && r.interactive() {
-		want = askYesNo(r.stdin, r.d.Stderr, "Add "+config.FileName+" to .git/info/exclude?")
-	}
-	if !want {
-		return nil
-	}
-	return excludeConfig(r)
-}
-
-// excludeConfig appends the config file to info/exclude unless git already ignores or tracks it.
-func excludeConfig(r *initRun) error {
-	switch {
-	case r.git.Ok("ls-files", "--error-unmatch", config.FileName):
-		r.d.Printf("Note: %s is tracked by git; not excluding it\n", config.FileName)
-		return nil
-	case r.git.Ok("check-ignore", "-q", config.FileName):
-		r.d.Printf("Note: %s is already ignored by git\n", config.FileName)
-		return nil
-	}
-	path, err := excludePath(r.git, r.main)
+	cfg, err := config.Load(r.git, r.main, r.d.Getenv)
 	if err != nil {
 		return err
 	}
-	if err := updateFile(path, func(s string) (string, bool) { return withLine(s, excludeLine) }); err != nil {
-		return err
-	}
-	r.d.Printf("Added %s to %s\n", excludeLine, path)
+	r.cfg = cfg
+	r.report()
 	return nil
 }
 
-func excludePath(g gitx.Git, main string) (string, error) {
-	common, err := g("rev-parse", "--git-common-dir")
-	if err != nil {
-		return "", err
+func (r *initRun) report() {
+	if len(r.pairs) == 0 {
+		r.d.Printf("Nothing to store: the defaults apply (worktrees in %s)\n", r.cfg.ResolveBaseDir(r.main))
+		return
 	}
-	if !filepath.IsAbs(common) {
-		common = filepath.Join(main, common)
+	r.d.Printf("Stored in the git config of %s:\n", r.main)
+	for _, p := range r.pairs {
+		r.d.Printf("  flowtree.%s = %s\n", p.Key, p.Value)
 	}
-	return filepath.Join(common, "info", "exclude"), nil
-}
-
-// withLine returns content with line appended (own line) and whether it changed.
-func withLine(content, line string) (string, bool) {
-	if hasLine(strings.Split(content, "\n"), line) {
-		return content, false
-	}
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += "\n"
-	}
-	return content + line + "\n", true
-}
-
-func hasLine(lines []string, line string) bool {
-	if len(lines) == 0 {
-		return false
-	}
-	return strings.TrimSpace(lines[0]) == line || hasLine(lines[1:], line)
-}
-
-// updateFile rewrites path (created if missing) when f reports a change.
-func updateFile(path string, f func(string) (string, bool)) error {
-	old, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	next, changed := f(string(old))
-	if !changed {
-		return nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(next), 0o644)
+	r.d.Printf("Worktrees go to %s\n", r.cfg.ResolveBaseDir(r.main))
 }
 
 // ask prompts for a line; an empty answer or EOF yields def.

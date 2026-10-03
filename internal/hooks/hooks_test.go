@@ -44,7 +44,10 @@ func read(t *testing.T, path string) string {
 
 func run(t *testing.T, repo, wt string, hs ...config.Hook) (string, error) {
 	t.Helper()
-	cfg := config.Config{Hooks: config.Hooks{PostCreate: hs}}.WithDefaults()
+	for i := range hs {
+		hs[i] = hs[i].WithDefaults()
+	}
+	cfg := config.Config{Hooks: config.Hooks{PostCreate: hs}}
 	var out bytes.Buffer
 	err := RunPostCreate(context.Background(), &out, cfg, repo, wt)
 	return out.String(), err

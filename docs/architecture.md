@@ -11,7 +11,7 @@ cmd/flowtree/        main: builds the root command, maps errors to exit codes
 skills/              the agent skill (SKILL.md + references), embedded with go:embed
 internal/
   gitx/              the git seam: Runner, branch and worktree operations, porcelain parser
-  config/            .flowtree.json schema, load/save, validation, base_dir resolution
+  config/            settings in git config (read, set, validation), hooks file, base dir resolution
   worktree/          worktree naming and name resolution ("@", branch, directory, display name)
   hooks/             post-create hooks: copy, symlink, command
   flow/              the git-flow domain; imports no CLI package
@@ -44,7 +44,7 @@ Only interactive commands bypass the seam (`work rebase -i`, `exec`), because th
 
 `commands.Deps` holds the process-level collaborators: the Runner, stdin/stdout/stderr, `Getenv`, `Cwd`,
 `IsTTY` and `Pick`. Commands hold no state of their own. `Deps.OpenRepo` finds the main worktree from the current
-directory (it also works from a linked worktree), loads `.flowtree.json` and lists worktrees; `Deps.OpenFlow`
+directory (it also works from a linked worktree), loads the settings (`config.Load`) and lists worktrees; `Deps.OpenFlow`
 additionally requires flow settings and returns a `*flow.Env`.
 
 Commands are constructors, `func(Deps) *cobra.Command`, assembled in `commands/root.go`. There is no `init()`
@@ -98,10 +98,20 @@ the path to the file named by `FLOWTREE_CDFILE` if set. The shell wrapper create
 
 ## Configuration
 
-`.flowtree.json` is JSON read with `encoding/json`, strict (`DisallowUnknownFields`) and validated on load. It
-sits in the main worktree and is not meant to be committed: paths differ per machine. Flow settings are a
-section of the same file (`config.Flow`), converted to `flow.Settings` by `flow.FromConfig`, which fails with a
-pointer to `init --flow` when the section is missing.
+Settings live in git config, section `flowtree`, so they need no file of their own and follow git's scopes
+(local over global over system). `config.Load` makes one call, `git config --show-scope --null --get-regexp
+'^flowtree\.'`, and applies each key through a table of settings (`config/keys.go`: canonical name, validator,
+default). An unknown key is an error, which catches typos. `config.Set` and `Unset` validate before calling
+`git config`. Flow settings are the `config.Flow` part of `Config`, converted to `flow.Settings` by
+`flow.FromConfig`, which fails with a pointer to `init --flow` unless both `master` and `develop` are set.
+
+`baseDir` has no stored default: `Config.ResolveBaseDir` uses it when set, else `$FLOWTREE_PARENT/<repo name>` when
+the variable is defined (captured as `Config.Parent` at load time), else `../worktrees`. That is why `init` stores
+the value only when it differs.
+
+Hooks have structure git config cannot express, so they are read from `<git-common-dir>/flowtree-hooks.json`
+(strict `encoding/json`). The file sits inside `.git`: shared by all worktrees, never committed, so a clone cannot
+inject command hooks.
 
 ## The picker
 

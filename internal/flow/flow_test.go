@@ -21,8 +21,7 @@ func setup(t *testing.T) (*flow.Env, string) {
 	s := flow.DefaultSettings()
 	s.Master = "main"
 	cfg := config.Defaults()
-	fl := s.ToConfig()
-	cfg.Flow = &fl
+	cfg.Flow = s.ToConfig()
 	e := &flow.Env{Ctx: context.Background(), Run: gitx.Exec, S: s, Config: cfg, Main: repo, Cwd: repo, Out: io.Discard, Err: io.Discard}
 	if err := flow.EnsureBranches(e); err != nil {
 		t.Fatal(err)

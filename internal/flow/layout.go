@@ -69,7 +69,7 @@ func SwitchMain(e *Env, args ...string) error {
 	return nil
 }
 
-// CreateWorktree adds a worktree for branch under base_dir and runs the post-create hooks.
+// CreateWorktree adds a worktree for branch under the base directory and runs the post-create hooks.
 func CreateWorktree(e *Env, branch string, o gitx.AddOpts) (string, error) {
 	o.Path = e.Config.WorktreePath(e.Main, branch)
 	if _, err := os.Stat(o.Path); err == nil {

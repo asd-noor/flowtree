@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,152 +36,134 @@ func runInitCmd(t *testing.T, d Deps, args ...string) error {
 	return cmd.Execute()
 }
 
-func excludeContent(t *testing.T, repo string) string {
+func loadCfg(t *testing.T, repo string, env map[string]string) config.Config {
 	t.Helper()
-	b, _ := os.ReadFile(filepath.Join(repo, ".git", "info", "exclude"))
-	return string(b)
+	cfg, err := config.Load(gitx.In(context.Background(), repo), repo, func(k string) string { return env[k] })
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg
 }
 
-func TestWithLine(t *testing.T) {
-	cases := []struct {
-		name, in, want string
-		changed        bool
-	}{
-		{"empty", "", "/x\n", true},
-		{"no trailing newline", "a", "a\n/x\n", true},
-		{"trailing newline", "a\n", "a\n/x\n", true},
-		{"present", "a\n/x\n", "a\n/x\n", false},
-		{"present no newline", "/x", "/x", false},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got, changed := withLine(c.in, "/x")
-			if got != c.want || changed != c.changed {
-				t.Fatalf("withLine(%q) = %q, %v; want %q, %v", c.in, got, changed, c.want, c.changed)
-			}
-		})
-	}
+func localKeys(t *testing.T, repo string) string {
+	t.Helper()
+	out, _ := gitx.Exec(context.Background(), repo, "config", "--local", "--get-regexp", `^flowtree\.`)
+	return out
 }
 
-func TestInitDefaultsWritesConfigOnly(t *testing.T) {
+func TestInitDefaultsStoresNothing(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	d, _, _ := initDeps(t, repo, "", true, nil)
+	d, out, _ := initDeps(t, repo, "", true, nil)
 	if err := runInitCmd(t, d, "-d"); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := config.Load(repo)
-	if err != nil || cfg.BaseDir != config.DefaultBaseDir {
-		t.Fatalf("cfg = %+v, err = %v", cfg, err)
+	if keys := localKeys(t, repo); keys != "" {
+		t.Fatalf("defaults must not be stored, git config has %q", keys)
 	}
-	if strings.Contains(excludeContent(t, repo), config.FileName) {
-		t.Fatal("-d must never exclude")
+	if !strings.Contains(out.String(), "Nothing to store") {
+		t.Fatalf("stdout = %q", out.String())
 	}
-}
-
-func TestInitHonoursParentEnv(t *testing.T) {
-	repo := testutil.NewRepo(t)
-	d, _, _ := initDeps(t, repo, "", false, map[string]string{config.ParentEnv: "/srv/trees"})
-	if err := runInitCmd(t, d); err != nil {
-		t.Fatal(err)
-	}
-	cfg, _ := config.Load(repo)
-	if want := "/srv/trees/repo"; cfg.BaseDir != want {
-		t.Fatalf("base_dir = %q, want %q", cfg.BaseDir, want)
+	if _, err := os.Stat(filepath.Join(repo, ".flowtree.json")); err == nil {
+		t.Fatal("no file is written any more")
 	}
 }
 
-func TestInitFlagBaseDirExpandsHome(t *testing.T) {
+func TestInitFlagBaseDirIsStoredAndExpandsHome(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	home, _ := os.UserHomeDir()
 	d, _, _ := initDeps(t, repo, "", false, nil)
 	if err := runInitCmd(t, d, "-w", "~/wt"); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _ := config.Load(repo)
-	if want := filepath.Join(home, "wt"); cfg.BaseDir != want {
-		t.Fatalf("base_dir = %q, want %q", cfg.BaseDir, want)
+	if got, want := loadCfg(t, repo, nil).BaseDir, filepath.Join(home, "wt"); got != want {
+		t.Fatalf("baseDir = %q, want %q", got, want)
+	}
+}
+
+func TestInitFollowsParentEnvInsteadOfStoringIt(t *testing.T) {
+	repo := testutil.NewRepo(t)
+	env := map[string]string{config.ParentEnv: "/srv/trees"}
+	d, _, _ := initDeps(t, repo, "", false, env)
+	if err := runInitCmd(t, d); err != nil {
+		t.Fatal(err)
+	}
+	if keys := localKeys(t, repo); keys != "" {
+		t.Fatalf("nothing should be stored so the default keeps following the environment: %q", keys)
+	}
+	if got, want := loadCfg(t, repo, env).WorktreePath(repo, "work/x"), "/srv/trees/repo/work/x"; got != want {
+		t.Fatalf("worktree path = %q, want %q", got, want)
+	}
+	if got := loadCfg(t, repo, map[string]string{config.ParentEnv: "/other"}).ResolveBaseDir(repo); got != "/other/repo" {
+		t.Fatalf("changing the variable must change the default: %q", got)
 	}
 }
 
 func TestInitPromptsOnTTY(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	d, _, errb := initDeps(t, repo, "../mine\ny\n", true, nil)
+	d, _, errb := initDeps(t, repo, "../mine\n", true, nil)
 	if err := runInitCmd(t, d); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _ := config.Load(repo)
-	if cfg.BaseDir != "../mine" {
-		t.Fatalf("base_dir = %q", cfg.BaseDir)
+	if got := loadCfg(t, repo, nil).BaseDir; got != "../mine" {
+		t.Fatalf("baseDir = %q", got)
 	}
 	if !strings.Contains(errb.String(), "[../worktrees]") {
 		t.Fatalf("prompt should show the default, got %q", errb.String())
 	}
-	if !strings.Contains(excludeContent(t, repo), "/"+config.FileName) {
-		t.Fatal("answering y should exclude")
-	}
 }
 
-func TestInitExcludeDefaultsToNo(t *testing.T) {
-	for _, stdin := range []string{"\n\n", "\n"} { // empty answer, and EOF on the second prompt
-		repo := testutil.NewRepo(t)
-		d, _, _ := initDeps(t, repo, stdin, true, nil)
-		if err := runInitCmd(t, d); err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(excludeContent(t, repo), config.FileName) {
-			t.Fatalf("stdin %q: default must be no", stdin)
-		}
-	}
-}
-
-func TestInitExcludeFlagIsIdempotent(t *testing.T) {
+func TestInitPromptEmptyAnswerKeepsDefault(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	for range 2 {
-		d, _, _ := initDeps(t, repo, "", false, nil)
-		if err := runInitCmd(t, d, "--exclude", "--force"); err != nil {
-			t.Fatal(err)
-		}
+	d, _, errb := initDeps(t, repo, "\n", true, map[string]string{config.ParentEnv: "/srv/trees"})
+	if err := runInitCmd(t, d); err != nil {
+		t.Fatal(err)
 	}
-	if n := strings.Count(excludeContent(t, repo), "/"+config.FileName); n != 1 {
-		t.Fatalf("exclude line appears %d times", n)
+	if keys := localKeys(t, repo); keys != "" {
+		t.Fatalf("accepting the default must not store it: %q", keys)
 	}
-	if out := testutil.Git(t, repo, "status", "--porcelain"); strings.Contains(out, config.FileName) {
-		t.Fatalf("file should be ignored, status: %q", out)
+	if !strings.Contains(errb.String(), "[/srv/trees/repo]") {
+		t.Fatalf("prompt should show the FLOWTREE_PARENT default, got %q", errb.String())
 	}
 }
 
-func TestInitExistingFileIsLeftAlone(t *testing.T) {
+func TestInitExistingSettingsAreLeftAlone(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	testutil.WriteFile(t, config.Path(repo), `{"version":1,"base_dir":"../keep"}`)
+	testutil.Git(t, repo, "config", "flowtree.baseDir", "../keep")
 	d, out, _ := initDeps(t, repo, "", false, nil)
 	if err := runInitCmd(t, d, "-w", "../other"); err != nil {
 		t.Fatal(err)
 	}
-	if cfg, _ := config.Load(repo); cfg.BaseDir != "../keep" {
-		t.Fatalf("file was overwritten: %+v", cfg)
+	if got := loadCfg(t, repo, nil).BaseDir; got != "../keep" {
+		t.Fatalf("settings were overwritten: %q", got)
 	}
 	if !strings.Contains(out.String(), "--force") {
 		t.Fatalf("note should mention --force, got %q", out.String())
 	}
+}
+
+func TestInitForceResetsTheSection(t *testing.T) {
+	repo := testutil.NewRepo(t)
+	testutil.Git(t, repo, "config", "flowtree.baseDir", "../keep")
+	testutil.Git(t, repo, "config", "flowtree.remote", "up")
+	d, _, _ := initDeps(t, repo, "", false, nil)
 	if err := runInitCmd(t, d, "-w", "../other", "--force"); err != nil {
 		t.Fatal(err)
 	}
-	if cfg, _ := config.Load(repo); cfg.BaseDir != "../other" {
-		t.Fatalf("--force did not overwrite: %+v", cfg)
+	cfg := loadCfg(t, repo, nil)
+	if cfg.BaseDir != "../other" || cfg.Remote != "origin" {
+		t.Fatalf("--force should reset, then store: %+v", cfg)
 	}
 }
 
-func TestInitSkipsTrackedFile(t *testing.T) {
+func TestInitForceRepairsABrokenConfiguration(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	testutil.WriteFile(t, config.Path(repo), `{"version":1}`)
-	testutil.Git(t, repo, "add", config.FileName)
-	testutil.Git(t, repo, "commit", "-q", "-m", "track")
-	d, out, _ := initDeps(t, repo, "", false, nil)
-	if err := runInitCmd(t, d, "--force", "--exclude"); err != nil {
-		t.Fatal(err)
+	testutil.Git(t, repo, "config", "flowtree.typo", "1")
+	d, _, _ := initDeps(t, repo, "", false, nil)
+	if err := runInitCmd(t, d, "-w", "../x"); err == nil {
+		t.Fatal("a broken configuration should be reported")
 	}
-	if strings.Contains(excludeContent(t, repo), config.FileName) || !strings.Contains(out.String(), "tracked") {
-		t.Fatalf("tracked file must not be excluded; out %q", out.String())
+	if err := runInitCmd(t, d, "-w", "../x", "--force"); err != nil {
+		t.Fatalf("--force must be able to repair it: %v", err)
 	}
 }
 
@@ -189,20 +172,23 @@ func TestInitWorksFromLinkedWorktree(t *testing.T) {
 	wt := filepath.Join(filepath.Dir(repo), "wt")
 	testutil.Git(t, repo, "worktree", "add", "-q", "-b", "x", wt)
 	d, _, _ := initDeps(t, wt, "", false, nil)
-	if err := runInitCmd(t, d, "--exclude"); err != nil {
+	if err := runInitCmd(t, d, "-w", "../mine"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(config.Path(repo)); err != nil {
-		t.Fatalf("config must land in the main worktree: %v", err)
-	}
-	if !strings.Contains(excludeContent(t, repo), "/"+config.FileName) {
-		t.Fatal("exclude must go to the common git dir")
+	if got := loadCfg(t, repo, nil).BaseDir; got != "../mine" {
+		t.Fatalf("settings must be visible from the main worktree: %q", got)
 	}
 }
 
-func TestInitOutsideRepoFails(t *testing.T) {
-	d, _, _ := initDeps(t, t.TempDir(), "", false, nil)
-	if err := runInitCmd(t, d); err == nil {
-		t.Fatal("expected an error outside a repository")
+func TestInitFlowExtendsExistingSettings(t *testing.T) {
+	repo := testutil.NewRepo(t)
+	testutil.Git(t, repo, "config", "flowtree.baseDir", "../keep")
+	d, _, _ := initDeps(t, repo, "", false, nil)
+	if err := runInitCmd(t, d, "--flow", "-d"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := loadCfg(t, repo, nil)
+	if cfg.BaseDir != "../keep" || !cfg.FlowEnabled() || cfg.Flow.Master != "main" || cfg.Flow.Develop != "develop" {
+		t.Fatalf("%+v", cfg)
 	}
 }

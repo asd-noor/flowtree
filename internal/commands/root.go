@@ -12,6 +12,7 @@ type Constructor func(Deps) *cobra.Command
 // Constructors lists every top-level command; keep it sorted.
 var Constructors = []Constructor{
 	newAddCmd,
+	newConfigCmd,
 	newExecCmd,
 	newInitCmd,
 	newInstallSkillCmd,

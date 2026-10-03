@@ -19,7 +19,7 @@ replaces git-flow's `feature`, `bugfix` and `support`; there is no `feature` ali
 ## The main-checkout rule
 
 The main checkout (the directory you cloned into) rests on `develop`. It only ever holds `master`, `develop`
-or a `release/*` branch. `work/*` and `hotfix/*` branches each get a worktree at `<base_dir>/<branch>`.
+or a `release/*` branch. `work/*` and `hotfix/*` branches each get a worktree at `<baseDir>/<branch>`.
 
 Releases are the exception because they only touch a changelog and a version string: `release start` switches
 the main checkout onto the release branch, and `release finish` switches it back to develop. This needs a clean
@@ -34,7 +34,7 @@ must be clean), give the branch a worktree and say so on stderr.
 ```
 flowtree init --flow                 # once per clone: settings, master + develop
 
-flowtree work start login            # work/login from develop, in <base_dir>/work/login
+flowtree work start login            # work/login from develop, in <baseDir>/work/login
 flowtree work finish                 # merge into develop, remove worktree and branch
 
 flowtree release start 1.2.0         # release/1.2.0 from develop; main checkout switches to it
@@ -98,7 +98,7 @@ and `checkout` open a picker over the open branches of that kind.
 - A conflicting merge is aborted rather than left in progress.
 - While a release is open, `work finish` and `hotfix finish` still merge into develop, through a throwaway
   worktree. `hotfix finish` back-merges into develop only, as AVH does.
-- Settings live in `.flowtree.json`, not in git config.
+- Settings live in the `flowtree` section of git config (`flowtree config`), hooks in a file inside `.git/`.
 
 ## Known limits
 

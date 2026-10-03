@@ -1,37 +1,49 @@
-# .flowtree.json
+# flowtree settings
 
-Lives in the main worktree. It is per-machine and normally not committed, so do not expect it in a fresh clone:
-run `flowtree init --flow -d` once. Create or change it with `init` (`-f` overwrites); editing it by hand is fine.
+Settings live in git config, section `flowtree`: in the repository's `.git/config` (per repository, never
+committed) or, with `--global`, for every repository. A fresh clone has none: run `flowtree init --flow -d` once.
+There is no config file in the working tree.
 
-```json
-{
-  "version": 1,
-  "base_dir": "../worktrees",
-  "remote": "origin",
-  "flow": {
-    "master": "main", "develop": "develop",
-    "work_prefix": "work/", "release_prefix": "release/", "hotfix_prefix": "hotfix/",
-    "version_tag_prefix": "v"
-  },
-  "hooks": {
-    "post_create": [
-      { "type": "copy", "from": ".env" },
-      { "type": "symlink", "from": "node_modules", "to": "node_modules" },
-      { "type": "command", "command": "npm ci", "env": { "NODE_ENV": "development" }, "work_dir": "." }
-    ]
-  }
-}
+```sh
+flowtree config                       # every setting, with its origin: (local) (global) (system) (default)
+flowtree config baseDir               # print one (the default when unset)
+flowtree config baseDir ~/wt/api      # set it for this repository; --global for every repository
+flowtree config --unset baseDir
+flowtree config hooks                 # path and contents of the hooks file
 ```
 
-Unknown fields are errors. `master` and `develop` must differ and the prefixes must differ.
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `baseDir` | `$FLOWTREE_PARENT/<repo name>` if that variable is defined, else `../worktrees` | Where worktrees go: `<baseDir>/<branch>`. Relative to the main worktree; `~` is expanded. |
+| `remote` | `origin` | Remote for fetch, push, track, delete and sync checks. |
+| `master`, `develop` | none (set by `init --flow`) | Production and integration branches. Flow is set up when both are set. |
+| `workPrefix`, `releasePrefix`, `hotfixPrefix` | `work/`, `release/`, `hotfix/` | Branch prefixes; they must differ. |
+| `versionTagPrefix` | empty | Prefix of version tags (`v` gives `v1.2.0`). |
+
+Key names are case-insensitive and may start with `flowtree.`. An unknown `flowtree.*` key is an error. Local
+settings win over global ones, global over system, then the default.
 
 ## Worktree directory
 
-`base_dir` (default `../worktrees`, relative to the main worktree; `~` is expanded). A branch `work/login` lives at
-`<base_dir>/work/login`. `FLOWTREE_PARENT=~/worktrees` makes `init` default to `<parent>/<repo directory name>`.
-Changing `base_dir` does not move existing worktrees: run `flowtree relocate -n`, then `flowtree relocate`.
+A branch `work/login` lives at `<baseDir>/work/login`. `FLOWTREE_PARENT=~/worktrees` is the default when `baseDir`
+is not set (`~/worktrees/<repo directory name>`); an explicit `baseDir` wins. Changing `baseDir` does not move
+existing worktrees: run `flowtree relocate -n`, then `flowtree relocate`.
 
-## Hooks (`hooks.post_create`)
+## Hooks
+
+`post_create` hooks live in `<git-common-dir>/flowtree-hooks.json` (usually `.git/flowtree-hooks.json`), a JSON file
+inside the git directory, so it is never committed; `flowtree config hooks` shows the exact path. Unknown fields and
+invalid hooks are errors; a missing file means no hooks.
+
+```json
+{
+  "post_create": [
+    { "type": "copy", "from": ".env" },
+    { "type": "symlink", "from": "node_modules", "to": "node_modules" },
+    { "type": "command", "command": "npm ci", "env": { "NODE_ENV": "development" }, "work_dir": "." }
+  ]
+}
+```
 
 Run in order after every worktree flowtree creates (`add`, `<kind> start`, `checkout`, `track`, `switch`, `pull`).
 A failing hook prints a warning; the worktree stays.

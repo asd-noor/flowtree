@@ -10,8 +10,8 @@ func newRelocateCmd(d Deps) *cobra.Command {
 	var dry bool
 	cmd := &cobra.Command{
 		Use:   "relocate [-n]",
-		Short: "Move topic worktrees to <base_dir>/<branch> after base_dir changed",
-		Long: "Moves work and hotfix worktrees to where base_dir says they belong. Locked worktrees,\n" +
+		Short: "Move topic worktrees to <base dir>/<branch> after the base directory changed",
+		Long: "Moves work and hotfix worktrees to where the base directory says they belong. Locked worktrees,\n" +
 			"missing directories and occupied targets are skipped with a note. It refuses to run while\n" +
 			"you are inside a worktree it would move.",
 		Args: cobra.NoArgs,

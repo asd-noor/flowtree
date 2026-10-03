@@ -84,11 +84,12 @@ func (d Deps) OpenRepo(ctx context.Context) (Repo, error) {
 		return Repo{}, fmt.Errorf("not in a git repository")
 	}
 	main := wts[0].Path
-	cfg, err := config.Load(main)
+	g := gitx.Bind(ctx, d.Run, main)
+	cfg, err := config.Load(g, main, d.Getenv)
 	if err != nil {
 		return Repo{}, err
 	}
-	return Repo{Git: gitx.Bind(ctx, d.Run, main), Main: main, Cwd: cwd, Config: cfg, Worktrees: wts}, nil
+	return Repo{Git: g, Main: main, Cwd: cwd, Config: cfg, Worktrees: wts}, nil
 }
 
 // Printf writes to stdout, ignoring write errors like fmt.Printf does.

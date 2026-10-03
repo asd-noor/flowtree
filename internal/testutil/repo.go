@@ -8,6 +8,11 @@ import (
 	"testing"
 )
 
+var identity = map[string]string{
+	"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
+	"GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com",
+}
+
 // Git runs git in dir and fails the test on error.
 func Git(t testing.TB, dir string, args ...string) string {
 	t.Helper()
@@ -30,6 +35,12 @@ func Git(t testing.TB, dir string, args ...string) string {
 // Worktrees default to <tmp>/worktrees, outside the repo, as in real use.
 func NewRepo(t testing.TB) string {
 	t.Helper()
+	// Keep the user's own git configuration (global flowtree.* settings, signing, hooks) out of tests.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+	for k, v := range identity {
+		t.Setenv(k, v) // flowtree's own git calls (merges, tags) need an identity too
+	}
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)

@@ -1,4 +1,4 @@
-// Package hooks runs the post-create hooks configured in .flowtree.json.
+// Package hooks runs the post-create hooks (see config.HooksFileName).
 package hooks
 
 import (

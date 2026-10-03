@@ -1,6 +1,6 @@
 ---
 name: flowtree
-description: Drives the flowtree CLI, which manages git worktrees and a git-flow variant where work/* and hotfix/* branches get their own worktree (release/* switches the main checkout). Use when a repo has a .flowtree.json, or when asked to start, finish, publish or clean up feature/bugfix/release/hotfix work with git-flow semantics in isolated worktrees, tag a release, ship a hotfix, create or remove a worktree, run something in a worktree, set up worktree post-create hooks (copy .env, symlink, run a setup command), or move worktrees to another directory.
+description: Drives the flowtree CLI, which manages git worktrees and a git-flow variant where work/* and hotfix/* branches get their own worktree (release/* switches the main checkout). Use when a repo has flowtree settings (`git config --get flowtree.develop` prints a value), or when asked to start, finish, publish or clean up feature/bugfix/release/hotfix work with git-flow semantics in isolated worktrees, tag a release, ship a hotfix, create or remove a worktree, run something in a worktree, set up worktree post-create hooks (copy .env, symlink, run a setup command), or move worktrees to another directory.
 license: GPL-3.0-or-later
 compatibility: Requires git (2.17 or newer) and the flowtree binary on PATH. Needs a shell that can run commands.
 metadata:
@@ -18,7 +18,7 @@ where topic branches live in their own worktrees**. Branch model:
 | `release` | `release/<version>` | `develop` | `master` + tag, tag merged into `develop` | the main checkout |
 | `hotfix` | `hotfix/<version>` | `master` | `master` + tag, tag merged into `develop` | its own worktree |
 
-The production branch may be called `main`; the branch names and prefixes are in `.flowtree.json`.
+The production branch may be called `main`; the branch names and prefixes are in git config (`flowtree config` lists them).
 
 ## Rules for agents
 
@@ -53,7 +53,7 @@ The production branch may be called `main`; the branch names and prefixes are in
 ## Workflow
 
 Check the repo is set up: any `flowtree work list` fails with "flow is not set up in this repository" if not.
-Then run `flowtree init --flow -d` (it creates `master`/`develop` if missing and writes `.flowtree.json`); confirm
+Then run `flowtree init --flow -d` (it creates `master`/`develop` if missing and stores the settings in git config); confirm
 with the user first if the repo already has branches or a different layout.
 
 **Work item**
@@ -103,4 +103,4 @@ re-run `finish`.
 
 - Every command and flag: [references/commands.md](references/commands.md)
 - Failure modes and recovery: [references/troubleshooting.md](references/troubleshooting.md)
-- `.flowtree.json`, worktree directory and post-create hooks: [references/config.md](references/config.md)
+- Settings (`flowtree config`), worktree directory and post-create hooks: [references/config.md](references/config.md)

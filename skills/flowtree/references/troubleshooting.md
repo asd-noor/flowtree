@@ -4,7 +4,7 @@ Messages are printed as `Error: <message>` on stderr; the first letter is lowerc
 
 | Message | Meaning | Fix |
 |---------|---------|-----|
-| `flow is not set up in this repository; run 'flowtree init --flow'` | No flow section in `.flowtree.json` (or no file). | `flowtree init --flow -d` (confirm with the user if the repo already has branches). |
+| `flow is not set up in this repository; run 'flowtree init --flow'` | `flowtree.master` / `flowtree.develop` are not set in git config. | `flowtree init --flow -d` (confirm with the user if the repo already has branches). |
 | `could not merge 'X' into 'Y': ...` followed by `Nothing was changed.` | The merge was aborted. Git's own message says why. | Conflicts: in the topic worktree `git merge Y`, resolve, commit, re-run `finish`. "untracked working tree files would be overwritten": move or delete those files in Y's worktree, re-run. |
 | `finish was aborted due to conflicts during rebase` | `finish -r` stopped; the rebase was aborted. | Rebase by hand in that worktree (`git rebase develop`), resolve, `git rebase --continue`, re-run `finish`. |
 | `working tree '<path>' contains unstaged or uncommitted changes. Aborting` | The topic worktree, or the worktree holding the target branch (`develop`/`master`, often the main checkout), has tracked changes. | Commit or stash there, re-run. Untracked files do not count. |
@@ -12,6 +12,7 @@ Messages are printed as `Error: <message>` on stderr; the first letter is lowerc
 | `tag 'X' already exists; pick another name` | Version already tagged. | Choose another version, or `-T <name>` on finish. |
 | `branch 'X' is behind 'origin/X'` | A long-lived branch is behind the remote. | Update it first: `git -C <worktree-of-X> pull --ff-only` (or `git fetch origin X:X` if it is not checked out anywhere). |
 | `branches 'X' and 'origin/X' have diverged` | Local and remote history differ. | Stop and ask the user; do not force anything. |
+| `unknown setting 'flowtree.x' (known: ...)` | A `flowtree.*` key in some git config scope is misspelled or does not exist. | Remove it: `git config --unset flowtree.x` (add `--global` if it is in the global config). |
 | `branch 'X' already exists; pick another name` / `... already exists on origin; use 'flowtree <kind> track <name>'` | The name is taken locally or on the remote. | Pick another name, or `track` the remote one. |
 | `Warning: could not remove worktree ... Branch 'X' kept` | The worktree has untracked/ignored files. | Inspect them; if disposable, re-run `finish -D`, or `git worktree remove --force <path>` then `git branch -D <branch>`. |
 | `Warning: could not delete 'X' from origin` | The remote refused (protected branch, no permission). | Informational; the local finish succeeded. |
@@ -30,7 +31,7 @@ run the same `finish` command again: it prints "Resuming...", skips the merge an
 ## Checking state
 
 ```sh
-cat .flowtree.json        # settings, in the main worktree
+flowtree config           # settings and where they come from
 flowtree work list -v     # also: release list, hotfix list
 flowtree list             # worktrees
 git worktree list         # ground truth for where worktrees are

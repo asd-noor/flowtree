@@ -31,19 +31,8 @@ func bindFlowFlags(f *pflag.FlagSet, o *flowOpts) {
 	f.StringVar(&o.remote, "remote", "", "remote used for fetch and push (default origin)")
 }
 
-// extendExisting keeps an existing file when --flow only needs to add the flow section.
-func extendExisting(r *initRun) error {
-	cfg, err := config.Load(r.main)
-	if err != nil {
-		return err
-	}
-	if cfg.Flow != nil {
-		r.d.Printf("%s already has flow settings; nothing changed (use --force to overwrite)\n", config.FileName)
-		return errStop
-	}
-	r.cfg, r.kept = cfg, true
-	return nil
-}
+// flowSettingsIn is the outcome of the flow questions.
+type flowSettingsIn = flow.Settings
 
 func chooseFlowSettings(_ context.Context, r *initRun) error {
 	if !r.opts.flow.enabled {
@@ -56,8 +45,11 @@ func chooseFlowSettings(_ context.Context, r *initRun) error {
 	if err != nil {
 		return err
 	}
-	fl := s.ToConfig()
-	r.cfg.Flow, r.cfg.Remote = &fl, s.Remote
+	r.flowS = &s
+	r.pairs = append(r.pairs, nonBlank(s.ToConfig().Pairs())...)
+	if s.Remote != config.DefaultRemote {
+		r.pairs = append(r.pairs, config.Pair{Key: "remote", Value: s.Remote})
+	}
 	return nil
 }
 
@@ -66,7 +58,7 @@ func (r *initRun) flowSettings() (flow.Settings, error) {
 	o := r.opts.flow
 	s := flow.DefaultSettings()
 	s.Master = flow.DetectMaster(r.git)
-	s.Remote = firstNonEmpty(r.cfg.Remote, s.Remote)
+	s.Remote = r.cfg.Remote
 	fields := []struct {
 		prompt string
 		flag   string
@@ -100,24 +92,26 @@ func (r *initRun) chooseValue(prompt, flag, def string) string {
 	return def
 }
 
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
-// setupFlowBranches creates master and develop once the settings are saved.
+// setupFlowBranches creates master and develop once the settings are stored.
 func setupFlowBranches(ctx context.Context, r *initRun) error {
 	if !r.opts.flow.enabled {
 		return nil
 	}
 	s, err := flow.FromConfig(r.cfg)
 	if err != nil {
-		return errors.New("internal error: flow settings missing after init")
+		return err
 	}
 	repo := Repo{Git: r.git, Main: r.main, Cwd: r.main, Config: r.cfg}
 	return flow.EnsureBranches(r.d.flowEnv(ctx, repo, s))
+}
+
+// nonBlank drops pairs with an empty value: an unset tag prefix needs no key (the others are never empty).
+func nonBlank(pairs []config.Pair) []config.Pair {
+	var out []config.Pair
+	for _, p := range pairs {
+		if p.Value != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

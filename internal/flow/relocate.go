@@ -10,7 +10,7 @@ import (
 	"flowtree/internal/gitx"
 )
 
-// Move is one worktree to move to its place under base_dir.
+// Move is one worktree to move to its place under the base directory.
 type Move struct{ Branch, From, To string }
 
 // Skip is a worktree relocate leaves alone, and why.
@@ -28,7 +28,7 @@ type Probe struct {
 	Exists func(path string) bool
 }
 
-// PlanRelocate decides which topic worktrees move to <base_dir>/<branch>. It is pure: the probe is
+// PlanRelocate decides which topic worktrees move to <base dir>/<branch>. It is pure: the probe is
 // the only way it looks at the world. It fails when cwd is inside a worktree that would move.
 func PlanRelocate(wts []gitx.Worktree, s Settings, cfg config.Config, main, cwd string, p Probe) (RelocatePlan, error) {
 	var plan RelocatePlan
@@ -51,7 +51,7 @@ func PlanRelocate(wts []gitx.Worktree, s Settings, cfg config.Config, main, cwd 
 	return plan, nil
 }
 
-// relocatable: the main worktree never moves, and only topic branches live under base_dir.
+// relocatable: the main worktree never moves, and only topic branches live under the base directory.
 func relocatable(s Settings, w gitx.Worktree) bool {
 	if w.Main || w.Branch == "" {
 		return false

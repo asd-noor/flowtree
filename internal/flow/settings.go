@@ -38,12 +38,16 @@ func DefaultSettings() Settings {
 
 // FromConfig reads the flow section of a config. It fails when `init --flow` has not run.
 func FromConfig(c config.Config) (Settings, error) {
-	if c.Flow == nil {
+	if !c.FlowEnabled() {
 		return Settings{}, fmt.Errorf("flow is not set up in this repository; run 'flowtree init --flow'")
 	}
 	s := DefaultSettings()
 	s.Remote = c.Remote
-	return s.override(*c.Flow), nil
+	s = s.override(c.Flow)
+	if err := s.Validate(); err != nil {
+		return Settings{}, fmt.Errorf("invalid flow settings: %w", err)
+	}
+	return s, nil
 }
 
 func (s Settings) override(f config.Flow) Settings {
@@ -61,7 +65,7 @@ func (s Settings) override(f config.Flow) Settings {
 	return s
 }
 
-// ToConfig is the persisted form of the settings.
+// ToConfig is the stored form of the settings.
 func (s Settings) ToConfig() config.Flow {
 	return config.Flow{
 		Master: s.Master, Develop: s.Develop,

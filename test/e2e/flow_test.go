@@ -97,7 +97,7 @@ func TestWorkFinishRebase(t *testing.T) {
 	wt := worktreeDir(repo, "work/a")
 	commitFile(t, wt, "a")
 	commitFile(t, repo, "on-develop") // develop moved on
-	Run(t, repo, "work", "finish", "a", "-r").MustSucceed(t)
+	Run(t, repo, "work", "finish", "a").MustSucceed(t)
 	if out := testutil.Git(t, repo, "log", "--merges", "--oneline", "develop"); out != "" {
 		t.Errorf("rebased finish should be linear:\n%s", out)
 	}
@@ -219,13 +219,71 @@ func TestFinishConflictChangesNothing(t *testing.T) {
 	testutil.Git(t, repo, "commit", "-q", "-am", "develop edit")
 	before := testutil.Git(t, repo, "rev-parse", "develop")
 
-	res := Run(t, repo, "work", "finish", "a", "--no-ff").MustFail(t)
+	res := Run(t, repo, "work", "finish", "a", "--no-rebase", "--no-ff").MustFail(t)
 	if !strings.Contains(res.Stderr, "Nothing was changed") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 	if testutil.Git(t, repo, "rev-parse", "develop") != before || testutil.Git(t, repo, "status", "--porcelain", "--untracked-files=no") != "" || !exists(wt) {
 		t.Error("state changed after a failed finish")
 	}
+}
+
+func TestWorkFinishRebaseConflictStopsBeforeMerging(t *testing.T) {
+	repo := flowRepo(t)
+	Run(t, repo, "work", "start", "a").MustSucceed(t)
+	wt := worktreeDir(repo, "work/a")
+	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "from work\n")
+	testutil.Git(t, wt, "commit", "-q", "-am", "work edit")
+	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "from develop\n")
+	testutil.Git(t, repo, "commit", "-q", "-am", "develop edit")
+	before := testutil.Git(t, repo, "rev-parse", "develop")
+
+	res := Run(t, repo, "work", "finish", "a").MustFail(t)
+	if !strings.Contains(res.Stderr, "conflicts during rebase") {
+		t.Errorf("stderr = %q", res.Stderr)
+	}
+	if testutil.Git(t, repo, "rev-parse", "develop") != before || !exists(wt) {
+		t.Error("a failed rebase must leave develop and the worktree alone")
+	}
+}
+
+func TestWorkFinishNoRebaseKeepsTheBranchBase(t *testing.T) {
+	repo := flowRepo(t)
+	Run(t, repo, "work", "start", "a").MustSucceed(t)
+	commitFile(t, worktreeDir(repo, "work/a"), "a")
+	commitFile(t, repo, "on-develop")
+	Run(t, repo, "work", "finish", "a", "--no-rebase").MustSucceed(t)
+	if out := testutil.Git(t, repo, "log", "--merges", "--oneline", "develop"); out == "" {
+		t.Error("without a rebase a diverged branch needs a merge commit")
+	}
+}
+
+func TestWorkFinishRebaseFollowsConfig(t *testing.T) {
+	for _, tc := range []struct {
+		flag  string
+		merge bool // a merge commit is expected on develop
+	}{{"", true}, {"-r", false}} {
+		repo := flowRepo(t)
+		testutil.Git(t, repo, "config", "flowtree.finishRebase", "false")
+		Run(t, repo, "work", "start", "a").MustSucceed(t)
+		commitFile(t, worktreeDir(repo, "work/a"), "a")
+		commitFile(t, repo, "on-develop")
+		args := []string{"work", "finish", "a"}
+		if tc.flag != "" {
+			args = append(args, tc.flag)
+		}
+		Run(t, repo, args...).MustSucceed(t)
+		merged := testutil.Git(t, repo, "log", "--merges", "--oneline", "develop") != ""
+		if merged != tc.merge {
+			t.Errorf("finishRebase=false, flag %q: merge commit = %v, want %v", tc.flag, merged, tc.merge)
+		}
+	}
+}
+
+func TestFinishRebaseConfigRejectsNonBool(t *testing.T) {
+	repo := flowRepo(t)
+	testutil.Git(t, repo, "config", "flowtree.finishRebase", "maybe")
+	Run(t, repo, "work", "finish", "a").MustFail(t)
 }
 
 func TestFinishRefusesDirtyWorktree(t *testing.T) {

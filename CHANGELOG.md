@@ -4,6 +4,14 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [Unreleased]
+
+### Changed
+
+- `work finish` now rebases the branch onto develop before merging, so the merge is always clean and, by default,
+  linear. Pass `--no-rebase` to merge as is, or set
+  `flowtree.finishRebase false` to make that the default (`-r` then forces the rebase for one run).
+
 ## [0.1.0] - 2026-10-03
 
 First release.

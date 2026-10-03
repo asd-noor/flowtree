@@ -52,7 +52,7 @@ worktree, and moves you out of one that `finish` or `remove` deleted.
 | git | Needed for |
 |-----|------------|
 | 2.17 | `git worktree remove` and `move` (`remove`, `relocate`, every `finish`/`delete` cleanup) |
-| 2.18 | `rebase --rebase-merges`, only for `work rebase -p` and `work finish -r -p` |
+| 2.18 | `rebase --rebase-merges`, only for `work rebase -p` and `work finish -p` |
 | 2.31 | `relocate` skips locked worktrees; on older git it stops with git's own error at the first locked one |
 
 Settings are read without `git config --show-scope` (2.26), so they work on the same git versions.

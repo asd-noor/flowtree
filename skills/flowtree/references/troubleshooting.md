@@ -6,7 +6,7 @@ Messages are printed as `Error: <message>` on stderr; the first letter is lowerc
 |---------|---------|-----|
 | `flow is not set up in this repository; run 'flowtree init --flow'` | `flowtree.master` / `flowtree.develop` are not set in git config. | `flowtree init --flow -d` (confirm with the user if the repo already has branches). |
 | `could not merge 'X' into 'Y': ...` followed by `Nothing was changed.` | The merge was aborted. Git's own message says why. | Conflicts: in the topic worktree `git merge Y`, resolve, commit, re-run `finish`. "untracked working tree files would be overwritten": move or delete those files in Y's worktree, re-run. |
-| `finish was aborted due to conflicts during rebase` | `finish -r` stopped; the rebase was aborted. | Rebase by hand in that worktree (`git rebase develop`), resolve, `git rebase --continue`, re-run `finish`. |
+| `finish was aborted due to conflicts during rebase` | `finish` stopped; the rebase was aborted. | Rebase by hand in that worktree (`git rebase develop`), resolve, `git rebase --continue`, re-run `finish`. |
 | `working tree '<path>' contains unstaged or uncommitted changes. Aborting` | The topic worktree, or the worktree holding the target branch (`develop`/`master`, often the main checkout), has tracked changes. | Commit or stash there, re-run. Untracked files do not count. |
 | `there is an existing release branch 'X'; finish that one first` (also hotfix) | Only one of each may be open. | Finish or `delete` the open one (ask the user which). |
 | `tag 'X' already exists; pick another name` | Version already tagged. | Choose another version, or `-T <name>` on finish. |

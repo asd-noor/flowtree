@@ -62,9 +62,9 @@ with the user first if the repo already has branches or a different layout.
 ```sh
 flowtree work start <name>        # prints "A worktree for it was created at '<path>'"
 # edit + commit inside <path>
-flowtree work finish <name>       # run from anywhere; fast-forwards into develop when possible
+flowtree work finish <name>       # run from anywhere; rebases onto develop, then fast-forwards into it
 ```
-Options: `--no-ff` (always a merge commit), `-S` (squash), `-r` (rebase onto develop first), `-k` (keep branches).
+Options: `--no-ff` (always a merge commit), `-S` (squash), `--no-rebase` / `-r` (skip / force the rebase onto develop; default is the `flowtree.finishRebase` setting, on), `-k` (keep branches).
 
 **Release**
 ```sh

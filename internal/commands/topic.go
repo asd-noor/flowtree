@@ -292,6 +292,7 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 	bindCommonFinish(cmd.Flags(), &o, &keep, &dry)
 	if k == flow.Work {
 		bindWorkFinish(cmd.Flags(), &o)
+		cmd.MarkFlagsMutuallyExclusive("rebase", "no-rebase")
 	} else {
 		bindReleaseFinish(cmd.Flags(), &o, k)
 	}
@@ -316,7 +317,8 @@ func bindCommonFinish(f *pflag.FlagSet, o *flow.FinishOpts, keep, dry *bool) {
 }
 
 func bindWorkFinish(f *pflag.FlagSet, o *flow.FinishOpts) {
-	f.BoolVarP(&o.Rebase, "rebase", "r", false, "rebase onto develop before merging")
+	f.BoolVarP(&o.Rebase, "rebase", "r", false, "rebase onto develop before merging (default; see flowtree.finishRebase)")
+	f.BoolVar(&o.NoRebase, "no-rebase", false, "do not rebase onto develop before merging")
 	f.BoolVarP(&o.Preserve, "preserve-merges", "p", false, "keep merges while rebasing")
 	f.BoolVar(&o.NoFF, "no-ff", false, "always create a merge commit")
 	f.BoolVar(&o.Push, "push", false, "push develop afterwards")

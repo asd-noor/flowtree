@@ -47,7 +47,7 @@ the worktree you are in. `work` names also accept a unique prefix. Worktree name
 | `work rebase [-p] [<name>]` | Rebase onto `develop` inside the worktree (`-i` needs a terminal; do not use it). |
 | `work pull <remote> [<name>]` | Fast-forward pull of the branch from `<remote>`, creating the branch and worktree if missing. |
 
-Flags: `-F` fetch first; `-r` rebase onto develop before merging; `-p` preserve merges while rebasing; `-k` keep
+Flags: `-F` fetch first; `--no-rebase` skips the rebase onto develop before merging and `-r` forces it (default: `flowtree.finishRebase`, on); `-p` preserve merges while rebasing; `-k` keep
 local and remote branch (the worktree is still removed); `--keeplocal`/`--keepremote` keep only that copy;
 `-D` force worktree removal even with untracked files; `-S` squash; `--no-ff` always create a merge commit;
 `--push` push `develop` afterwards. The default merge is a fast-forward when possible.

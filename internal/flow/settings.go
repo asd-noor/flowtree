@@ -25,6 +25,7 @@ type Settings struct {
 	HotfixPrefix    string
 	VersionTag      string // prefix of version tags, e.g. "v"
 	Remote          string
+	FinishRebase    bool // `work finish` rebases onto develop first
 }
 
 // DefaultSettings returns the settings used by `init --flow` when nothing else is asked for.
@@ -32,7 +33,7 @@ func DefaultSettings() Settings {
 	return Settings{
 		Master: DefaultMaster, Develop: DefaultDevelop,
 		WorkPrefix: DefaultWorkPrefix, ReleasePrefix: DefaultRelPrefix, HotfixPrefix: DefaultHotPrefix,
-		Remote: config.DefaultRemote,
+		Remote: config.DefaultRemote, FinishRebase: true,
 	}
 }
 
@@ -62,6 +63,9 @@ func (s Settings) override(f config.Flow) Settings {
 	pick(&s.ReleasePrefix, f.RelPrefix)
 	pick(&s.HotfixPrefix, f.HotPrefix)
 	s.VersionTag = f.VersionTag
+	if f.FinishRebase != "" {
+		s.FinishRebase = f.FinishRebase == "true"
+	}
 	return s
 }
 

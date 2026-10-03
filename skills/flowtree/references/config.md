@@ -19,6 +19,7 @@ flowtree config hooks                 # path and contents of the hooks file
 | `master`, `develop` | none (set by `init --flow`) | Production and integration branches. Flow is set up when both are set. |
 | `workPrefix`, `releasePrefix`, `hotfixPrefix` | `work/`, `release/`, `hotfix/` | Branch prefixes; they must differ. |
 | `versionTagPrefix` | empty | Prefix of version tags (`v` gives `v1.2.0`). |
+| `finishRebase` | `true` | Whether `work finish` rebases the branch onto develop before merging. `finish --rebase` / `--no-rebase` override it per run. |
 
 Key names are case-insensitive and may start with `flowtree.`. An unknown `flowtree.*` key is an error. Local
 settings win over global ones, global over system, then the default.

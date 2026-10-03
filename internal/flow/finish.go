@@ -17,7 +17,8 @@ type FinishOpts struct {
 	Squash  bool
 
 	// work
-	Rebase   bool
+	Rebase   bool // rebase onto develop first, even when flowtree.finishRebase is false
+	NoRebase bool // merge without first rebasing onto develop
 	Preserve bool // keep merges while rebasing
 	NoFF     bool
 
@@ -31,6 +32,9 @@ type FinishOpts struct {
 	FFMaster    bool // release only
 	TagName     string
 }
+
+// rebases reports whether work finish rebases first: the flags win over flowtree.finishRebase.
+func (o FinishOpts) rebases(s Settings) bool { return (s.FinishRebase || o.Rebase) && !o.NoRebase }
 
 // PlanFinish checks the branch and returns the steps that merge it and clean up.
 func PlanFinish(e *Env, o FinishOpts) ([]Step, error) {
@@ -65,7 +69,7 @@ func planFinishWork(e *Env, o FinishOpts, branch string) ([]Step, error) {
 	return Plan(
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
 		One("check "+e.S.Develop+" against "+e.S.Remote, func(e *Env) error { return CheckSync(e, e.S.Develop) }),
-		If(o.Rebase, One("rebase "+branch+" onto "+e.S.Develop, func(e *Env) error { return rebaseOnto(e, branch, o.Preserve) })),
+		If(o.rebases(e.S), One("rebase "+branch+" onto "+e.S.Develop, func(e *Env) error { return rebaseOnto(e, branch, o.Preserve) })),
 		One(fmt.Sprintf("merge %s into %s (%s)", branch, e.S.Develop, modeName(mode)), func(e *Env) error {
 			if err := MergeInto(e, e.S.Develop, branch, mode, ""); err != nil {
 				return err

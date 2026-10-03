@@ -4,8 +4,8 @@ flowtree contains code ported from and modelled on the following projects.
 
 ## wtp (Worktree Plus)
 
-The worktree management commands (`add`, `list`, `remove`, `exec`, `print-dir`, hooks and shell
-integration) are a Go port of parts of wtp, https://github.com/satococoa/wtp, used under the MIT license:
+The worktree management commands (`add`, `list`, `remove`, `exec`, `print-dir`) and the post-create hooks
+are a Go port of parts of wtp, https://github.com/satococoa/wtp, used under the MIT license:
 
 MIT License
 

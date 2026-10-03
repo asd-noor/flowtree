@@ -10,7 +10,8 @@ All notable changes to flowtree are documented here. The format follows
 
 - `work finish` now rebases the branch onto develop before merging, so the merge is always clean and, by default,
   linear. Pass `--no-rebase` to merge as is, or set
-  `flowtree.finishRebase false` to make that the default (`-r` then forces the rebase for one run).
+  `flowtree.finishRebase false` to make that the default (`-r` then forces the rebase for one run). `-S` skips the rebase, and a warning is printed when the rebase
+  rewrote commits that were already pushed.
 
 ## [0.1.0] - 2026-10-03
 

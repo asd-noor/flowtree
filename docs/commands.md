@@ -152,7 +152,7 @@ hotfix). The behaviour behind these is described in [git-flow.md](git-flow.md).
 flowtree work finish [-F] [-r | --no-rebase] [-p] [-S] [--no-ff] [--push] [-k] [--keeplocal] [--keepremote] [-D] [--dry-run] [<name>]
 ```
 
-`-F` fetch first; the branch is first rebased onto develop in its worktree (`-p` keeps merges; `--no-rebase` skips it, `-r` forces it; the default is the `finishRebase` setting, on unless configured otherwise); `-S` squash; `--no-ff` always make a merge
+`-F` fetch first; the branch is first rebased onto develop in its worktree (not with `-S` unless `-r`; a warning says when commits already on the remote were rewritten) (`-p` keeps merges; `--no-rebase` skips it, `-r` forces it; the default is the `finishRebase` setting, on unless configured otherwise); `-S` squash; `--no-ff` always make a merge
 commit (default: fast-forward when possible); `--push` push develop afterwards; `-k` keep local and remote
 branch; `--keeplocal`/`--keepremote` keep one; `-D` (`--force-delete`) remove the worktree even with untracked files.
 

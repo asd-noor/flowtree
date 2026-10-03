@@ -286,6 +286,39 @@ func TestFinishRebaseConfigRejectsNonBool(t *testing.T) {
 	Run(t, repo, "work", "finish", "a").MustFail(t)
 }
 
+func TestWorkFinishWarnsWhenTheRebaseRewritesPublishedCommits(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		develop  bool // develop moved on after publishing
+		wantWarn bool
+	}{{"diverged", true, true}, {"nothing to rewrite", false, false}} {
+		repo, _ := flowRepoWithRemote(t)
+		Run(t, repo, "work", "start", "a").MustSucceed(t)
+		commitFile(t, worktreeDir(repo, "work/a"), "a")
+		Run(t, repo, "work", "publish", "a").MustSucceed(t)
+		if tc.develop {
+			commitFile(t, repo, "on-develop")
+			testutil.Git(t, repo, "push", "-q", "origin", "develop")
+		}
+		res := Run(t, repo, "work", "finish", "a").MustSucceed(t)
+		if got := strings.Contains(res.Stderr, "rewrote commits"); got != tc.wantWarn {
+			t.Errorf("%s: warning = %v, want %v\n%s", tc.name, got, tc.wantWarn, res.Stderr)
+		}
+	}
+}
+
+func TestWorkFinishSquashSkipsTheRebaseUnlessAsked(t *testing.T) {
+	repo := flowRepo(t)
+	Run(t, repo, "work", "start", "a").MustSucceed(t)
+	for flags, want := range map[string]bool{"": true, "-S": false, "-S -r": true} {
+		args := append([]string{"work", "finish", "a", "--dry-run"}, strings.Fields(flags)...)
+		out := Run(t, repo, args...).MustSucceed(t)
+		if got := strings.Contains(out.Stdout+out.Stderr, "rebase"); got != want {
+			t.Errorf("finish %s: plans a rebase = %v, want %v", flags, got, want)
+		}
+	}
+}
+
 func TestFinishRefusesDirtyWorktree(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "work", "start", "a").MustSucceed(t)

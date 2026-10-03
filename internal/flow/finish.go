@@ -33,8 +33,11 @@ type FinishOpts struct {
 	TagName     string
 }
 
-// rebases reports whether work finish rebases first: the flags win over flowtree.finishRebase.
-func (o FinishOpts) rebases(s Settings) bool { return (s.FinishRebase || o.Rebase) && !o.NoRebase }
+// rebases reports whether work finish rebases first. The flags win over flowtree.finishRebase; a squash
+// discards the branch's commits anyway, so it skips the rebase unless -r asks for it.
+func (o FinishOpts) rebases(s Settings) bool {
+	return (s.FinishRebase && !o.Squash || o.Rebase) && !o.NoRebase
+}
 
 // PlanFinish checks the branch and returns the steps that merge it and clean up.
 func PlanFinish(e *Env, o FinishOpts) ([]Step, error) {
@@ -102,12 +105,29 @@ func rebaseOnto(e *Env, branch string, preserve bool) error {
 	if preserve {
 		args = append(args, "--rebase-merges")
 	}
+	before, _ := Rev(e.Git(dir), "HEAD")
 	if _, err := e.Git(dir)(append(args, e.S.Develop)...); err != nil {
 		_ = e.Git(dir).Ok("rebase", "--abort")
 		return fmt.Errorf("finish was aborted due to conflicts during rebase; rebase manually in '%s' "+
 			"(git rebase %s), then re-run: flowtree work finish %s\n%w", dir, e.S.Develop, e.S.Name(Work, branch), err)
 	}
+	warnIfRewrotePublished(e, dir, branch, before)
 	return nil
+}
+
+// warnIfRewrotePublished says so when the rebase rewrote commits that are already on the remote copy of
+// the branch: anyone who pulled it now has commits that no longer exist.
+func warnIfRewrotePublished(e *Env, dir, branch, before string) {
+	g := e.Git(dir)
+	after, _ := Rev(g, "HEAD")
+	remote := e.S.Remote + "/" + branch
+	if before == after || !e.HasRemote() || !gitx.RemoteBranchExists(g, e.S.Remote, branch) {
+		return
+	}
+	if !g.Ok("merge-base", "--is-ancestor", remote, "HEAD") {
+		e.Warn("the rebase rewrote commits already on '%s'; anyone who pulled '%s' must reset it "+
+			"(finish deletes the remote branch unless you pass -k or --keepremote)", remote, branch)
+	}
 }
 
 func pushStep(branches ...string) []Step {

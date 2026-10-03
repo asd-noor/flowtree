@@ -49,7 +49,7 @@ flowtree hotfix finish -p            # like release finish, then push develop, m
 **Work**
 
 1. optional `-F` fetch, then refuse if develop is behind or has diverged from the remote;
-2. rebase of the branch onto develop (`-p` keeps merges; `--no-rebase` skips it; set `flowtree.finishRebase false` to make that the default, and `-r` forces it per run), inside its worktree. A conflict aborts the rebase and finish stops before merging;
+2. rebase of the branch onto develop (skipped with `-S`, which discards the commits anyway; `-r` forces it) (`-p` keeps merges; `--no-rebase` skips it; set `flowtree.finishRebase false` to make that the default, and `-r` forces it per run), inside its worktree. A conflict aborts the rebase and finish stops before merging;
 3. merge into develop: fast-forward when possible, `--no-ff` for a merge commit, `-S` to squash;
 4. clean up (below);
 5. optional `--push` of develop.

@@ -36,7 +36,7 @@ type initRun struct {
 	kept   bool            // existing settings are being extended, not replaced
 	flowS  *flowSettingsIn // the flow settings chosen, when --flow is given
 	reset  bool            // --force removed the repository's settings; undone if init fails
-	backup []config.Pair   // the repository's own settings before the reset
+	backup []rawSetting    // the repository's own flowtree.* entries before the reset, exactly as stored
 }
 
 // initStep is one stage of init.
@@ -130,7 +130,7 @@ func loadSettings(_ context.Context, r *initRun) error {
 
 // resetLocal removes the repository's flowtree section, remembering what was in it.
 func (r *initRun) resetLocal() {
-	r.backup = localPairs(r.git)
+	r.backup = localSettings(r.git)
 	r.reset = true
 	_, _ = r.git("config", "--local", "--remove-section", "flowtree") // fails when there is none
 }
@@ -141,22 +141,28 @@ func (r *initRun) restore() {
 		return
 	}
 	_, _ = r.git("config", "--local", "--remove-section", "flowtree")
-	_ = config.SetAll(r.git, config.Local, r.backup)
+	for _, e := range r.backup {
+		_, _ = r.git("config", "--local", "--add", e.key, e.value) // raw: even keys flowtree would reject
+	}
 }
 
-// localPairs lists the repository's own flowtree settings; unreadable ones (a broken configuration) are not kept.
-func localPairs(g gitx.Git) []config.Pair {
-	entries, err := config.Entries(g)
+// rawSetting is one flowtree.* entry as git stores it (key lower-cased by git).
+type rawSetting struct{ key, value string }
+
+// localSettings reads the repository's own flowtree.* entries without validating them, so the backup is
+// complete even for a broken configuration (an unknown key from a typo, say).
+func localSettings(g gitx.Git) []rawSetting {
+	out, err := g("config", "--local", "--null", "--get-regexp", `^flowtree\.`)
 	if err != nil {
-		return nil
+		return nil // exit status 1: nothing set
 	}
-	var pairs []config.Pair
-	for _, e := range entries {
-		if e.Scope == "local" {
-			pairs = append(pairs, config.Pair{Key: e.Key, Value: e.Value})
+	var settings []rawSetting
+	for _, rec := range strings.Split(strings.TrimSuffix(out, "\x00"), "\x00") {
+		if key, value, _ := strings.Cut(rec, "\n"); key != "" {
+			settings = append(settings, rawSetting{key, value})
 		}
 	}
-	return pairs
+	return settings
 }
 
 // configured reports whether this repository has local flowtree settings.

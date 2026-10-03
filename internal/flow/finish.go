@@ -157,11 +157,7 @@ func planFinishRelease(e *Env, o FinishOpts, branch string) ([]Step, error) {
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
 		One("check "+e.S.Master+" and "+e.S.Develop+" against "+e.S.Remote, func(e *Env) error { return checkReleaseState(e, o.NoTag || resumed, tag) }),
 		If(resumed || untagged, One("resume: "+branch+" is already merged into "+e.S.Master, func(e *Env) error {
-			if untagged {
-				e.Say("Resuming: '%s' is already merged into '%s' (nothing left to merge); tagging it now", branch, e.S.Master)
-				return nil
-			}
-			e.Say("Resuming: '%s' is already merged into '%s'%s", branch, e.S.Master, taggedAs(o, tag))
+			e.Say("%s", mergeSkipNote(e, o, branch, tag, untagged))
 			return nil
 		})),
 		If(!resumed && !untagged, One(fmt.Sprintf("merge %s into %s (%s)", branch, e.S.Master, modeName(mode)), func(e *Env) error {
@@ -305,4 +301,28 @@ func alreadyMerged(e *Env, o FinishOpts, branch, tag string) bool {
 func mergedButUntagged(e *Env, o FinishOpts, branch, tag string) bool {
 	g := e.MainGit()
 	return !o.NoTag && g.Ok("merge-base", "--is-ancestor", branch, e.S.Master) && !gitx.TagExists(g, tag)
+}
+
+// mergeSkipNote says why the merge into master is skipped. A branch whose tip is master's own tip, with no
+// tag yet, never had commits of its own (or was fast-forwarded and not tagged): there is no interrupted
+// finish to resume, and saying so would be wrong. Anything else is a real resume.
+func mergeSkipNote(e *Env, o FinishOpts, branch, tag string, untagged bool) string {
+	g := e.MainGit()
+	tip, _ := Rev(g, branch)
+	master, _ := Rev(g, e.S.Master)
+	noTagYet := o.NoTag || !gitx.TagExists(g, tag)
+	if tip == master && noTagYet {
+		return fmt.Sprintf("'%s' has no commits of its own to merge into '%s'%s", branch, e.S.Master, tagNowSuffix(o, untagged))
+	}
+	if untagged {
+		return fmt.Sprintf("Resuming: '%s' is already merged into '%s' (nothing left to merge); tagging it now", branch, e.S.Master)
+	}
+	return fmt.Sprintf("Resuming: '%s' is already merged into '%s'%s", branch, e.S.Master, taggedAs(o, tag))
+}
+
+func tagNowSuffix(o FinishOpts, untagged bool) string {
+	if untagged && !o.NoTag {
+		return "; tagging it now"
+	}
+	return ""
 }

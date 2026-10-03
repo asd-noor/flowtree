@@ -4,14 +4,19 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
-## [Unreleased]
+## [0.2.0] - 2026-10-04
+
+### Added
+
+- `flowtree.finishRebase` (default `true`) sets whether `work finish` rebases first; `finish --rebase` (`-r`) and
+  `--no-rebase` override it for one run.
+- `work finish` warns when its rebase rewrote commits that were already on the remote copy of the branch.
 
 ### Changed
 
-- `work finish` now rebases the branch onto develop before merging, so the merge is always clean and, by default,
-  linear. Pass `--no-rebase` to merge as is, or set
-  `flowtree.finishRebase false` to make that the default (`-r` then forces the rebase for one run). `-S` skips the rebase, and a warning is printed when the rebase
-  rewrote commits that were already pushed.
+- `work finish` now rebases the branch onto develop before merging, so conflicts surface in the feature worktree and
+  the merge is clean and, by default, linear. Pass `--no-rebase` to merge as is.
+- `work finish -S` skips the rebase, since the squash discards the branch's commits anyway; `-r` still forces it.
 
 ## [0.1.0] - 2026-10-03
 

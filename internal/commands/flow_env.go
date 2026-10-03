@@ -30,5 +30,7 @@ func (d Deps) OpenFlow(ctx context.Context) (*flow.Env, error) {
 	if err != nil {
 		return nil, err
 	}
-	return d.flowEnv(ctx, repo, s), nil
+	e := d.flowEnv(ctx, repo, s)
+	e.Interactive = d.IsTTY()
+	return e, nil
 }

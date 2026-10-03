@@ -2,6 +2,8 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
+
+	"flowtree/internal/flow"
 )
 
 // Constructor builds one command from the shared dependencies.
@@ -16,6 +18,9 @@ var Constructors = []Constructor{
 	newPrintDirCmd,
 	newRemoveCmd,
 	newShellInitCmd,
+	newTopicCmd(flow.Hotfix),
+	newTopicCmd(flow.Release),
+	newTopicCmd(flow.Work),
 }
 
 // NewRoot assembles the root command.

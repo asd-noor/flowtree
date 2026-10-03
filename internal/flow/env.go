@@ -20,6 +20,8 @@ type Env struct {
 	Cwd    string // where the user ran the command, symlinks resolved
 	Out    io.Writer
 	Err    io.Writer
+	// Interactive is true when a terminal is attached; git may then open an editor for tag messages.
+	Interactive bool
 	// CdTo asks the shell wrapper to cd somewhere once the command ends.
 	CdTo func(path string)
 }

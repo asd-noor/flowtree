@@ -30,7 +30,7 @@ func Describe(steps []Step) string {
 }
 
 // If includes the steps only when cond holds.
-func If(cond bool, steps ...Step) []Step {
+func If(cond bool, steps []Step) []Step {
 	if !cond {
 		return nil
 	}

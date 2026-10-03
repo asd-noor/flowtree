@@ -24,11 +24,23 @@ Documentation in [docs/](docs/): the [branch model](docs/git-flow.md), the
 
 ## Install
 
+Clone the repository and install from it:
+
 ```sh
-go install flowtree/cmd/flowtree@latest     # or: mise run install  ->  builds bin/flowtree, installs it to ~/.local/bin
-eval "$(flowtree shell-init)"                  # in your shell rc: cd-ing commands + completion (bash, zsh, fish)
-                                               # completion only: flowtree completion <shell>, see docs/shell-integration.md
+git clone <this repository> && cd flowtree
+mise run install               # builds bin/flowtree (version from git describe), installs it to ~/.local/bin
+# or, without mise:
+go install ./cmd/flowtree      # installs into $GOBIN (or $GOPATH/bin); --version then reports "dev"
 ```
+
+Then, in your shell rc:
+
+```sh
+eval "$(flowtree shell-init)"  # cd-ing commands + completion (bash, zsh, fish)
+                               # completion only: flowtree completion <shell>, see docs/shell-integration.md
+```
+
+(The module is named plain `flowtree`, so `go install ...@latest` from a remote does not work.)
 
 Requires `git` 2.17 or newer (see [Requirements](#requirements)). The shell function makes `start`, `checkout`, `switch` and `add` take you into the
 worktree, and moves you out of one that `finish` or `remove` deleted.

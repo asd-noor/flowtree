@@ -30,6 +30,21 @@ Writes `.flowtree.json` in the main worktree (also when run from a linked worktr
 
 See [shell-integration.md](shell-integration.md).
 
+### `install-skill <dir>`
+
+```
+flowtree install-skill <dir> [-n] [-f] [--uninstall]
+```
+
+Installs the agent skill that is embedded in the binary (`skills/flowtree`: `SKILL.md` plus `references/`) as
+`<dir>/flowtree`, for example `~/.claude/skills` or `~/.pi/agent/skills`. The skill teaches an agent the
+branch model, to work inside worktrees, to stay non-interactive (no picker, `-m` on release and hotfix
+finish) and to leave pushing to you. It works for any agent that reads [Agent Skills](https://agentskills.io).
+
+An existing `<dir>/flowtree` that is a flowtree skill is replaced (stale files are removed); any other
+directory there is left alone with an error unless `-f` is given. `-n` shows what would be written, and
+`--uninstall` removes it again. A leading `~` is expanded.
+
 ## Worktrees
 
 ### `add`

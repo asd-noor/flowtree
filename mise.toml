@@ -31,3 +31,8 @@ depends = ["fmt", "vet", "test"]
 [tasks.build]
 description = "Build bin/flowtree"
 run = 'go build -ldflags "-X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o bin/flowtree ./cmd/flowtree'
+
+[tasks.install]
+description = "Build bin/flowtree and install it to ~/.local/bin"
+depends = ["build"]
+run = "install -m 755 bin/flowtree ~/.local/bin/flowtree"

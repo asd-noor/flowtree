@@ -6,6 +6,7 @@ The toolchain is pinned by `mise.toml` (Go 1.27.1, kept in sync with `go.mod`). 
 
 ```sh
 mise run build     # bin/flowtree, with the version from git describe
+mise run install   # build, then install -m 755 bin/flowtree ~/.local/bin/flowtree
 mise run fmt       # fails if a tracked .go file needs gofmt
 mise run vet       # go vet ./...
 mise run test      # go test ./...
@@ -31,6 +32,13 @@ bubbletea (plus their dependencies); add one only with a reason.
 
 Not covered by automated tests: the interactive TUI against a real terminal, `rebase -i`, signed tags, and the
 editor path of annotated tags.
+
+## The agent skill
+
+`skills/flowtree/` is embedded into the binary (`skills/embed.go`) and installed by `flowtree install-skill`.
+When commands or flags change, update the skill too. Two tests guard it: every `flowtree <command>` in a code
+span of the skill must be a real command (and `work|release|hotfix <sub>` a real subcommand), and the front
+matter must have `name` and a `description` of at most 1024 characters.
 
 ## Conventions
 

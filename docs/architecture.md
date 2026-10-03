@@ -8,6 +8,7 @@ as a subprocess; worktrees and merges need real git behaviour, so there is no go
 
 ```
 cmd/flowtree/        main: builds the root command, maps errors to exit codes
+skills/              the agent skill (SKILL.md + references), embedded with go:embed
 internal/
   gitx/              the git seam: Runner, branch and worktree operations, porcelain parser
   config/            .flowtree.json schema, load/save, validation, base_dir resolution
@@ -16,6 +17,7 @@ internal/
   flow/              the git-flow domain; imports no CLI package
   picker/            matcher (exact / substring / fuzzy) and the bubbletea list
   shell/             shell-init scripts
+  skill/             installs the embedded agent skills into a skills directory
   commands/          cobra commands; the only package that knows about flags and output
   testutil/          real temporary git repositories for tests
 test/e2e/            builds the binary and drives it against temporary repositories

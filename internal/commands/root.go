@@ -14,6 +14,7 @@ var Constructors = []Constructor{
 	newAddCmd,
 	newExecCmd,
 	newInitCmd,
+	newInstallSkillCmd,
 	newListCmd,
 	newPrintDirCmd,
 	newRelocateCmd,

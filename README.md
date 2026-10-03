@@ -25,7 +25,7 @@ Documentation in [docs/](docs/): the [branch model](docs/git-flow.md), the
 ## Install
 
 ```sh
-go install flowtree/cmd/flowtree@latest        # or: mise run build  ->  bin/flowtree
+go install flowtree/cmd/flowtree@latest     # or: mise run install  ->  builds bin/flowtree, installs it to ~/.local/bin
 eval "$(flowtree shell-init)"                  # in your shell rc: cd-ing commands + completion (bash, zsh, fish)
 ```
 
@@ -63,6 +63,7 @@ flowtree print-dir [<worktree>]    # prints a worktree's path; read-only (`@` = 
 flowtree switch [QUERY]            # changes your worktree; may move the main checkout or create a worktree
 flowtree relocate [-n]
 flowtree shell-init [bash|zsh|fish] | completion <shell>
+flowtree install-skill <dir>       # install the embedded agent skill into a skills directory
 
 flowtree work    list [-v] | start [-F] <name> [<base>] | finish [flags] [<name>] | checkout|publish [<name>]
                  track <name> | delete [-f] [-r] <name> | diff [<name>] | rebase [-i] [-p] [<name>] | pull <remote> [<name>]
@@ -112,6 +113,9 @@ developers, so the file is meant not to be committed. `flowtree init` offers to 
   main worktree; `command` runs in the new worktree with `FLOWTREE_WORKTREE_PATH` and `FLOWTREE_REPO_ROOT` set.
 
 ## Scripting and agents
+
+`flowtree install-skill ~/.claude/skills` installs an [Agent Skill](https://agentskills.io) (embedded in the
+binary) that teaches an agent the branch model and these rules.
 
 Everything but the picker is non-interactive: `init -d`, a name on every command, `--quiet` on `add`.
 `switch`, `print-dir` and `remove` without a name need a terminal. `FLOWTREE_CDFILE` is the file the shell

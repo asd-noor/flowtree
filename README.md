@@ -17,6 +17,11 @@ Git worktrees plus an opinionated git-flow. One binary:
 The main checkout rests on `develop` and only ever holds `master`, `develop` or a `release/*` branch. Releases
 only touch a changelog and a version, so they switch the main checkout instead of getting a worktree.
 
+Documentation in [docs/](docs/): the [branch model](docs/git-flow.md), the
+[command reference](docs/commands.md), [configuration](docs/configuration.md),
+[shell integration](docs/shell-integration.md), [architecture](docs/architecture.md) and
+[development](docs/development.md).
+
 ## Install
 
 ```sh

@@ -26,11 +26,40 @@ func runCopy(_ context.Context, out io.Writer, h config.Hook, repoRoot, worktree
 	return copyPath(ep.src, ep.dst, ep.srcInfo)
 }
 
+// copyPath copies one filesystem entry; info must describe src without following symlinks, except for
+// the hook's own `from`, which resolveEndpoints stats through a symlink: like `cp -H`, a symlink named
+// directly in the hook is followed, so the new worktree gets what it points to. Inside a copied
+// directory a symlink is recreated as a symlink with the same target and never followed, so a link to a
+// directory or to something outside the tree is neither descended into nor turned into a copy.
+// Entries that are neither files, directories nor symlinks (sockets, pipes, devices) are skipped:
+// opening a pipe would block the hook forever.
 func copyPath(src, dst string, info os.FileInfo) error {
-	if info.IsDir() {
+	switch mode := info.Mode(); {
+	case mode&os.ModeSymlink != 0:
+		return copySymlink(src, dst)
+	case mode.IsDir():
 		return copyDir(src, dst, info)
+	case mode.IsRegular():
+		return copyFile(src, dst, info)
 	}
-	return copyFile(src, dst, info)
+	return nil
+}
+
+// copySymlink recreates the link src at dst, replacing a file or link already there.
+func copySymlink(src, dst string) error {
+	target, err := os.Readlink(src)
+	if err != nil {
+		return fmt.Errorf("failed to read symlink %s: %w", src, err)
+	}
+	if existing, err := os.Lstat(dst); err == nil && !existing.IsDir() {
+		if err := os.Remove(dst); err != nil {
+			return fmt.Errorf("failed to replace %s: %w", dst, err)
+		}
+	}
+	if err := os.Symlink(target, dst); err != nil {
+		return fmt.Errorf("failed to create symlink %s: %w", dst, err)
+	}
+	return nil
 }
 
 func copyFile(src, dst string, info os.FileInfo) (err error) {

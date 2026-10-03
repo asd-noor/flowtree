@@ -43,8 +43,10 @@ The production branch may be called `main`; the branch names and prefixes are in
 4. **Do not push** (`-p`, `--push`, `publish`) or delete remote branches unless the user asked. `finish`
    deletes the remote copy of the topic branch if one exists; use `--keepremote` when that is not wanted.
 5. **Finish with flowtree, not by hand.** Do not `git merge`/`git branch -d`/`git worktree remove` a topic
-   branch yourself; `finish` merges, tags, back-merges and cleans up in the right order, and never touches
-   the checkout you are standing in.
+   branch yourself; `finish` merges, tags, back-merges and cleans up in the right order. It merges inside
+   the worktree that has the target branch checked out, usually the main checkout on develop: that checkout
+   must have no uncommitted tracked changes (it refuses otherwise) and its files change. A release `finish`
+   moves the main checkout back to develop, and `finish` run from inside a topic worktree removes that worktree.
 6. Commit your work in the topic worktree (the main checkout, for a release) before `finish`: it refuses if
    tracked files are modified. Untracked files do not count.
 7. Never use `-f`, `--force-branch`, `-D` or `delete -f`, and never remove a worktree the user did not ask

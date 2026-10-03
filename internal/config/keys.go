@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"flowtree/internal/gitx"
@@ -76,16 +77,35 @@ func Canonical(name string) (string, error) {
 type Entry struct {
 	Key   string // canonical name, without the section
 	Value string
-	Scope string // local, global, system, ...
+	Scope string // local, global, system or other; empty from rawEntries
 }
 
-// Entries lists the flowtree.* keys that are set, in git's order (later entries win).
-// An unknown key is an error, which catches typos.
+// Scopes in the order git applies them: later ones override earlier ones.
+var scopeOrder = []string{"system", "global", "local"}
+
+// Entries lists the flowtree.* keys that are set, in git's order (later entries win), with the scope each
+// value comes from: "local", "global", "system", or "other" for sources that have no scope of their own
+// here (worktree config, command line). An unknown key is an error, which catches typos.
+//
+// It deliberately avoids `git config --show-scope` (git 2.26): the effective values come from one plain
+// read, and the scopes are worked out from per-scope reads, which any git has.
 func Entries(g gitx.Git) ([]Entry, error) {
-	out, err := g("config", "--show-scope", "--null", "--get-regexp", `^flowtree\.`)
+	entries, err := rawEntries(g)
+	if err != nil || len(entries) == 0 {
+		return entries, err
+	}
+	byScope := scopedValues(g)
+	for i, e := range entries {
+		entries[i].Scope = scopeOf(byScope, e)
+	}
+	return entries, nil
+}
+
+// rawEntries reads the effective flowtree.* keys in one call, without scopes. Load needs only this.
+func rawEntries(g gitx.Git) ([]Entry, error) {
+	out, err := g("config", "--null", "--get-regexp", `^flowtree\.`)
 	if err != nil {
-		var ge *gitx.Error
-		if errors.As(err, &ge) && ge.Output == "" { // exit status 1: no matching keys
+		if isNoMatch(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -93,33 +113,80 @@ func Entries(g gitx.Git) ([]Entry, error) {
 	return parseEntries(out)
 }
 
-// parseEntries parses `--show-scope --null` output: "scope\0key\nvalue\0" repeated.
+// isNoMatch recognises git's exit status 1 with no message: nothing matched.
+func isNoMatch(err error) bool {
+	var ge *gitx.Error
+	return errors.As(err, &ge) && ge.Output == ""
+}
+
+// parseEntries parses `--null` output: "key\nvalue\0" repeated. Git lower-cases the variable name.
 func parseEntries(out string) ([]Entry, error) {
-	fields := strings.Split(strings.TrimSuffix(out, "\x00"), "\x00")
 	var entries []Entry
-	for i := 0; i+1 < len(fields); i += 2 {
-		key, value, _ := strings.Cut(fields[i+1], "\n")
+	for _, field := range strings.Split(strings.TrimSuffix(out, "\x00"), "\x00") {
+		if field == "" {
+			continue
+		}
+		key, value, _ := strings.Cut(field, "\n")
 		s, err := lookup(key)
 		if err != nil {
 			return nil, err
 		}
-		entries = append(entries, Entry{Key: s.name, Value: value, Scope: fields[i]})
+		entries = append(entries, Entry{Key: s.name, Value: value})
 	}
 	return entries, nil
+}
+
+// scopedValues reads each scope separately (best effort: a scope that cannot be read has no values) and
+// returns, per scope, the values of each key as git spells it (lower case).
+func scopedValues(g gitx.Git) map[string]map[string][]string {
+	byScope := map[string]map[string][]string{}
+	for _, scope := range scopeOrder {
+		// --includes: per-scope reads skip include.path by default, the combined read does not
+		out, err := g("config", "--"+scope, "--includes", "--null", "--get-regexp", `^flowtree\.`)
+		if err != nil {
+			continue
+		}
+		byScope[scope] = groupByKey(out)
+	}
+	return byScope
+}
+
+func groupByKey(out string) map[string][]string {
+	values := map[string][]string{}
+	for _, field := range strings.Split(strings.TrimSuffix(out, "\x00"), "\x00") {
+		if field == "" {
+			continue
+		}
+		key, value, _ := strings.Cut(field, "\n")
+		k := strings.ToLower(key)
+		values[k] = append(values[k], value)
+	}
+	return values
+}
+
+// scopeOf names the highest-precedence scope that holds this key with this value.
+func scopeOf(byScope map[string]map[string][]string, e Entry) string {
+	key := strings.ToLower(section + "." + e.Key)
+	for i := len(scopeOrder) - 1; i >= 0; i-- {
+		if slices.Contains(byScope[scopeOrder[i]][key], e.Value) {
+			return scopeOrder[i]
+		}
+	}
+	return "other"
 }
 
 // Load reads the configuration of the repository whose main worktree is main.
 func Load(g gitx.Git, main string, getenv func(string) string) (Config, error) {
 	c := Defaults()
 	c.Parent = getenv(ParentEnv)
-	entries, err := Entries(g)
+	entries, err := rawEntries(g)
 	if err != nil {
 		return Config{}, err
 	}
 	for _, e := range entries {
 		s, _ := lookup(e.Key)
 		if err := s.apply(&c, e.Value); err != nil {
-			return Config{}, fmt.Errorf("%s (set in %s config)", err, e.Scope)
+			return Config{}, fmt.Errorf("%s (set in git config)", err)
 		}
 	}
 	hooks, err := LoadHooks(g, main)

@@ -40,7 +40,7 @@ func withThrowaway(e *Env, branch string, fn func(gitx.Git) error) (err error) {
 		return err
 	}
 	dir := filepath.Join(tmp, "wt")
-	if _, err := e.MainGit()("worktree", "add", "-q", dir, branch); err != nil {
+	if _, err := e.MainGit()("worktree", "add", dir, branch); err != nil {
 		_ = os.RemoveAll(tmp)
 		return err
 	}

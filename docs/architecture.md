@@ -99,8 +99,9 @@ the path to the file named by `FLOWTREE_CDFILE` if set. The shell wrapper create
 ## Configuration
 
 Settings live in git config, section `flowtree`, so they need no file of their own and follow git's scopes
-(local over global over system). `config.Load` makes one call, `git config --show-scope --null --get-regexp
-'^flowtree\.'`, and applies each key through a table of settings (`config/keys.go`: canonical name, validator,
+(local over global over system). `config.Load` makes one call, `git config --null --get-regexp '^flowtree\.'` (no
+`--show-scope`, which needs git 2.26; `config.Entries`, used by `flowtree config` and `init`, works out each value's
+scope from per-scope reads), and applies each key through a table of settings (`config/keys.go`: canonical name, validator,
 default). An unknown key is an error, which catches typos. `config.Set` and `Unset` validate before calling
 `git config`. Flow settings are the `config.Flow` part of `Config`, converted to `flow.Settings` by
 `flow.FromConfig`, which fails with a pointer to `init --flow` unless both `master` and `develop` are set.

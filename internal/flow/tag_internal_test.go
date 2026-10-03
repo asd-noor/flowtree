@@ -18,7 +18,8 @@ func TestTagArgs(t *testing.T) {
 		{"signed", Env{S: s}, FinishOpts{Kind: Release, Sign: true, Message: "m"}, []string{"tag", "-s", "-m", "m", "v1", "master"}},
 		{"key wins", Env{S: s}, FinishOpts{Kind: Release, Sign: true, SignKey: "K", Message: "m"}, []string{"tag", "-u", "K", "-m", "m", "v1", "master"}},
 		{"no tty default message", Env{S: s}, FinishOpts{Kind: Hotfix}, []string{"tag", "-a", "-m", "Hotfix 1.0", "v1", "master"}},
-		{"tty lets git open the editor", Env{S: s, Interactive: true}, FinishOpts{Kind: Release}, []string{"tag", "-a", "v1", "master"}},
+		{"tty lets git open the editor", Env{S: s, Interactive: true, Attach: func(string, ...string) error { return nil }}, FinishOpts{Kind: Release}, []string{"tag", "-a", "v1", "master"}},
+		{"tty without a way to attach it keeps the default message", Env{S: s, Interactive: true}, FinishOpts{Kind: Release}, []string{"tag", "-a", "-m", "Release 1.0", "v1", "master"}},
 	}
 	for _, c := range cases {
 		if got := tagArgs(&c.e, c.o, "v1", "1.0"); !slices.Equal(got, c.want) {

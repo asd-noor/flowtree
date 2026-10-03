@@ -32,5 +32,6 @@ func (d Deps) OpenFlow(ctx context.Context) (*flow.Env, error) {
 	}
 	e := d.flowEnv(ctx, repo, s)
 	e.Interactive = d.IsTTY()
+	e.Attach = attachedGit(ctx, d)
 	return e, nil
 }

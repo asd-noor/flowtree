@@ -45,6 +45,9 @@ func PlanFinish(e *Env, o FinishOpts) ([]Step, error) {
 			return nil, err
 		}
 	}
+	if err := checkMainCanReturn(e, branch); err != nil {
+		return nil, err
+	}
 	if o.Kind == Work {
 		return planFinishWork(e, o, branch)
 	}
@@ -131,9 +134,6 @@ func label(k Kind) string {
 }
 
 func planFinishRelease(e *Env, o FinishOpts, branch string) ([]Step, error) {
-	if err := checkMainCanReturn(e, branch); err != nil {
-		return nil, err
-	}
 	ver := e.S.Name(o.Kind, branch)
 	tag := firstNonEmpty(o.TagName, e.S.VersionTag+ver)
 	mode := NoFF
@@ -148,6 +148,7 @@ func planFinishRelease(e *Env, o FinishOpts, branch string) ([]Step, error) {
 		back = e.S.Master
 	}
 	resumed := alreadyMerged(e, o, branch, tag)
+	untagged := mergedButUntagged(e, o, branch, tag)
 	pushed := []string{e.S.Develop, e.S.Master}
 	if !o.NoTag {
 		pushed = append(pushed, tag)
@@ -155,11 +156,15 @@ func planFinishRelease(e *Env, o FinishOpts, branch string) ([]Step, error) {
 	return Plan(
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
 		One("check "+e.S.Master+" and "+e.S.Develop+" against "+e.S.Remote, func(e *Env) error { return checkReleaseState(e, o.NoTag || resumed, tag) }),
-		If(resumed, One("resume: "+branch+" is already merged into "+e.S.Master, func(e *Env) error {
+		If(resumed || untagged, One("resume: "+branch+" is already merged into "+e.S.Master, func(e *Env) error {
+			if untagged {
+				e.Say("Resuming: '%s' is already merged into '%s' (nothing left to merge); tagging it now", branch, e.S.Master)
+				return nil
+			}
 			e.Say("Resuming: '%s' is already merged into '%s'%s", branch, e.S.Master, taggedAs(o, tag))
 			return nil
 		})),
-		If(!resumed, One(fmt.Sprintf("merge %s into %s (%s)", branch, e.S.Master, modeName(mode)), func(e *Env) error {
+		If(!resumed && !untagged, One(fmt.Sprintf("merge %s into %s (%s)", branch, e.S.Master, modeName(mode)), func(e *Env) error {
 			if err := MergeInto(e, e.S.Master, branch, mode, ""); err != nil {
 				return err
 			}
@@ -181,8 +186,9 @@ func planFinishRelease(e *Env, o FinishOpts, branch string) ([]Step, error) {
 	), nil
 }
 
-// checkMainCanReturn: a release finished in the main worktree sends it back to develop, so develop
-// must not be checked out elsewhere.
+// checkMainCanReturn: finishing a branch that is checked out in the main worktree (a release, or a
+// work or hotfix branch that was checked out there by hand) sends the main worktree back to develop,
+// so develop must not be checked out elsewhere. Checked at plan time, before anything is merged.
 func checkMainCanReturn(e *Env, branch string) error {
 	w, ok, err := e.WorktreeOf(branch)
 	if err != nil || !ok || !w.Main {
@@ -192,8 +198,8 @@ func checkMainCanReturn(e *Env, branch string) error {
 	if err != nil || !ok || dv.Main {
 		return err
 	}
-	return fmt.Errorf("'%s' is checked out in '%s'; the main worktree cannot return to it after finishing. "+
-		"Switch that worktree to another branch first", e.S.Develop, dv.Path)
+	return fmt.Errorf("'%s' is checked out in '%s'; the main worktree cannot return to it after finishing '%s'. "+
+		"Switch that worktree to another branch first (nothing was changed)", e.S.Develop, dv.Path, branch)
 }
 
 func checkReleaseState(e *Env, noTag bool, tag string) error {
@@ -223,15 +229,34 @@ func tagArgs(e *Env, o FinishOpts, tag, ver string) []string {
 		args = append(args, "-F", o.MessageFile)
 	case o.Message != "":
 		args = append(args, "-m", o.Message)
-	case !e.Interactive:
+	case !e.editorAvailable():
 		args = append(args, "-m", label(o.Kind)+" "+ver)
 	}
 	return append(args, tag, e.S.Master)
 }
 
+// needsEditor reports whether git will open an editor for the tag message.
+func needsEditor(e *Env, o FinishOpts) bool {
+	return o.MessageFile == "" && o.Message == "" && e.editorAvailable()
+}
+
+// makeTag creates the tag. When git will open an editor it runs with the terminal attached; otherwise
+// through the normal runner. A failure is reported as what it is: master is already merged, and a
+// re-run of finish picks up from here.
 func makeTag(e *Env, o FinishOpts, tag, ver string) error {
-	_, err := e.MainGit()(tagArgs(e, o, tag, ver)...)
-	return err
+	args := tagArgs(e, o, tag, ver)
+	var err error
+	if needsEditor(e, o) {
+		err = e.Attach(e.Main, args...)
+	} else {
+		_, err = e.MainGit()(args...)
+	}
+	if err != nil {
+		return fmt.Errorf("the %s '%s' is already merged into '%s' but tagging '%s' failed: %w\n"+
+			"Fix the cause (for example the tag message or the signing key), then re-run 'flowtree %s finish %s': it resumes from here",
+			o.Kind, ver, e.S.Master, tag, err, o.Kind, ver)
+	}
+	return nil
 }
 
 func backMerge(e *Env, o FinishOpts, branch, src, tag string) error {
@@ -273,4 +298,11 @@ func alreadyMerged(e *Env, o FinishOpts, branch, tag string) bool {
 	tagged, ok := Rev(g, tag)
 	master, _ := Rev(g, e.S.Master)
 	return ok && tagged == master
+}
+
+// mergedButUntagged detects a finish that was interrupted between the merge into master and the tag
+// (a failed signature or tag message): the branch is already in master and the tag does not exist yet.
+func mergedButUntagged(e *Env, o FinishOpts, branch, tag string) bool {
+	g := e.MainGit()
+	return !o.NoTag && g.Ok("merge-base", "--is-ancestor", branch, e.S.Master) && !gitx.TagExists(g, tag)
 }

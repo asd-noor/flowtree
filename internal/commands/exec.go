@@ -65,8 +65,16 @@ func runIn(d Deps, cmd *cobra.Command, dir, name string, args []string) error {
 	case err == nil:
 		return nil
 	case errors.As(err, &ee):
-		return &exitError{code: ee.ExitCode()}
+		return &exitError{code: exitStatus(ee)}
 	default:
 		return fmt.Errorf("failed to run %q in %s: %w", name, dir, err)
 	}
+}
+
+// codeOrFailure turns the -1 that ExitCode reports for "no exit code" into a plain failure status.
+func codeOrFailure(code int) int {
+	if code < 0 {
+		return 1
+	}
+	return code
 }

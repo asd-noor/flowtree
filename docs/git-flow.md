@@ -70,9 +70,12 @@ checkout goes back to develop.
 
 ### Safety properties
 
-- `finish` never touches your current checkout. It merges inside the worktree that already has the target
-  branch checked out (which must have no uncommitted changes), or in a throwaway worktree that is always
-  removed afterwards.
+- `finish` merges inside the worktree that already has the target branch checked out, or in a throwaway
+  worktree that is always removed afterwards. That worktree is often the main checkout (it rests on develop): it
+  must have no uncommitted changes to tracked files, and the merge does update its files. What `finish` does not
+  do is switch the branch of the directory you ran it from: the exceptions are that finishing a release (or a
+  topic branch that was checked out by hand in the main checkout) returns the main checkout to develop, and that
+  finishing from inside a topic worktree removes that worktree (your shell is sent to the main checkout).
 - A conflicting merge is aborted and nothing changes, instead of being left half done. Resolve it on the topic
   branch (`git merge develop`) and run `finish` again.
 - `finish` is **resumable**. If the back-merge into develop conflicts after master was merged and tagged, merge

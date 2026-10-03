@@ -56,48 +56,160 @@ type Installed struct {
 	Replaced bool     // an earlier install was replaced
 }
 
-// Install writes every skill of fsys to dest/<name>. An existing directory is replaced when it holds a
-// flowtree skill (its SKILL.md names the skill), and left alone with an error otherwise unless Force is set.
+// Install writes every skill of fsys to dest/<name>, all or nothing. Each skill is first written to a
+// temporary directory next to its destination; only when every skill is staged are they swapped in,
+// and a failed swap is rolled back, so an error never leaves a half-written or missing skill behind.
+// An existing directory is replaced when it holds a flowtree skill (its SKILL.md names the skill), and
+// left alone with an error otherwise unless Force is set.
 func Install(fsys fs.FS, dest string, o Options) ([]Installed, error) {
 	names, err := Names(fsys)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Installed, 0, len(names))
-	for _, n := range names {
-		in, err := installOne(fsys, dest, n, o)
-		if err != nil {
-			return out, err
-		}
-		out = append(out, in)
+	plans, err := planAll(fsys, dest, names, o)
+	if err != nil || o.DryRun {
+		return installedOf(plans), err
 	}
-	return out, nil
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		return nil, err
+	}
+	staged, err := stageAll(fsys, dest, plans)
+	if err != nil {
+		return nil, err
+	}
+	if err := swapAll(plans, staged); err != nil {
+		return nil, err
+	}
+	return installedOf(plans), nil
 }
 
-func installOne(fsys fs.FS, dest, name string, o Options) (Installed, error) {
+// plan is one skill to install: what it is, and whether it replaces something.
+type plan struct {
+	in    Installed
+	files []string // paths in fsys
+}
+
+func planAll(fsys fs.FS, dest string, names []string, o Options) ([]plan, error) {
+	plans := make([]plan, 0, len(names))
+	for _, n := range names {
+		p, err := planOne(fsys, dest, n, o)
+		if err != nil {
+			return nil, err
+		}
+		plans = append(plans, p)
+	}
+	return plans, nil
+}
+
+func planOne(fsys fs.FS, dest, name string, o Options) (plan, error) {
 	dir := filepath.Join(dest, name)
 	files, err := Files(fsys, name)
 	if err != nil {
-		return Installed{}, err
+		return plan{}, err
 	}
-	in := Installed{Name: name, Dir: dir, Files: relTo(files, name)}
 	exists, err := pathExists(dir)
 	if err != nil {
-		return in, err
+		return plan{}, err
 	}
 	if exists && !o.Force && !isInstalled(dir, name) {
-		return in, fmt.Errorf("%s exists and does not look like the %s skill; use --force to replace it", dir, name)
+		return plan{}, fmt.Errorf("%s exists and does not look like the %s skill; use --force to replace it", dir, name)
 	}
-	in.Replaced = exists
-	if o.DryRun {
-		return in, nil
+	return plan{in: Installed{Name: name, Dir: dir, Files: relTo(files, name), Replaced: exists}, files: files}, nil
+}
+
+func installedOf(plans []plan) []Installed {
+	out := make([]Installed, len(plans))
+	for i, p := range plans {
+		out[i] = p.in
 	}
-	if exists {
-		if err := os.RemoveAll(dir); err != nil {
-			return in, err
+	return out
+}
+
+// stageAll writes every skill into a fresh temporary directory beside its destination and returns those
+// directories, in plan order. On failure everything staged so far is removed.
+func stageAll(fsys fs.FS, dest string, plans []plan) ([]string, error) {
+	staged := make([]string, 0, len(plans))
+	for _, p := range plans {
+		tmp, err := os.MkdirTemp(dest, "."+p.in.Name+".tmp-")
+		if err == nil {
+			staged = append(staged, tmp)
+			err = os.Chmod(tmp, 0o755) // MkdirTemp creates 0700
+		}
+		if err == nil {
+			err = writeFiles(fsys, tmp, p.in.Name, p.files)
+		}
+		if err != nil {
+			removeAll(staged)
+			return nil, err
 		}
 	}
-	return in, writeFiles(fsys, dir, name, files)
+	return staged, nil
+}
+
+// swapAll moves each staged directory into place, keeping the replaced one aside until every swap has
+// worked. Any failure undoes the swaps already made.
+func swapAll(plans []plan, staged []string) error {
+	var done []swap
+	for i, p := range plans {
+		s, err := swapIn(p.in.Dir, staged[i])
+		if err != nil {
+			rollback(done)
+			removeAll(staged)
+			return err
+		}
+		done = append(done, s)
+	}
+	for _, s := range done {
+		if s.aside != "" {
+			_ = os.RemoveAll(s.aside)
+		}
+	}
+	return nil
+}
+
+// swap records one completed replacement so it can be undone.
+type swap struct {
+	dir   string
+	aside string // where the previous content was moved; empty when there was none
+}
+
+func swapIn(dir, staged string) (swap, error) {
+	s := swap{dir: dir}
+	exists, err := pathExists(dir)
+	if err != nil {
+		return s, err
+	}
+	if exists {
+		s.aside = filepath.Join(filepath.Dir(dir), fmt.Sprintf(".%s.old-%d", filepath.Base(dir), os.Getpid()))
+		_ = os.RemoveAll(s.aside)
+		if err := os.Rename(dir, s.aside); err != nil {
+			return swap{}, err
+		}
+	}
+	if err := os.Rename(staged, dir); err != nil {
+		if s.aside != "" {
+			_ = os.Rename(s.aside, dir)
+		}
+		return swap{}, err
+	}
+	return s, nil
+}
+
+// rollback restores the previous content of every swap, newest first.
+func rollback(done []swap) {
+	for i := len(done) - 1; i >= 0; i-- {
+		s := done[i]
+		_ = os.RemoveAll(s.dir)
+		if s.aside != "" {
+			_ = os.Rename(s.aside, s.dir)
+		}
+	}
+}
+
+func removeAll(dirs []string) {
+	for _, d := range dirs {
+		_ = os.RemoveAll(d)
+	}
 }
 
 // Uninstall removes dest/<name> for every skill of fsys that is installed there, and reports which.

@@ -22,6 +22,9 @@ type Env struct {
 	Err    io.Writer
 	// Interactive is true when a terminal is attached; git may then open an editor for tag messages.
 	Interactive bool
+	// Attach runs git with the user's terminal attached. It is used where git needs one (the editor for
+	// a tag message); without it flowtree never leaves git to open an editor.
+	Attach Attached
 	// CdTo asks the shell wrapper to cd somewhere once the command ends.
 	CdTo func(path string)
 }
@@ -66,3 +69,6 @@ func (e *Env) runHooks(path string) {
 		e.Warn("hook failed: %v", err)
 	}
 }
+
+// editorAvailable reports whether git may open an editor: there is a terminal and a way to attach it.
+func (e *Env) editorAvailable() bool { return e.Interactive && e.Attach != nil }

@@ -26,15 +26,17 @@ type initOpts struct {
 
 // initRun is the state threaded through the init steps.
 type initRun struct {
-	d     Deps
-	opts  initOpts
-	git   gitx.Git
-	main  string
-	cfg   config.Config   // the configuration before init
-	pairs []config.Pair   // settings init will store
-	stdin *bufio.Reader   // one reader for every prompt, so buffered input is not lost
-	kept  bool            // existing settings are being extended, not replaced
-	flowS *flowSettingsIn // the flow settings chosen, when --flow is given
+	d      Deps
+	opts   initOpts
+	git    gitx.Git
+	main   string
+	cfg    config.Config   // the configuration before init
+	pairs  []config.Pair   // settings init will store
+	stdin  *bufio.Reader   // one reader for every prompt, so buffered input is not lost
+	kept   bool            // existing settings are being extended, not replaced
+	flowS  *flowSettingsIn // the flow settings chosen, when --flow is given
+	reset  bool            // --force removed the repository's settings; undone if init fails
+	backup []config.Pair   // the repository's own settings before the reset
 }
 
 // initStep is one stage of init.
@@ -83,7 +85,11 @@ func runInit(ctx context.Context, d Deps, o initOpts) error {
 		git:   gitx.Bind(ctx, d.Run, main.Path),
 		stdin: bufio.NewReader(d.Stdin),
 	}
-	return runSteps(ctx, run, initSteps)
+	err = runSteps(ctx, run, initSteps)
+	if err != nil {
+		run.restore()
+	}
+	return err
 }
 
 // runSteps runs steps in order, stopping at the first error; errStop is a clean stop.
@@ -102,8 +108,14 @@ func runSteps(ctx context.Context, r *initRun, steps []initStep) error {
 
 func (r *initRun) interactive() bool { return r.d.IsTTY() && !r.opts.defaults }
 
-// loadSettings reads what is configured now. With --force a broken configuration does not block the reset.
+// loadSettings reads what is configured now. With --force it first resets the repository's own flowtree
+// settings, so that everything after it (defaults, the prompt, the remote, whether flow is set up) is computed
+// against the reset state; global and system settings stay. The old settings are remembered so a failing
+// init can put them back. A broken configuration does not block the reset.
 func loadSettings(_ context.Context, r *initRun) error {
+	if r.opts.force {
+		r.resetLocal()
+	}
 	cfg, err := config.Load(r.git, r.main, r.d.Getenv)
 	if err != nil && !r.opts.force {
 		return err
@@ -114,6 +126,37 @@ func loadSettings(_ context.Context, r *initRun) error {
 	}
 	r.cfg = cfg
 	return nil
+}
+
+// resetLocal removes the repository's flowtree section, remembering what was in it.
+func (r *initRun) resetLocal() {
+	r.backup = localPairs(r.git)
+	r.reset = true
+	_, _ = r.git("config", "--local", "--remove-section", "flowtree") // fails when there is none
+}
+
+// restore undoes resetLocal after a failed init: the repository keeps the settings it had.
+func (r *initRun) restore() {
+	if !r.reset {
+		return
+	}
+	_, _ = r.git("config", "--local", "--remove-section", "flowtree")
+	_ = config.SetAll(r.git, config.Local, r.backup)
+}
+
+// localPairs lists the repository's own flowtree settings; unreadable ones (a broken configuration) are not kept.
+func localPairs(g gitx.Git) []config.Pair {
+	entries, err := config.Entries(g)
+	if err != nil {
+		return nil
+	}
+	var pairs []config.Pair
+	for _, e := range entries {
+		if e.Scope == "local" {
+			pairs = append(pairs, config.Pair{Key: e.Key, Value: e.Value})
+		}
+	}
+	return pairs
 }
 
 // configured reports whether this repository has local flowtree settings.
@@ -164,9 +207,6 @@ func chooseBaseDir(_ context.Context, r *initRun) error {
 }
 
 func writeSettings(_ context.Context, r *initRun) error {
-	if r.opts.force {
-		_, _ = r.git("config", "--local", "--remove-section", "flowtree") // fails when there is none
-	}
 	if err := config.SetAll(r.git, config.Local, r.pairs); err != nil {
 		return err
 	}

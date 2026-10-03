@@ -69,11 +69,16 @@ func runAdd(ctx context.Context, d Deps, f addFlags, args []string) error {
 	}
 	status := statusWriter(d, f.quiet)
 	runHooks(ctx, status, repo, plan)
+	// The worktree exists: say where, and send the shell there, before --exec runs, so a failing or
+	// long-running command cannot swallow the path or the cd.
+	writeCdFile(d, plan.path)
+	if err := report(d, f, plan); err != nil {
+		return err
+	}
 	if err := runExec(ctx, d, status, f, plan); err != nil {
 		return fmt.Errorf("worktree was created at '%s', but --exec command failed: %w", plan.path, err)
 	}
-	writeCdFile(d, plan.path)
-	return report(d, f, plan)
+	return nil
 }
 
 // planAdd validates the request and works out the git invocation; it changes nothing.

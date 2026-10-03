@@ -1,12 +1,26 @@
 package flow
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
 	"flowtree/internal/gitx"
 )
+
+// ErrNoSuchBranch is what a topic name that matches no local branch wraps; callers that may fall back
+// to a remote branch test for it with errors.Is, so other failures (ambiguity, git errors) are not hidden.
+var ErrNoSuchBranch = errors.New("no such branch")
+
+// noSuchBranchError keeps the user-facing text while matching ErrNoSuchBranch.
+type noSuchBranchError struct{ branch string }
+
+func (e noSuchBranchError) Error() string {
+	return fmt.Sprintf("branch '%s' does not exist and is required", e.branch)
+}
+
+func (e noSuchBranchError) Is(target error) bool { return target == ErrNoSuchBranch }
 
 // ResolveTopic turns what the user typed (or nothing) into a full branch name of kind k.
 // A name may omit the prefix; work names may also be a unique prefix of the name. With no name,
@@ -23,7 +37,7 @@ func ResolveTopic(e *Env, k Kind, name string) (string, error) {
 	if k == Work {
 		return uniquePrefixMatch(g, branch)
 	}
-	return "", fmt.Errorf("branch '%s' does not exist and is required", branch)
+	return "", noSuchBranchError{branch}
 }
 
 func uniquePrefixMatch(g gitx.Git, branch string) (string, error) {
@@ -34,7 +48,7 @@ func uniquePrefixMatch(g gitx.Git, branch string) (string, error) {
 	matches := slices.DeleteFunc(all, func(b string) bool { return !strings.HasPrefix(b, branch) })
 	switch len(matches) {
 	case 0:
-		return "", fmt.Errorf("branch '%s' does not exist and is required", branch)
+		return "", noSuchBranchError{branch}
 	case 1:
 		return matches[0], nil
 	}

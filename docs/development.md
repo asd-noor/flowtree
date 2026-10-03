@@ -17,6 +17,15 @@ mise run tidy
 Plain `go build ./cmd/flowtree` and `go test ./...` work too. The only third-party dependencies are cobra and
 bubbletea (plus their dependencies); add one only with a reason.
 
+## Requirements
+
+Running flowtree needs git 2.17 or newer; the table in the [README](../README.md#requirements) lists what needs
+what. When you add a git call, check the release notes (or the manual of the oldest version you care about) for
+the flag or subcommand, and prefer the older form: that is why settings are read with a plain
+`git config --null --get-regexp` and the scope of each value is worked out from per-scope reads, instead of using
+`--show-scope` (2.26). The test suite needs a newer git than flowtree itself: `git init -b` (2.28) and the
+`GIT_CONFIG_GLOBAL` variable that isolates tests from your own configuration (2.32).
+
 ## Tests
 
 - **Unit tests** sit next to the code and use the standard `testing` package, no assertion library.

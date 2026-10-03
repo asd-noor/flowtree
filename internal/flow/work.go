@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"errors"
 	"fmt"
 
 	"flowtree/internal/gitx"
@@ -95,15 +96,17 @@ func PlanPull(e *Env, remote, name string) ([]Step, error) {
 	), nil
 }
 
-// pullBranch is the existing branch the name resolves to, else the full name as typed.
+// pullBranch is the existing branch the name resolves to, else the full name as typed (it may exist
+// only on the remote). Only "no such local branch" falls back; ambiguity and git failures are reported.
 func pullBranch(e *Env, name string) (string, error) {
-	if branch, err := ResolveTopic(e, Work, name); err == nil {
+	branch, err := ResolveTopic(e, Work, name)
+	switch {
+	case err == nil:
 		return branch, nil
+	case name != "" && errors.Is(err, ErrNoSuchBranch):
+		return e.S.Branch(Work, name), nil
 	}
-	if name == "" {
-		return "", fmt.Errorf("the current HEAD is no work branch; please specify a <name> argument")
-	}
-	return e.S.Branch(Work, name), nil
+	return "", err
 }
 
 func pullInto(e *Env, remote, branch string) error {

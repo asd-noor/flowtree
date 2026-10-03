@@ -30,8 +30,20 @@ eval "$(flowtree shell-init)"                  # in your shell rc: cd-ing comman
                                                # completion only: flowtree completion <shell>, see docs/shell-integration.md
 ```
 
-Requires `git` 2.17+. The shell function makes `start`, `checkout`, `switch` and `add` take you into the
+Requires `git` 2.17 or newer (see [Requirements](#requirements)). The shell function makes `start`, `checkout`, `switch` and `add` take you into the
 worktree, and moves you out of one that `finish` or `remove` deleted.
+
+## Requirements
+
+`git` 2.17 or newer. Most of it works on any git that has worktrees; these are the features that set the floor:
+
+| git | Needed for |
+|-----|------------|
+| 2.17 | `git worktree remove` and `move` (`remove`, `relocate`, every `finish`/`delete` cleanup) |
+| 2.18 | `rebase --rebase-merges`, only for `work rebase -p` and `work finish -r -p` |
+| 2.31 | `relocate` skips locked worktrees; on older git it stops with git's own error at the first locked one |
+
+Settings are read without `git config --show-scope` (2.26), so they work on the same git versions.
 
 ## Quick start
 
@@ -79,8 +91,10 @@ Run `flowtree <command> --help` for every flag. `finish` with no name uses the b
 - `release`/`hotfix finish` merges `--no-ff` into master, creates an annotated tag (`-s`/`-u` sign it, `-m`/`-f`
   set the message, `-n` skips it, `-T` renames it), merges the **tag** into develop (`-b` skips that), and with
   `-p` pushes develop, master and the tag.
-- `finish` never touches your current checkout: it merges in the worktree that already has the target branch,
-  or in a throwaway one. A conflicting merge is aborted and nothing changes.
+- `finish` merges inside the worktree that already has the target branch checked out (usually the main
+  checkout, on develop; it must have no uncommitted changes), or in a throwaway worktree. That worktree's files
+  do change, but the directory you run it from is never switched to another branch, except that finishing a
+  release returns the main checkout to develop. A conflicting merge is aborted and nothing changes.
 - `finish` is resumable: if the back-merge into develop conflicts after master was merged and tagged, resolve it
   by hand and run `finish` again; it continues from there.
 - Finishing deletes the local branch, its worktree and the remote branch; `-k` keeps the branches (the worktree

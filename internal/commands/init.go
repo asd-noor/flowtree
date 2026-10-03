@@ -26,6 +26,7 @@ type initOpts struct {
 	force    bool
 	defaults bool
 	exclude  bool
+	flow     flowOpts
 }
 
 // initRun is the state threaded through the init steps.
@@ -35,6 +36,7 @@ type initRun struct {
 	git   gitx.Git
 	main  string
 	cfg   config.Config
+	kept  bool          // an existing .flowtree.json is being extended, not replaced
 	stdin *bufio.Reader // one reader for every prompt, so buffered input is not lost
 }
 
@@ -42,7 +44,7 @@ type initRun struct {
 type initStep func(context.Context, *initRun) error
 
 // initSteps is the init pipeline, in order.
-var initSteps = []initStep{checkNotInitialised, chooseBaseDir, writeConfig, offerExclude}
+var initSteps = []initStep{checkNotInitialised, chooseBaseDir, chooseFlowSettings, writeConfig, setupFlowBranches, offerExclude}
 
 func newInitCmd(d Deps) *cobra.Command {
 	var o initOpts
@@ -53,7 +55,10 @@ func newInitCmd(d Deps) *cobra.Command {
 			"If the file already exists, init prints a note and changes nothing (exit 0); use --force to overwrite it.\n" +
 			"base_dir defaults to $FLOWTREE_PARENT/<repo name> when that is set, else ../worktrees.\n" +
 			"On a terminal, init asks for base_dir and whether to add the file to .git/info/exclude (default: no).\n" +
-			"With -d it never asks and never excludes; --exclude excludes without asking.",
+			"With -d it never asks and never excludes; --exclude excludes without asking.\n\n" +
+			"With --flow it also sets up git-flow: it stores the branch names and prefixes, creates the master and\n" +
+			"develop branches if they are missing, and puts the main worktree on develop. On a repository that is\n" +
+			"already initialised without flow, --flow adds the flow settings and keeps the rest of the file.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return runInit(cmd.Context(), d, o) },
 	}
@@ -62,6 +67,7 @@ func newInitCmd(d Deps) *cobra.Command {
 	f.BoolVarP(&o.force, "force", "f", false, "overwrite an existing .flowtree.json")
 	f.BoolVarP(&o.defaults, "defaults", "d", false, "do not prompt; use defaults")
 	f.BoolVar(&o.exclude, "exclude", false, "add .flowtree.json to .git/info/exclude without asking")
+	bindFlowFlags(f, &o.flow)
 	return cmd
 }
 
@@ -103,11 +109,17 @@ func checkNotInitialised(_ context.Context, r *initRun) error {
 	if _, err := os.Stat(config.Path(r.main)); err != nil || r.opts.force {
 		return nil
 	}
+	if r.opts.flow.enabled {
+		return extendExisting(r)
+	}
 	r.d.Printf("%s already exists in %s; nothing changed (use --force to overwrite)\n", config.FileName, r.main)
 	return errStop
 }
 
 func chooseBaseDir(_ context.Context, r *initRun) error {
+	if r.kept {
+		return nil
+	}
 	def := config.DefaultBaseDirFor(r.main, r.d.Getenv)
 	dir := r.opts.baseDir
 	if dir == "" && r.interactive() {

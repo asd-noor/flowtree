@@ -43,7 +43,11 @@ func RemoteBranchExists(g Git, remote, name string) bool {
 
 // LocalBranches lists local branch names, optionally under a prefix.
 func LocalBranches(g Git, prefix string) ([]string, error) {
-	return g.Lines("for-each-ref", "--format=%(refname:short)", "refs/heads/"+prefix+"*")
+	all, err := g.Lines("for-each-ref", "--format=%(refname:short)", "refs/heads")
+	if err != nil {
+		return nil, err
+	}
+	return filter(all, func(b string) bool { return strings.HasPrefix(b, prefix) }), nil
 }
 
 // RemoteRefs lists remote-tracking refs (origin/x) whose branch part is name.

@@ -42,12 +42,12 @@ the worktree you are in. `work` names also accept a unique prefix. Worktree name
 
 | Command | Effect |
 |---------|--------|
-| `work finish [-F] [-r] [-p] [-k] [--keeplocal] [--keepremote] [-D] [-S] [--no-ff] [--push] [--dry-run] [<name>]` | Merge into `develop`, then clean up. |
+| `work finish [-F] [-r | --no-rebase] [-p] [-k] [--keeplocal] [--keepremote] [-D] [-S] [--no-ff] [--push] [--dry-run] [<name>]` | Rebase onto `develop` (default), merge into it, then clean up. |
 | `work diff [<name>]` | Changes on the branch since it left `develop`. |
 | `work rebase [-p] [<name>]` | Rebase onto `develop` inside the worktree (`-i` needs a terminal; do not use it). |
 | `work pull <remote> [<name>]` | Fast-forward pull of the branch from `<remote>`, creating the branch and worktree if missing. |
 
-Flags: `-F` fetch first; `--no-rebase` skips the rebase onto develop before merging and `-r` forces it (default: `flowtree.finishRebase`, on); `-p` preserve merges while rebasing; `-k` keep
+Flags: `-F` fetch first; `--no-rebase` skips the rebase onto develop before merging and `-r` forces it (default: `flowtree.finishRebase`, on); `-p` preserve merges while rebasing; `-S` skips the rebase unless `-r` is given; `-k` keep
 local and remote branch (the worktree is still removed); `--keeplocal`/`--keepremote` keep only that copy;
 `-D` force worktree removal even with untracked files; `-S` squash; `--no-ff` always create a merge commit;
 `--push` push `develop` afterwards. The default merge is a fast-forward when possible.

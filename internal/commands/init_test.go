@@ -107,7 +107,7 @@ func TestInitPromptsOnTTY(t *testing.T) {
 	if got := loadCfg(t, repo, nil).BaseDir; got != "../mine" {
 		t.Fatalf("baseDir = %q", got)
 	}
-	if !strings.Contains(errb.String(), "[../worktrees]") {
+	if want := "[" + filepath.Join(filepath.Dir(repo), "worktrees") + "]"; !strings.Contains(errb.String(), want) {
 		t.Fatalf("prompt should show the default, got %q", errb.String())
 	}
 }
@@ -190,5 +190,17 @@ func TestInitFlowExtendsExistingSettings(t *testing.T) {
 	cfg := loadCfg(t, repo, nil)
 	if cfg.BaseDir != "../keep" || !cfg.FlowEnabled() || cfg.Flow.Master != "main" || cfg.Flow.Develop != "develop" {
 		t.Fatalf("%+v", cfg)
+	}
+}
+
+func TestInitPromptAcceptingTheShownPathStoresNothing(t *testing.T) {
+	repo := testutil.NewRepo(t)
+	shown := filepath.Join(filepath.Dir(repo), "worktrees")
+	d, _, _ := initDeps(t, repo, shown+"\n", true, nil)
+	if err := runInitCmd(t, d); err != nil {
+		t.Fatal(err)
+	}
+	if keys := localKeys(t, repo); keys != "" {
+		t.Fatalf("typing the default back must not store it: %q", keys)
 	}
 }

@@ -152,12 +152,12 @@ func chooseBaseDir(_ context.Context, r *initRun) error {
 	if r.kept {
 		return nil
 	}
-	def := r.cfg.DefaultBaseDirFor(r.main)
+	def := r.cfg.ResolveBaseDir(r.main) // shown as an absolute path: "../worktrees" says little in a prompt
 	dir := r.opts.baseDir
 	if dir == "" && r.interactive() {
 		dir = ask(r.stdin, r.d.Stderr, "Worktree directory", def)
 	}
-	if dir != "" && dir != def {
+	if dir != "" && (config.Config{BaseDir: dir}).ResolveBaseDir(r.main) != def {
 		r.pairs = append(r.pairs, config.Pair{Key: "baseDir", Value: config.ExpandHome(dir)})
 	}
 	return nil

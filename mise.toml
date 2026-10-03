@@ -8,22 +8,26 @@ go = "1.27.1" # keep in sync with the go directive in go.mod
 [task_config]
 dir = "{{config_root}}" # tasks run from the repo root whatever the current directory
 
-# [tasks.tidy]
-# description = "Tidy go.mod and go.sum"
-# run = "go mod tidy"
-#
-# [tasks.fmt]
-# description = "Check formatting, fails when a file needs gofmt"
-# run = 'test -z "$(gofmt -l $(git ls-files "*.go"))" || { gofmt -l $(git ls-files "*.go"); exit 1; }'
-#
-# [tasks.vet]
-# description = "Run go vet"
-# run = "go vet ./..."
-#
-# [tasks.test]
-# description = "Run the tests"
-# run = "go test ./..."
-#
-# [tasks.check]
-# description = "fmt, vet and test, what CI runs"
-# depends = ["fmt", "vet", "test"]
+[tasks.tidy]
+description = "Tidy go.mod and go.sum"
+run = "go mod tidy"
+
+[tasks.fmt]
+description = "Check formatting, fails when a file needs gofmt"
+run = 'test -z "$(gofmt -l $(git ls-files "*.go"))" || { gofmt -l $(git ls-files "*.go"); exit 1; }'
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.test]
+description = "Run the tests"
+run = "go test ./..."
+
+[tasks.check]
+description = "fmt, vet and test, what CI runs"
+depends = ["fmt", "vet", "test"]
+
+[tasks.build]
+description = "Build bin/flowtree"
+run = 'go build -ldflags "-X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o bin/flowtree ./cmd/flowtree'

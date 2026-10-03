@@ -1,8 +1,11 @@
 package commands
 
 import (
+	"bufio"
+	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -20,13 +23,14 @@ func newRemoveCmd(d Deps) *cobra.Command {
 		Use:     "remove [flags] <worktree>...",
 		Aliases: []string{"rm"},
 		Short:   "Remove worktrees",
-		Long: "Removes the named worktrees.\n\n" +
+		Long: "Removes the named worktrees. On a terminal, with no name, a picker lists the removable ones and\n" +
+			"asks for confirmation.\n\n" +
 			"Examples:\n" +
 			"  flowtree remove feature/old\n" +
 			"  flowtree remove --force feature/dirty\n" +
 			"  flowtree remove --with-branch feature/done",
 		Args: func(_ *cobra.Command, args []string) error {
-			if len(args) == 0 {
+			if len(args) == 0 && !d.IsTTY() {
 				return errors.New("worktree name required; usage: flowtree remove <worktree>... (see 'flowtree list')")
 			}
 			return nil
@@ -40,7 +44,11 @@ func newRemoveCmd(d Deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return errors.Join(mapSlice(args, func(name string) error { return removeOne(d, repo, o, name) })...)
+			names, err := removalTargets(cmd.Context(), d, repo, args)
+			if err != nil {
+				return err
+			}
+			return errors.Join(mapSlice(names, func(name string) error { return removeOne(d, repo, o, name) })...)
 		},
 	}
 	f := cmd.Flags()
@@ -81,4 +89,23 @@ func removeBranch(d Deps, repo Repo, o removeOpts, target gitx.Worktree) error {
 	}
 	d.Printf("Removed branch '%s'\n", target.Branch)
 	return nil
+}
+
+// removalTargets is args, or on a terminal with no args the worktree picked and confirmed.
+func removalTargets(ctx context.Context, d Deps, repo Repo, args []string) ([]string, error) {
+	if len(args) > 0 {
+		return args, nil
+	}
+	removable := slices.DeleteFunc(slices.Clone(repo.Worktrees), func(w gitx.Worktree) bool { return w.Main })
+	if len(removable) == 0 {
+		return nil, errors.New("no worktrees to remove besides the main worktree")
+	}
+	row, err := d.pick(ctx, worktreeRows(ctx, d, removable), "")
+	if err != nil {
+		return nil, err
+	}
+	if !askYesNo(bufio.NewReader(d.Stdin), d.Stderr, fmt.Sprintf("Remove worktree '%s'?", row.Key)) {
+		return nil, errors.New("cancelled")
+	}
+	return []string{row.Key}, nil
 }

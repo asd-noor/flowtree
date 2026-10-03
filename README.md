@@ -1,0 +1,118 @@
+# flowtree
+
+Git worktrees plus an opinionated git-flow. One binary:
+
+- **A worktree manager** in the spirit of [wtp](https://github.com/satococoa/wtp): `add`, `list`, `remove`,
+  `print-dir`, `exec`, post-create hooks, shell integration.
+- **git-flow where topic branches live in their own worktrees**: `flowtree work|release|hotfix start|finish|…`.
+  Branching and merge behaviour follow `git flow` (AVH edition); the difference is that you `cd` between
+  worktrees instead of switching branches.
+
+| flowtree | git-flow | branches from | merges into | lives in |
+|----------|----------|---------------|-------------|----------|
+| `work`    | feature/bugfix/support | develop | develop | its own worktree |
+| `release` | release | develop | master (tagged), the tag back into develop | the main checkout |
+| `hotfix`  | hotfix  | master  | master (tagged), the tag back into develop | its own worktree |
+
+The main checkout rests on `develop` and only ever holds `master`, `develop` or a `release/*` branch. Releases
+only touch a changelog and a version, so they switch the main checkout instead of getting a worktree.
+
+## Install
+
+```sh
+go install flowtree/cmd/flowtree@latest        # or: mise run build  ->  bin/flowtree
+eval "$(flowtree shell-init)"                  # in your shell rc: cd-ing commands + completion (bash, zsh, fish)
+```
+
+Requires `git` 2.17+. The shell function makes `start`, `checkout`, `switch` and `add` take you into the
+worktree, and moves you out of one that `finish` or `remove` deleted.
+
+## Quick start
+
+```sh
+flowtree init --flow               # .flowtree.json, master + develop; prompts (-d for defaults)
+
+flowtree work start login          # work/login off develop, in ../worktrees/work/login
+# ...commit...
+flowtree work finish               # merge into develop, remove worktree + branch (name inferred from cwd)
+
+flowtree release start 1.2.0       # release/1.2.0 off develop; the main checkout switches to it
+flowtree release finish -m "1.2.0" # merge to master, tag, merge the tag into develop, main back on develop
+
+flowtree hotfix start 1.2.1        # hotfix/1.2.1 off master
+flowtree hotfix finish -p          # as release finish, then push develop, master and the tag
+
+flowtree switch                    # pick where to go (built-in picker); `flowtree switch login` goes straight there
+```
+
+`--dry-run` on `start`, `finish` and `delete` prints the steps without running them.
+
+## Commands
+
+```
+flowtree init [--flow] [-w DIR] [-f] [-d] [--exclude]
+              [--master B] [--develop B] [-p work/] [-r release/] [-x hotfix/] [-t TAGPREFIX] [--remote R]
+flowtree add [-b NEW] [--exec CMD] [-q] <branch> [<commitish>]
+flowtree list | remove [-f] [--with-branch] [--force-branch] <worktree>... | exec <worktree> -- CMD...
+flowtree print-dir [<worktree>]    # prints a worktree's path; read-only (`@` = main)
+flowtree switch [QUERY]            # changes your worktree; may move the main checkout or create a worktree
+flowtree relocate [-n]
+flowtree shell-init [bash|zsh|fish] | completion <shell>
+
+flowtree work    list [-v] | start [-F] <name> [<base>] | finish [flags] [<name>] | checkout|publish [<name>]
+                 track <name> | delete [-f] [-r] <name> | diff [<name>] | rebase [-i] [-p] [<name>] | pull <remote> [<name>]
+flowtree release list [-v] | start [-F] <version> [<base>] | finish [flags] [<version>] | checkout|publish|track|delete
+flowtree hotfix  …same as release; branches from master
+```
+
+Run `flowtree <command> --help` for every flag. `finish` with no name uses the branch of the worktree you are in
+(or, on a terminal, offers a picker). Work names also accept a unique prefix.
+
+- `release`/`hotfix finish` merges `--no-ff` into master, creates an annotated tag (`-s`/`-u` sign it, `-m`/`-f`
+  set the message, `-n` skips it, `-T` renames it), merges the **tag** into develop (`-b` skips that), and with
+  `-p` pushes develop, master and the tag.
+- `finish` never touches your current checkout: it merges in the worktree that already has the target branch,
+  or in a throwaway one. A conflicting merge is aborted and nothing changes.
+- `finish` is resumable: if the back-merge into develop conflicts after master was merged and tagged, resolve it
+  by hand and run `finish` again; it continues from there.
+- Finishing deletes the local branch, its worktree and the remote branch; `-k` keeps the branches (the worktree
+  is still removed), `-D` removes a worktree with untracked files.
+- `start` refuses if a release or hotfix is already open, or the tag exists.
+
+## Configuration
+
+`.flowtree.json` lives in the main worktree and is **per-machine**: worktree directories differ between
+developers, so the file is meant not to be committed. `flowtree init` offers to add it to `.git/info/exclude`
+(default: no). Each clone runs `flowtree init` once.
+
+```json
+{
+  "version": 1,
+  "base_dir": "../worktrees",
+  "remote": "origin",
+  "flow": { "master": "main", "develop": "develop", "work_prefix": "work/",
+            "release_prefix": "release/", "hotfix_prefix": "hotfix/", "version_tag_prefix": "" },
+  "hooks": { "post_create": [
+    { "type": "copy", "from": ".env" },
+    { "type": "symlink", "from": ".cache", "to": ".cache" },
+    { "type": "command", "command": "npm ci" }
+  ] }
+}
+```
+
+- `base_dir`: where worktrees go, `<base_dir>/<branch>`; relative to the main worktree, `~` is expanded. Set
+  `FLOWTREE_PARENT=~/worktrees` to default every repo to `<parent>/<repo name>`. `flowtree relocate` moves
+  existing worktrees after a change.
+- Hooks run after every new worktree (`add`, `work start`, `hotfix start`, …). `copy` and `symlink` read from the
+  main worktree; `command` runs in the new worktree with `FLOWTREE_WORKTREE_PATH` and `FLOWTREE_REPO_ROOT` set.
+
+## Scripting and agents
+
+Everything but the picker is non-interactive: `init -d`, a name on every command, `--quiet` on `add`.
+`switch`, `print-dir` and `remove` without a name need a terminal. `FLOWTREE_CDFILE` is the file the shell
+function reads to learn where to `cd`.
+
+## License
+
+GPL-3.0-or-later; see [LICENSE](LICENSE). Parts are ported from [wtp](https://github.com/satococoa/wtp) (MIT);
+see [THIRD_PARTY.md](THIRD_PARTY.md).

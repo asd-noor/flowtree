@@ -10,6 +10,7 @@ import (
 
 	"flowtree/internal/flow"
 	"flowtree/internal/gitx"
+	"flowtree/internal/picker"
 )
 
 // newTopicCmd builds `flowtree work|release|hotfix` with its subcommands.
@@ -25,6 +26,9 @@ func newTopicCmd(k flow.Kind) Constructor {
 			newListSub, newStartSub, newFinishSub, newCheckoutSub, newPublishSub, newTrackSub, newDeleteSub,
 		} {
 			cmd.AddCommand(sub(k, d))
+		}
+		if k == flow.Work {
+			cmd.AddCommand(newDiffSub(k, d), newRebaseSub(k, d), newPullSub(k, d))
 		}
 		return cmd
 	}
@@ -210,7 +214,11 @@ func newCheckoutSub(k flow.Kind, d Deps) *cobra.Command {
 		ValidArgsFunction: completeTopics(k, d),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return withFlow(cmd.Context(), d, func(e *flow.Env) error {
-				dir, err := flow.Checkout(e, k, optArg(args, 0))
+				name, err := chooseTopic(cmd.Context(), d, e, k, optArg(args, 0))
+				if err != nil {
+					return err
+				}
+				dir, err := flow.Checkout(e, k, name)
 				if err == nil {
 					d.Printf("%s\n", dir)
 				}
@@ -271,7 +279,14 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 			if o.Message != "" && o.MessageFile != "" {
 				return fmt.Errorf("use either --message or --messagefile, not both")
 			}
-			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) { return flow.PlanFinish(e, o) })
+			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) {
+				name, err := chooseTopic(cmd.Context(), d, e, k, o.Name)
+				if err != nil {
+					return nil, err
+				}
+				o.Name = name
+				return flow.PlanFinish(e, o)
+			})
 		},
 	}
 	bindCommonFinish(cmd.Flags(), &o, &keep, &dry)
@@ -319,4 +334,21 @@ func bindReleaseFinish(f *pflag.FlagSet, o *flow.FinishOpts, k flow.Kind) {
 	if k == flow.Release {
 		f.BoolVar(&o.FFMaster, "ff-master", false, "fast-forward master instead of creating a merge commit")
 	}
+}
+
+// chooseTopic is name, or, on a terminal when no name was given and the working directory is not
+// inside a worktree of kind k, the open branch of that kind picked from a list.
+func chooseTopic(ctx context.Context, d Deps, e *flow.Env, k flow.Kind, name string) (string, error) {
+	if name != "" || !d.IsTTY() {
+		return name, nil
+	}
+	if _, err := flow.ResolveTopic(e, k, ""); err == nil {
+		return "", nil // inferred from the working directory
+	}
+	open, _ := flow.Open(e, k)
+	if len(open) == 0 {
+		return "", nil // let ResolveTopic report what is wrong
+	}
+	row, err := d.pick(ctx, mapSlice(open, func(n string) picker.Row { return picker.Row{Key: n, Label: n} }), "")
+	return row.Key, err
 }

@@ -4,12 +4,14 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"flowtree/internal/config"
 	"flowtree/internal/gitx"
+	"flowtree/internal/picker"
 )
 
 // Deps are the process-level collaborators of every command.
@@ -22,6 +24,8 @@ type Deps struct {
 	Cwd    func() (string, error)
 	// IsTTY reports whether interactive UI (picker, prompts) can be used.
 	IsTTY func() bool
+	// Pick shows an interactive picker over rows, with query prefilled.
+	Pick func(ctx context.Context, rows []picker.Row, query string) (picker.Row, error)
 }
 
 // RealDeps wires the process environment.
@@ -34,7 +38,24 @@ func RealDeps() Deps {
 		Getenv: os.Getenv,
 		Cwd:    os.Getwd,
 		IsTTY:  func() bool { return isTerminal(os.Stdin) && isTerminal(os.Stderr) },
+		Pick:   realPick,
 	}
+}
+
+// realPick runs the TUI, but only when a terminal is attached.
+func realPick(ctx context.Context, rows []picker.Row, query string) (picker.Row, error) {
+	if !(isTerminal(os.Stdin) && isTerminal(os.Stderr)) {
+		return picker.Row{}, errors.New("no terminal: pass a name")
+	}
+	return picker.Pick(ctx, rows, query, os.Stdin, os.Stderr)
+}
+
+// pick is Pick with a clear error when no picker is wired.
+func (d Deps) pick(ctx context.Context, rows []picker.Row, query string) (picker.Row, error) {
+	if d.Pick == nil {
+		return picker.Row{}, errors.New("no terminal: pass a name")
+	}
+	return d.Pick(ctx, rows, query)
 }
 
 func isTerminal(f *os.File) bool {

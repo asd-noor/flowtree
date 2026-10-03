@@ -57,3 +57,28 @@ func TestBashWrapperFollowsCdFile(t *testing.T) {
 		t.Errorf("got %q, want exit 3 in %s", got, want)
 	}
 }
+
+func TestFishWrapperFollowsCdFile(t *testing.T) {
+	fish, err := exec.LookPath("fish")
+	if err != nil {
+		t.Skip("fish not found")
+	}
+	dir, target := t.TempDir(), t.TempDir()
+	fake := "#!/bin/sh\n" +
+		"[ \"$1\" = completion ] && exit 0\n" +
+		"printf %s \"$TARGET\" > \"$FLOWTREE_CDFILE\"\nexit 3\n"
+	if err := os.WriteFile(filepath.Join(dir, "flowtree"), []byte(fake), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script, _ := Init("fish")
+	cmd := exec.Command(fish, "--no-config", "-c", script+"\nflowtree go; echo $status (pwd)")
+	cmd.Env = append(os.Environ(), "PATH="+dir+":"+os.Getenv("PATH"), "TARGET="+target)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	want, _ := filepath.EvalSymlinks(target)
+	if got := strings.TrimSpace(string(out)); got != "3 "+want && got != "3 "+target {
+		t.Errorf("got %q, want exit 3 in %s", got, want)
+	}
+}

@@ -4,6 +4,12 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [0.2.1]
+
+### Fixed
+
+- The interactive picker now uses the terminal's alternate screen, so its output is removed when it closes.
+
 ## [0.2.0] - 2026-10-04
 
 ### Added

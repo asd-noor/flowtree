@@ -140,6 +140,12 @@ func TestPreviewIsLazyAndCached(t *testing.T) {
 	}
 }
 
+func TestViewUsesAlternateScreen(t *testing.T) {
+	if !newModel(rows3(), "").View().AltScreen {
+		t.Error("picker view should use the alternate screen")
+	}
+}
+
 func TestViewLayouts(t *testing.T) {
 	rows := []Row{{Key: "alpha", Preview: func() string { return "P1\nP2" }}, {Key: "beta"}}
 	m := newModel(rows, "")

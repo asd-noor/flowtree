@@ -98,7 +98,13 @@ func (m model) cached() model {
 	return m
 }
 
-func (m model) View() tea.View { return tea.NewView(render(m)) }
+// View uses the alternate screen so closing the picker restores the caller's
+// terminal exactly as it was before the UI opened.
+func (m model) View() tea.View {
+	view := tea.NewView(render(m))
+	view.AltScreen = true
+	return view
+}
 
 // clamp keeps a cursor inside a list of n rows (0 when empty).
 func clamp(i, n int) int { return max(0, min(i, n-1)) }

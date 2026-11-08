@@ -14,15 +14,9 @@ type FinishOpts struct {
 	Fetch   bool
 	Cleanup CleanupOpts
 	Push    bool
-	Squash  bool
-
-	// work
-	Rebase   bool // rebase onto develop first, even when flowtree.finishRebase is false
-	NoRebase bool // merge without first rebasing onto develop
-	Preserve bool // keep merges while rebasing
-	NoFF     bool
 
 	// release and hotfix
+	Squash      bool
 	Sign        bool
 	SignKey     string
 	Message     string
@@ -31,12 +25,6 @@ type FinishOpts struct {
 	NoBackmerge bool
 	FFMaster    bool // release only
 	TagName     string
-}
-
-// rebases reports whether work finish rebases first. The flags win over flowtree.finishRebase; a squash
-// discards the branch's commits anyway, so it skips the rebase unless -r asks for it.
-func (o FinishOpts) rebases(s Settings) bool {
-	return (s.FinishRebase && !o.Squash || o.Rebase) && !o.NoRebase
 }
 
 // PlanFinish checks the branch and returns the steps that merge it and clean up.
@@ -55,32 +43,32 @@ func PlanFinish(e *Env, o FinishOpts) ([]Step, error) {
 	if err := checkMainCanReturn(e, branch); err != nil {
 		return nil, err
 	}
-	if o.Kind == Work {
-		return planFinishWork(e, o, branch)
+	if o.Kind == Feature {
+		return planFinishFeature(e, o, branch)
 	}
 	return planFinishRelease(e, o, branch)
 }
 
-func planFinishWork(e *Env, o FinishOpts, branch string) ([]Step, error) {
-	mode := FastForward
-	switch {
-	case o.Squash:
-		mode = Squash
-	case o.NoFF:
-		mode = NoFF
-	}
+func planFinishFeature(e *Env, o FinishOpts, branch string) ([]Step, error) {
+	var merged bool
 	return Plan(
-		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
-		One("check "+e.S.Develop+" against "+e.S.Remote, func(e *Env) error { return CheckSync(e, e.S.Develop) }),
-		If(o.rebases(e.S), One("rebase "+branch+" onto "+e.S.Develop, func(e *Env) error { return rebaseOnto(e, branch, o.Preserve) })),
-		One(fmt.Sprintf("merge %s into %s (%s)", branch, e.S.Develop, modeName(mode)), func(e *Env) error {
-			if err := MergeInto(e, e.S.Develop, branch, mode, ""); err != nil {
+		If(e.HasRemote(), One("fetch "+e.S.Remote, Fetch)),
+		One("check whether "+branch+" is already merged", func(e *Env) error {
+			merged = mergedUpstream(e, branch)
+			if merged {
+				e.Say("'%s' is already merged into '%s'; cleaning up", branch, e.S.Develop)
+				return nil
+			}
+			return CheckSync(e, e.S.Develop)
+		}),
+		One(fmt.Sprintf("merge %s into %s (--no-ff) unless already merged", branch, e.S.Develop), func(e *Env) error {
+			if merged {
+				return nil
+			}
+			if err := MergeInto(e, e.S.Develop, branch, NoFF, ""); err != nil {
 				return err
 			}
-			e.Say("\nSummary of actions:\n- The work branch '%s' was merged into '%s'", branch, e.S.Develop)
-			if mode == Squash {
-				e.Say("  (squashed)")
-			}
+			e.Say("\nSummary of actions:\n- The feature branch '%s' was merged into '%s'", branch, e.S.Develop)
 			return nil
 		}),
 		One("remove worktree and branch "+branch, func(e *Env) error { return Cleanup(e, branch, o.Cleanup) }),
@@ -88,46 +76,28 @@ func planFinishWork(e *Env, o FinishOpts, branch string) ([]Step, error) {
 	), nil
 }
 
+// mergedUpstream reports whether develop, or its remote copy (a pull request merged on the forge),
+// already contains branch. A branch with no commits of its own does not count: it was never merged.
+func mergedUpstream(e *Env, branch string) bool {
+	g := e.MainGit()
+	tip, _ := Rev(g, branch)
+	if dv, _ := Rev(g, e.S.Develop); tip == dv {
+		return false
+	}
+	targets := []string{e.S.Develop}
+	if e.HasRemote() && gitx.RemoteBranchExists(g, e.S.Remote, e.S.Develop) {
+		targets = append(targets, e.S.Remote+"/"+e.S.Develop)
+	}
+	for _, t := range targets {
+		if g.Ok("merge-base", "--is-ancestor", branch, t) {
+			return true
+		}
+	}
+	return false
+}
+
 func modeName(m MergeMode) string {
 	return [...]string{"fast-forward if possible", "--no-ff", "squash"}[m]
-}
-
-// rebaseOnto rebases branch onto develop inside its worktree, creating the worktree if needed.
-func rebaseOnto(e *Env, branch string, preserve bool) error {
-	dir, err := EnsureWorktree(e, branch)
-	if err != nil {
-		return err
-	}
-	if err := RequireClean(e, dir); err != nil {
-		return err
-	}
-	args := []string{"rebase"}
-	if preserve {
-		args = append(args, "--rebase-merges")
-	}
-	before, _ := Rev(e.Git(dir), "HEAD")
-	if _, err := e.Git(dir)(append(args, e.S.Develop)...); err != nil {
-		_ = e.Git(dir).Ok("rebase", "--abort")
-		return fmt.Errorf("finish was aborted due to conflicts during rebase; rebase manually in '%s' "+
-			"(git rebase %s), then re-run: flowtree work finish %s\n%w", dir, e.S.Develop, e.S.Name(Work, branch), err)
-	}
-	warnIfRewrotePublished(e, dir, branch, before)
-	return nil
-}
-
-// warnIfRewrotePublished says so when the rebase rewrote commits that are already on the remote copy of
-// the branch: anyone who pulled it now has commits that no longer exist.
-func warnIfRewrotePublished(e *Env, dir, branch, before string) {
-	g := e.Git(dir)
-	after, _ := Rev(g, "HEAD")
-	remote := e.S.Remote + "/" + branch
-	if before == after || !e.HasRemote() || !gitx.RemoteBranchExists(g, e.S.Remote, branch) {
-		return
-	}
-	if !g.Ok("merge-base", "--is-ancestor", remote, "HEAD") {
-		e.Warn("the rebase rewrote commits already on '%s'; anyone who pulled '%s' must reset it "+
-			"(finish deletes the remote branch unless you pass -k or --keepremote)", remote, branch)
-	}
 }
 
 func pushStep(branches ...string) []Step {

@@ -27,7 +27,7 @@ func TestInitFlowCreatesBranchesAndSettings(t *testing.T) {
 		t.Errorf("stdout = %q", res.Stdout)
 	}
 	for key, want := range map[string]string{
-		"master": "main", "develop": "develop", "workPrefix": "work/", "releasePrefix": "release/", "hotfixPrefix": "hotfix/",
+		"master": "main", "develop": "develop", "featurePrefix": "feature/", "releasePrefix": "release/", "hotfixPrefix": "hotfix/",
 	} {
 		if got := localSetting(t, repo, key); got != want {
 			t.Errorf("flowtree.%s = %q, want %q", key, got, want)
@@ -44,7 +44,7 @@ func TestInitFlowCreatesBranchesAndSettings(t *testing.T) {
 func TestInitFlowFlags(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	Run(t, repo, "init", "--flow", "-d", "--master", "prod", "--develop", "next", "-p", "feat/", "-t", "v", "--remote", "up").MustSucceed(t)
-	for key, want := range map[string]string{"master": "prod", "develop": "next", "workPrefix": "feat/", "versionTagPrefix": "v", "remote": "up"} {
+	for key, want := range map[string]string{"master": "prod", "develop": "next", "featurePrefix": "feat/", "versionTagPrefix": "v", "remote": "up"} {
 		if got := localSetting(t, repo, key); got != want {
 			t.Errorf("flowtree.%s = %q, want %q", key, got, want)
 		}
@@ -93,9 +93,9 @@ func TestInitFlowNeedsACommit(t *testing.T) {
 
 func TestSettingsLiveInTheMainWorktreesGitConfig(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
 	// from a linked worktree the same settings apply
-	if res := Run(t, worktreeDir(repo, "work/a"), "work", "list").MustSucceed(t); !strings.Contains(res.Stdout, "a") {
+	if res := Run(t, worktreeDir(repo, "feature/a"), "feature", "list").MustSucceed(t); !strings.Contains(res.Stdout, "a") {
 		t.Errorf("stdout = %q", res.Stdout)
 	}
 	if _, err := os.Stat(filepath.Join(repo, ".flowtree.json")); err == nil {

@@ -4,13 +4,13 @@ Git worktrees plus an opinionated git-flow. One binary:
 
 - **A worktree manager** in the spirit of [wtp](https://github.com/satococoa/wtp): `add`, `list`, `remove`,
   `print-dir`, `exec`, post-create hooks, shell integration.
-- **git-flow where topic branches live in their own worktrees**: `flowtree work|release|hotfix start|finish|…`.
+- **git-flow where topic branches live in their own worktrees**: `flowtree feature|release|hotfix start|finish|…`.
   Branching and merge behaviour follow `git flow` (AVH edition); the difference is that you `cd` between
   worktrees instead of switching branches.
 
 | flowtree | git-flow | branches from | merges into | lives in |
 |----------|----------|---------------|-------------|----------|
-| `work`    | feature/bugfix/support | develop | develop | its own worktree |
+| `feature`    | feature/bugfix/support | develop | develop | its own worktree |
 | `release` | release | develop | master (tagged), the tag back into develop | its own worktree |
 | `hotfix`  | hotfix  | master  | master (tagged), the tag back into develop | its own worktree |
 
@@ -52,7 +52,7 @@ worktree, and moves you out of one that `finish` or `remove` deleted.
 | git | Needed for |
 |-----|------------|
 | 2.17 | `git worktree remove` and `move` (`remove`, `relocate`, every `finish`/`delete` cleanup) |
-| 2.18 | `rebase --rebase-merges`, only for `work rebase -p` and `work finish -p` |
+| 2.18 | `rebase --rebase-merges`, only for `feature rebase -p` |
 | 2.31 | `relocate` skips locked worktrees; on older git it stops with git's own error at the first locked one |
 
 Settings are read without `git config --show-scope` (2.26), so they work on the same git versions.
@@ -62,9 +62,9 @@ Settings are read without `git config --show-scope` (2.26), so they work on the 
 ```sh
 flowtree init --flow               # store settings in git config, create master + develop; prompts (-d for defaults)
 
-flowtree work start login          # work/login off develop, in ../worktrees/work/login
+flowtree feature start login       # feature/login off develop, in ../worktrees/feature/login
 # ...commit...
-flowtree work finish               # merge into develop, remove worktree + branch (name inferred from cwd)
+flowtree feature finish            # merge commit into develop, remove worktree + branch (name inferred from cwd)
 
 flowtree release start 1.2.0       # release/1.2.0 off develop, in ../worktrees/release/1.2.0
 flowtree release finish -m "1.2.0" # merge to master, tag, merge the tag into develop, remove worktree + branch
@@ -81,7 +81,7 @@ flowtree switch                    # pick where to go (built-in picker); `flowtr
 
 ```
 flowtree init [--flow] [-w DIR] [-f] [-d]
-              [--master B] [--develop B] [-p work/] [-r release/] [-x hotfix/] [-t TAGPREFIX] [--remote R]
+              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [-t TAGPREFIX] [--remote R]
 flowtree add [-b NEW] [--exec CMD] [-q] <branch> [<commitish>]
 flowtree config [<key> [<value>]] [--global] [--unset] | config hooks
 flowtree list | remove [-f] [--with-branch] [--force-branch] <worktree>... | exec <worktree> -- CMD...
@@ -91,7 +91,7 @@ flowtree relocate [-n]
 flowtree shell-init [bash|zsh|fish] | completion <shell>
 flowtree install-skill <dir>       # install the embedded agent skill into a skills directory
 
-flowtree work    list [-v] | start [-F] <name> [<base>] | finish [flags] [<name>] | checkout|publish [<name>]
+flowtree feature list [-v] | start [-F] <name> [<base>] | finish [flags] [<name>] | checkout|publish [<name>]
                  track <name> | delete [-f] [-r] <name> | diff [<name>] | rebase [-i] [-p] [<name>] | pull <remote> [<name>]
 flowtree release list [-v] | start [-F] <version> [<base>] | finish [flags] [<version>] | checkout|publish|track|delete
 flowtree hotfix  …same as release; branches from master
@@ -100,6 +100,8 @@ flowtree hotfix  …same as release; branches from master
 Run `flowtree <command> --help` for every flag. `finish` with no name uses the branch of the worktree you are in
 (or, on a terminal, offers a picker). Work names also accept a unique prefix.
 
+- `feature finish` merges `--no-ff` into develop and never rebases; if a pull request already merged the branch,
+  it only cleans up.
 - `release`/`hotfix finish` merges `--no-ff` into master, creates an annotated tag (`-s`/`-u` sign it, `-m`/`-f`
   set the message, `-n` skips it, `-T` renames it), merges the **tag** into develop (`-b` skips that), and with
   `-p` pushes develop, master and the tag.
@@ -126,7 +128,7 @@ flowtree config baseDir ~/worktrees/api  # or: git config flowtree.baseDir ~/wor
 flowtree config --global remote upstream
 ```
 
-Keys: `baseDir`, `remote`, `master`, `develop`, `workPrefix`, `releasePrefix`, `hotfixPrefix`, `versionTagPrefix`.
+Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `versionTagPrefix`.
 An unknown `flowtree.*` key is an error, so typos do not go unnoticed.
 
 - `baseDir`: where worktrees go, `<baseDir>/<branch>`; relative to the main worktree, `~` is expanded. When it is

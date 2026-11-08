@@ -34,7 +34,7 @@ func ResolveTopic(e *Env, k Kind, name string) (string, error) {
 	if gitx.BranchExists(g, branch) {
 		return branch, nil
 	}
-	if k == Work {
+	if k == Feature {
 		return uniquePrefixMatch(g, branch)
 	}
 	return "", noSuchBranchError{branch}

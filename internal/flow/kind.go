@@ -7,22 +7,22 @@ type Kind int
 
 // The topic branch kinds.
 const (
-	Work Kind = iota
+	Feature Kind = iota
 	Release
 	Hotfix
 )
 
 // Kinds lists every kind.
-var Kinds = []Kind{Work, Release, Hotfix}
+var Kinds = []Kind{Feature, Release, Hotfix}
 
-func (k Kind) String() string { return [...]string{"work", "release", "hotfix"}[k] }
+func (k Kind) String() string { return [...]string{"feature", "release", "hotfix"}[k] }
 
 // Noun is how messages refer to a kind ("The release was tagged").
 func (k Kind) Noun() string { return k.String() }
 
 // Prefix is the branch prefix of a kind.
 func (s Settings) Prefix(k Kind) string {
-	return [...]string{s.WorkPrefix, s.ReleasePrefix, s.HotfixPrefix}[k]
+	return [...]string{s.FeaturePrefix, s.ReleasePrefix, s.HotfixPrefix}[k]
 }
 
 // Base is the branch a kind starts from (and, for work, merges into).

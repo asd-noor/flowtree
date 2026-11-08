@@ -154,7 +154,7 @@ func switchDir(e *Env, t SwitchTarget) (string, error) {
 	return t.Dir, nil
 }
 
-// shortName is a topic branch without its prefix ("work/login" -> "login"), so `switch login` is an
+// shortName is a topic branch without its prefix ("feature/login" -> "login"), so `switch login` is an
 // exact match. Other branches have none.
 func (s Settings) shortName(b string) string {
 	for _, k := range Kinds {

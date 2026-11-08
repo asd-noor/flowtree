@@ -66,13 +66,13 @@ func TestMergeIntoModes(t *testing.T) {
 		parents int
 	}{{flow.FastForward, 1}, {flow.NoFF, 2}, {flow.Squash, 1}} {
 		e, repo := setup(t)
-		wt, err := flow.CreateWorktree(e, "work/a", gitx.AddOpts{NewBranch: "work/a", Commitish: "develop"})
+		wt, err := flow.CreateWorktree(e, "feature/a", gitx.AddOpts{NewBranch: "feature/a", Commitish: "develop"})
 		if err != nil {
 			t.Fatal(err)
 		}
 		commit(t, wt, "a.txt", "a")
 		commit(t, wt, "b.txt", "b")
-		if err := flow.MergeInto(e, "develop", "work/a", tc.mode, ""); err != nil {
+		if err := flow.MergeInto(e, "develop", "feature/a", tc.mode, ""); err != nil {
 			t.Fatalf("mode %d: %v", tc.mode, err)
 		}
 		// develop is checked out in the main worktree, so the merge ran there.
@@ -89,12 +89,12 @@ func TestMergeIntoModes(t *testing.T) {
 func TestMergeIntoUsesThrowawayWorktree(t *testing.T) {
 	e, repo := setup(t)
 	testutil.Git(t, repo, "checkout", "-q", "main") // develop is now checked out nowhere
-	wt, _ := flow.CreateWorktree(e, "work/a", gitx.AddOpts{NewBranch: "work/a", Commitish: "develop"})
+	wt, _ := flow.CreateWorktree(e, "feature/a", gitx.AddOpts{NewBranch: "feature/a", Commitish: "develop"})
 	commit(t, wt, "a.txt", "a")
-	if err := flow.MergeInto(e, "develop", "work/a", flow.FastForward, ""); err != nil {
+	if err := flow.MergeInto(e, "develop", "feature/a", flow.FastForward, ""); err != nil {
 		t.Fatal(err)
 	}
-	if got := testutil.Git(t, repo, "rev-parse", "develop"); got != testutil.Git(t, repo, "rev-parse", "work/a") {
+	if got := testutil.Git(t, repo, "rev-parse", "develop"); got != testutil.Git(t, repo, "rev-parse", "feature/a") {
 		t.Error("develop was not fast-forwarded")
 	}
 	wts, _ := e.Worktrees()
@@ -108,11 +108,11 @@ func TestMergeIntoUsesThrowawayWorktree(t *testing.T) {
 
 func TestMergeConflictChangesNothing(t *testing.T) {
 	e, repo := setup(t)
-	wt, _ := flow.CreateWorktree(e, "work/a", gitx.AddOpts{NewBranch: "work/a", Commitish: "develop"})
+	wt, _ := flow.CreateWorktree(e, "feature/a", gitx.AddOpts{NewBranch: "feature/a", Commitish: "develop"})
 	commit(t, wt, "README.md", "from work\n")
 	commit(t, repo, "README.md", "from develop\n") // main worktree is on develop
 	before := testutil.Git(t, repo, "rev-parse", "develop")
-	err := flow.MergeInto(e, "develop", "work/a", flow.NoFF, "")
+	err := flow.MergeInto(e, "develop", "feature/a", flow.NoFF, "")
 	if err == nil || !strings.Contains(err.Error(), "Nothing was changed") {
 		t.Fatalf("got %v", err)
 	}
@@ -123,10 +123,10 @@ func TestMergeConflictChangesNothing(t *testing.T) {
 
 func TestMergeRefusesDirtyTarget(t *testing.T) {
 	e, repo := setup(t)
-	wt, _ := flow.CreateWorktree(e, "work/a", gitx.AddOpts{NewBranch: "work/a", Commitish: "develop"})
+	wt, _ := flow.CreateWorktree(e, "feature/a", gitx.AddOpts{NewBranch: "feature/a", Commitish: "develop"})
 	commit(t, wt, "a.txt", "a")
 	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "dirty\n")
-	if err := flow.MergeInto(e, "develop", "work/a", flow.FastForward, ""); err == nil {
+	if err := flow.MergeInto(e, "develop", "feature/a", flow.FastForward, ""); err == nil {
 		t.Fatal("expected refusal")
 	}
 }
@@ -156,12 +156,12 @@ func TestCheckSync(t *testing.T) {
 
 func TestEnsureWorktreeEvacuatesMain(t *testing.T) {
 	e, repo := setup(t)
-	testutil.Git(t, repo, "checkout", "-q", "-b", "work/x", "develop")
-	dir, err := flow.EnsureWorktree(e, "work/x")
+	testutil.Git(t, repo, "checkout", "-q", "-b", "feature/x", "develop")
+	dir, err := flow.EnsureWorktree(e, "feature/x")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir == repo || !strings.HasSuffix(dir, "worktrees/work/x") {
+	if dir == repo || !strings.HasSuffix(dir, "worktrees/feature/x") {
 		t.Errorf("worktree at %s", dir)
 	}
 	if got := gitx.CurrentBranch(e.MainGit()); got != "develop" {
@@ -183,15 +183,15 @@ func TestReleaseGetsWorktree(t *testing.T) {
 
 func TestResolveTopic(t *testing.T) {
 	e, repo := setup(t)
-	for _, b := range []string{"work/login", "work/logout", "work/signup", "hotfix/1.0.1"} {
+	for _, b := range []string{"feature/login", "feature/logout", "feature/signup", "hotfix/1.0.1"} {
 		testutil.Git(t, repo, "branch", b, "develop")
 	}
-	for name, want := range map[string]string{"login": "work/login", "work/signup": "work/signup", "sig": "work/signup"} {
-		if got, err := flow.ResolveTopic(e, flow.Work, name); err != nil || got != want {
+	for name, want := range map[string]string{"login": "feature/login", "feature/signup": "feature/signup", "sig": "feature/signup"} {
+		if got, err := flow.ResolveTopic(e, flow.Feature, name); err != nil || got != want {
 			t.Errorf("%q: %q %v", name, got, err)
 		}
 	}
-	if _, err := flow.ResolveTopic(e, flow.Work, "log"); err == nil || !strings.Contains(err.Error(), "multiple") {
+	if _, err := flow.ResolveTopic(e, flow.Feature, "log"); err == nil || !strings.Contains(err.Error(), "multiple") {
 		t.Errorf("ambiguous prefix: %v", err)
 	}
 	if _, err := flow.ResolveTopic(e, flow.Hotfix, "9"); err == nil {
@@ -200,12 +200,12 @@ func TestResolveTopic(t *testing.T) {
 	if got, err := flow.ResolveTopic(e, flow.Hotfix, "1.0.1"); err != nil || got != "hotfix/1.0.1" {
 		t.Errorf("%q %v", got, err)
 	}
-	if _, err := flow.ResolveTopic(e, flow.Work, ""); err == nil { // cwd is the main worktree on develop
+	if _, err := flow.ResolveTopic(e, flow.Feature, ""); err == nil { // cwd is the main worktree on develop
 		t.Error("no name outside a topic worktree should fail")
 	}
-	wt, _ := flow.EnsureWorktree(e, "work/login")
+	wt, _ := flow.EnsureWorktree(e, "feature/login")
 	e.Cwd = filepath.Join(wt, "sub")
-	if got, err := flow.ResolveTopic(e, flow.Work, ""); err != nil || got != "work/login" {
+	if got, err := flow.ResolveTopic(e, flow.Feature, ""); err != nil || got != "feature/login" {
 		t.Errorf("inferred from cwd: %q %v", got, err)
 	}
 }
@@ -215,7 +215,7 @@ func TestSettings(t *testing.T) {
 	if got := s.Branch(flow.Release, "1.0"); got != "release/1.0" || s.Branch(flow.Release, "release/1.0") != got {
 		t.Error(got)
 	}
-	if s.Base(flow.Hotfix) != "master" || s.Base(flow.Work) != "develop" || s.Name(flow.Work, "work/x") != "x" {
+	if s.Base(flow.Hotfix) != "master" || s.Base(flow.Feature) != "develop" || s.Name(flow.Feature, "feature/x") != "x" {
 		t.Error("base/name")
 	}
 	bad := s

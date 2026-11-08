@@ -1,6 +1,6 @@
 ---
 name: flowtree
-description: Drives the flowtree CLI, which manages git worktrees and a git-flow variant where work/*, release/* and hotfix/* branches each get their own worktree. Use when a repo has flowtree settings (`git config --get flowtree.develop` prints a value), or when asked to start, finish, publish or clean up feature/bugfix/release/hotfix work with git-flow semantics in isolated worktrees, tag a release, ship a hotfix, create or remove a worktree, run something in a worktree, set up worktree post-create hooks (copy .env, symlink, run a setup command), or move worktrees to another directory.
+description: Drives the flowtree CLI, which manages git worktrees and a git-flow variant where feature/*, release/* and hotfix/* branches each get their own worktree. Use when a repo has flowtree settings (`git config --get flowtree.develop` prints a value), or when asked to start, finish, publish or clean up feature/bugfix/release/hotfix work with git-flow semantics in isolated worktrees, tag a release, ship a hotfix, create or remove a worktree, run something in a worktree, set up worktree post-create hooks (copy .env, symlink, run a setup command), or move worktrees to another directory.
 license: GPL-3.0-or-later
 compatibility: Requires git (2.17 or newer) and the flowtree binary on PATH. Needs a shell that can run commands.
 metadata:
@@ -14,7 +14,7 @@ where topic branches live in their own worktrees**. Branch model:
 
 | Kind | Branch | Starts from | Finishes into | Lives in |
 |------|--------|-------------|---------------|----------|
-| `work` (feature/bugfix/support) | `work/<name>` | `develop` | `develop` | its own worktree |
+| `feature` (feature/bugfix/support) | `feature/<name>` | `develop` | `develop` | its own worktree |
 | `release` | `release/<version>` | `develop` | `master` + tag, tag merged into `develop` | its own worktree |
 | `hotfix` | `hotfix/<version>` | `master` | `master` + tag, tag merged into `develop` | its own worktree |
 
@@ -22,14 +22,14 @@ The production branch may be called `main`; the branch names and prefixes are in
 
 ## Rules for agents
 
-1. **Layout rule.** The main checkout holds only `master` or `develop`; `work/*`, `release/*` and `hotfix/*`
+1. **Layout rule.** The main checkout holds only `master` or `develop`; `feature/*`, `release/*` and `hotfix/*`
    live in their own worktrees. Never check out a topic branch in the main checkout yourself
    (`git checkout`/`switch`): start it with `flowtree <kind> start` and work in the worktree. If the rule gets
    broken, `<kind> checkout <name>` moves the branch out again.
 2. **Your shell does not keep a `cd`** between tool calls and shell integration is not loaded. Get the worktree
    path from the output and use absolute paths or `git -C <path>` / `cd <path> && ...` in every command:
    ```sh
-   dir=$(flowtree work checkout login)   # prints only the path; creates the worktree if missing
+   dir=$(flowtree feature checkout login) # prints only the path; creates the worktree if missing
    dir=$(flowtree print-dir login)       # read-only: prints the path of an existing worktree
    dir=$(flowtree add -b spike --quiet)  # plain worktree on a new branch, prints only the path
    git -C "$dir" status
@@ -52,17 +52,17 @@ The production branch may be called `main`; the branch names and prefixes are in
 
 ## Workflow
 
-Check the repo is set up: any `flowtree work list` fails with "flow is not set up in this repository" if not.
+Check the repo is set up: any `flowtree feature list` fails with "flow is not set up in this repository" if not.
 Then run `flowtree init --flow -d` (it creates `master`/`develop` if missing and stores the settings in git config); confirm
 with the user first if the repo already has branches or a different layout.
 
 **Work item**
 ```sh
-flowtree work start <name>        # prints "A worktree for it was created at '<path>'"
+flowtree feature start <name>        # prints "A worktree for it was created at '<path>'"
 # edit + commit inside <path>
-flowtree work finish <name>       # run from anywhere; rebases onto develop, then fast-forwards into it
+flowtree feature finish <name>       # run from anywhere; merge commit into develop, never rebases
 ```
-Options: `--no-ff` (always a merge commit), `-S` (squash), `--no-rebase` / `-r` (skip / force the rebase onto develop; default is the `flowtree.finishRebase` setting, on), `-k` (keep branches).
+If a pull request already merged the branch, `finish` only cleans up. Options: `-k` (keep branches), `--push`.
 
 **Release**
 ```sh
@@ -83,10 +83,10 @@ prefix), merges the tag into `develop`, then removes the worktree and branch.
 
 Preview any `start`, `finish` or `delete` with `--dry-run`: it prints the steps and changes nothing.
 
-**Inspect**: `flowtree work list -v` (also `release`, `hotfix`), `flowtree work diff <name>`, `flowtree list`.
+**Inspect**: `flowtree feature list -v` (also `release`, `hotfix`), `flowtree feature diff <name>`, `flowtree list`.
 
 **Plain worktrees** (not flow branches): `flowtree add <branch>` or `flowtree add -b <new> [<start>]`, then
-`flowtree remove [--with-branch] <name>`. Inside a flow repo do **not** create or remove `work/`, `release/` or
+`flowtree remove [--with-branch] <name>`. Inside a flow repo do **not** create or remove `feature/`, `release/` or
 `hotfix/` branches this way: that skips the base branch, the open-release check, tagging and the merge steps.
 Use `flowtree <kind> start|finish|delete` for those.
 

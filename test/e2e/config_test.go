@@ -47,13 +47,13 @@ func TestConfigRejectsUnknownKeysAndBadValues(t *testing.T) {
 func TestTypoedKeyInGitConfigIsReported(t *testing.T) {
 	repo := flowRepo(t)
 	testutil.Git(t, repo, "config", "flowtree.workPrefx", "feat/")
-	res := Run(t, repo, "work", "list").MustFail(t)
+	res := Run(t, repo, "feature", "list").MustFail(t)
 	if !strings.Contains(res.Stderr, "workprefx") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 	// the message names the key, so it can be removed with git
 	testutil.Git(t, repo, "config", "--unset", "flowtree.workPrefx")
-	Run(t, repo, "work", "list").MustSucceed(t)
+	Run(t, repo, "feature", "list").MustSucceed(t)
 }
 
 func TestGlobalSettingsApplyToEveryRepository(t *testing.T) {
@@ -78,8 +78,8 @@ func TestHooksFileInGitDirIsUsed(t *testing.T) {
 	testutil.WriteFile(t, filepath.Join(repo, ".env"), "K=1\n")
 	testutil.WriteFile(t, filepath.Join(repo, ".git", "flowtree-hooks.json"),
 		`{"post_create":[{"type":"copy","from":".env"}]}`)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	if got, _ := os.ReadFile(filepath.Join(worktreeDir(repo, "work/a"), ".env")); string(got) != "K=1\n" {
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	if got, _ := os.ReadFile(filepath.Join(worktreeDir(repo, "feature/a"), ".env")); string(got) != "K=1\n" {
 		t.Errorf("hook did not copy .env: %q", got)
 	}
 	out := Run(t, repo, "config", "hooks").MustSucceed(t).Stdout

@@ -9,12 +9,12 @@ import (
 
 var wts = []gitx.Worktree{
 	{Path: "/code/api", Branch: "main", Main: true},
-	{Path: "/wt/api/work/login", Branch: "work/login"},
-	{Path: "/wt/api/odd", Branch: "work/other"},
+	{Path: "/wt/api/feature/login", Branch: "feature/login"},
+	{Path: "/wt/api/odd", Branch: "feature/other"},
 }
 
 func TestDisplay(t *testing.T) {
-	want := []string{"api@main(root worktree)", "work/login", "odd@work/other"}
+	want := []string{"api@main(root worktree)", "feature/login", "odd@feature/other"}
 	for i, w := range wts {
 		if got := worktree.Display(w); got != want[i] {
 			t.Errorf("%d: %s", i, got)
@@ -25,8 +25,8 @@ func TestDisplay(t *testing.T) {
 func TestResolve(t *testing.T) {
 	for query, path := range map[string]string{
 		"": "/code/api", "@": "/code/api", "main": "/code/api",
-		"work/login": "/wt/api/work/login", "odd": "/wt/api/odd", "work/other": "/wt/api/odd",
-		"/wt/api/odd": "/wt/api/odd", "odd@work/other": "/wt/api/odd",
+		"feature/login": "/wt/api/feature/login", "odd": "/wt/api/odd", "feature/other": "/wt/api/odd",
+		"/wt/api/odd": "/wt/api/odd", "odd@feature/other": "/wt/api/odd",
 	} {
 		w, err := worktree.Resolve(wts, query)
 		if err != nil || w.Path != path {

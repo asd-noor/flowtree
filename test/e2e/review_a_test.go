@@ -20,7 +20,7 @@ func checkedOutByHand(t *testing.T, repo, branch, base string) string {
 
 func TestFinishRefusesWhenMainCannotReturnToDevelop(t *testing.T) {
 	for _, tc := range []struct{ kind, name, branch, base string }{
-		{"work", "x", "work/x", "develop"},
+		{"feature", "x", "feature/x", "develop"},
 		{"hotfix", "1.0.1", "hotfix/1.0.1", "main"},
 	} {
 		repo := flowRepo(t)
@@ -28,7 +28,7 @@ func TestFinishRefusesWhenMainCannotReturnToDevelop(t *testing.T) {
 		before := testutil.Git(t, repo, "rev-parse", "develop")
 
 		args := []string{tc.kind, "finish", tc.name}
-		if tc.kind != "work" {
+		if tc.kind != "feature" {
 			args = append(args, "-m", "m")
 		}
 		res := Run(t, repo, args...).MustFail(t)

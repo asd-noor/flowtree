@@ -24,7 +24,7 @@ var Constructors = []Constructor{
 	newSwitchCmd,
 	newTopicCmd(flow.Hotfix),
 	newTopicCmd(flow.Release),
-	newTopicCmd(flow.Work),
+	newTopicCmd(flow.Feature),
 }
 
 // NewRoot assembles the root command.

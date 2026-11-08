@@ -29,7 +29,7 @@ preserved. Commands write the file when you should end up somewhere else:
 | `<kind> start`, `track`, `checkout` | the branch's worktree |
 | `switch` | where you chose |
 | `finish`, `delete`, `remove` of the worktree you are standing in | the main worktree |
-| `work pull` that creates a worktree | that worktree |
+| `feature pull` that creates a worktree | that worktree |
 
 Without the wrapper everything still works; commands that print a path (`checkout`, `switch`, `print-dir`,
 `add -q`) can be used as `cd "$(flowtree checkout login)"`. One difference: `remove` refuses to delete the
@@ -42,9 +42,9 @@ Completion is dynamic and reads the repository you are in:
 
 - worktree names for `print-dir`, `exec`, `remove`;
 - branch names (local, plus remote-only) for `add`;
-- open `work`/`release`/`hotfix` names for `finish`, `checkout`, `publish`, `delete`, `rebase`, `diff`;
+- open `feature`/`release`/`hotfix` names for `finish`, `checkout`, `publish`, `delete`, `rebase`, `diff`;
 - branches that exist only on the remote for `track`;
-- remotes for `work pull`;
+- remotes for `feature pull`;
 - row names for `switch`.
 
 Completion never prints errors into your prompt; outside a repository it simply suggests nothing. Only the
@@ -79,7 +79,7 @@ so it keeps working after upgrades and never needs regenerating.
   come after it is sourced in your rc file.
 - zsh: `compinit` must have run. `shell-init` runs it for you when it has not; with the file-based setup, call
   it yourself after the `fpath` is set up.
-- Inside a repository, `flowtree __complete work finish ""` prints what would be suggested; if that is empty,
+- Inside a repository, `flowtree __complete feature finish ""` prints what would be suggested; if that is empty,
   the problem is the repository (for example flow not set up: `flowtree init --flow`), not the shell.
 
 ## The picker

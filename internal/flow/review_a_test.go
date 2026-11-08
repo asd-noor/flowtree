@@ -176,7 +176,7 @@ func TestFinishRefusesBeforeMergingWhenMainCannotReturnToDevelop(t *testing.T) {
 		kind         flow.Kind
 		branch, base string
 	}{
-		{flow.Work, "work/x", "develop"},
+		{flow.Feature, "feature/x", "develop"},
 		{flow.Hotfix, "hotfix/1.0.1", "main"},
 	} {
 		e, repo := setup(t)
@@ -204,9 +204,9 @@ func TestFinishRefusesBeforeMergingWhenMainCannotReturnToDevelop(t *testing.T) {
 
 func TestWorkFinishFromMainWorktreeWorksWhenDevelopIsFree(t *testing.T) {
 	e, repo := setup(t)
-	testutil.Git(t, repo, "checkout", "-q", "-b", "work/x", "develop") // develop is now checked out nowhere
+	testutil.Git(t, repo, "checkout", "-q", "-b", "feature/x", "develop") // develop is now checked out nowhere
 	commit(t, repo, "x.txt", "x")
-	steps, err := flow.PlanFinish(e, flow.FinishOpts{Kind: flow.Work, Name: "x"})
+	steps, err := flow.PlanFinish(e, flow.FinishOpts{Kind: flow.Feature, Name: "x"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func TestWorkFinishFromMainWorktreeWorksWhenDevelopIsFree(t *testing.T) {
 	if !strings.Contains(testutil.Git(t, repo, "ls-tree", "--name-only", "develop"), "x.txt") {
 		t.Error("work was not merged")
 	}
-	if strings.Contains(testutil.Git(t, repo, "branch", "--format=%(refname:short)"), "work/x") {
+	if strings.Contains(testutil.Git(t, repo, "branch", "--format=%(refname:short)"), "feature/x") {
 		t.Error("work branch should be deleted")
 	}
 }

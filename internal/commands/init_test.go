@@ -90,7 +90,7 @@ func TestInitFollowsParentEnvInsteadOfStoringIt(t *testing.T) {
 	if keys := localKeys(t, repo); keys != "" {
 		t.Fatalf("nothing should be stored so the default keeps following the environment: %q", keys)
 	}
-	if got, want := loadCfg(t, repo, env).WorktreePath(repo, "work/x"), "/srv/trees/repo/work/x"; got != want {
+	if got, want := loadCfg(t, repo, env).WorktreePath(repo, "feature/x"), "/srv/trees/repo/feature/x"; got != want {
 		t.Fatalf("worktree path = %q, want %q", got, want)
 	}
 	if got := loadCfg(t, repo, map[string]string{config.ParentEnv: "/other"}).ResolveBaseDir(repo); got != "/other/repo" {

@@ -13,7 +13,7 @@ import (
 	"flowtree/internal/picker"
 )
 
-// newTopicCmd builds `flowtree work|release|hotfix` with its subcommands.
+// newTopicCmd builds `flowtree feature|release|hotfix` with its subcommands.
 func newTopicCmd(k flow.Kind) Constructor {
 	return func(d Deps) *cobra.Command {
 		cmd := &cobra.Command{
@@ -27,7 +27,7 @@ func newTopicCmd(k flow.Kind) Constructor {
 		} {
 			cmd.AddCommand(sub(k, d))
 		}
-		if k == flow.Work {
+		if k == flow.Feature {
 			cmd.AddCommand(newDiffSub(k, d), newRebaseSub(k, d), newPullSub(k, d))
 		}
 		return cmd
@@ -36,8 +36,8 @@ func newTopicCmd(k flow.Kind) Constructor {
 
 func topicShort(k flow.Kind) string {
 	switch k {
-	case flow.Work:
-		return "Work branches: start from develop, merge back into develop"
+	case flow.Feature:
+		return "Feature branches: start from develop, merge back into develop with a merge commit"
 	case flow.Release:
 		return "Release branches: start from develop, merge into master (tagged) and back into develop"
 	}
@@ -45,7 +45,7 @@ func topicShort(k flow.Kind) string {
 }
 
 func nameArg(k flow.Kind) string {
-	if k == flow.Work {
+	if k == flow.Feature {
 		return "<name>"
 	}
 	return "<version>"
@@ -289,9 +289,8 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 		},
 	}
 	bindCommonFinish(cmd.Flags(), &o, &keep, &dry)
-	if k == flow.Work {
-		bindWorkFinish(cmd.Flags(), &o)
-		cmd.MarkFlagsMutuallyExclusive("rebase", "no-rebase")
+	if k == flow.Feature {
+		cmd.Flags().BoolVar(&o.Push, "push", false, "push develop afterwards")
 	} else {
 		bindReleaseFinish(cmd.Flags(), &o, k)
 	}
@@ -299,31 +298,23 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 }
 
 func finishShort(k flow.Kind) string {
-	if k == flow.Work {
-		return "Merge a work branch into develop and clean up"
+	if k == flow.Feature {
+		return "Merge a feature branch into develop and clean up"
 	}
 	return fmt.Sprintf("Merge a %s into master, tag it, merge the tag into develop and clean up", k)
 }
 
 func bindCommonFinish(f *pflag.FlagSet, o *flow.FinishOpts, keep, dry *bool) {
-	f.BoolVarP(&o.Fetch, "fetch", "F", false, "fetch the remote first")
 	f.BoolVarP(keep, "keep", "k", false, "keep the local and remote branch (the worktree is still removed)")
 	f.BoolVar(&o.Cleanup.KeepLocal, "keeplocal", false, "keep the local branch")
 	f.BoolVar(&o.Cleanup.KeepRemote, "keepremote", false, "keep the remote branch")
 	f.BoolVarP(&o.Cleanup.Force, "force-delete", "D", false, "remove the worktree even when it has untracked files")
-	f.BoolVarP(&o.Squash, "squash", "S", false, "squash the branch into one commit")
 	f.BoolVar(dry, "dry-run", false, "print the steps without running them")
 }
 
-func bindWorkFinish(f *pflag.FlagSet, o *flow.FinishOpts) {
-	f.BoolVarP(&o.Rebase, "rebase", "r", false, "rebase onto develop before merging (default; see flowtree.finishRebase)")
-	f.BoolVar(&o.NoRebase, "no-rebase", false, "do not rebase onto develop before merging")
-	f.BoolVarP(&o.Preserve, "preserve-merges", "p", false, "keep merges while rebasing")
-	f.BoolVar(&o.NoFF, "no-ff", false, "always create a merge commit")
-	f.BoolVar(&o.Push, "push", false, "push develop afterwards")
-}
-
 func bindReleaseFinish(f *pflag.FlagSet, o *flow.FinishOpts, k flow.Kind) {
+	f.BoolVarP(&o.Fetch, "fetch", "F", false, "fetch the remote first")
+	f.BoolVarP(&o.Squash, "squash", "S", false, "squash the branch into one commit")
 	f.BoolVarP(&o.Push, "push", "p", false, "push develop, master and the tag afterwards")
 	f.BoolVarP(&o.Sign, "sign", "s", false, "sign the tag")
 	f.StringVarP(&o.SignKey, "signingkey", "u", "", "sign the tag with this key")

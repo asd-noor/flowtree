@@ -26,14 +26,14 @@ func TestLoadWithNothingSetGivesDefaults(t *testing.T) {
 	if err != nil || c.BaseDir != "" || c.Remote != "origin" || c.FlowEnabled() || c.HasHooks() {
 		t.Fatalf("%+v %v", c, err)
 	}
-	if got := c.WorktreePath("/code/api", "work/login"); got != "/code/worktrees/work/login" {
+	if got := c.WorktreePath("/code/api", "feature/login"); got != "/code/worktrees/feature/login" {
 		t.Error(got)
 	}
 }
 
 func TestSetAndLoad(t *testing.T) {
 	g, repo := open(t)
-	for k, v := range map[string]string{"baseDir": "/abs", "remote": "up", "master": "main", "develop": "dev", "workPrefix": "feat/", "versionTagPrefix": "v"} {
+	for k, v := range map[string]string{"baseDir": "/abs", "remote": "up", "master": "main", "develop": "dev", "featurePrefix": "feat/", "versionTagPrefix": "v"} {
 		if err := config.Set(g, config.Local, k, v); err != nil {
 			t.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func TestSetAndLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := config.Flow{Master: "main", Develop: "dev", WorkPrefix: "feat/", VersionTag: "v"}
+	want := config.Flow{Master: "main", Develop: "dev", FeaturePrefix: "feat/", VersionTag: "v"}
 	if c.BaseDir != "/abs" || c.Remote != "up" || c.Flow != want || !c.FlowEnabled() {
 		t.Fatalf("%+v", c)
 	}
@@ -133,11 +133,11 @@ func TestBaseDirDefaults(t *testing.T) {
 		t.Error(got)
 	}
 	c.Parent = "/wt"
-	if got := c.WorktreePath("/code/api", "work/x"); got != "/wt/api/work/x" {
+	if got := c.WorktreePath("/code/api", "feature/x"); got != "/wt/api/feature/x" {
 		t.Errorf("FLOWTREE_PARENT/<repo>/<branch>: %s", got)
 	}
 	c.BaseDir = "/explicit"
-	if got := c.WorktreePath("/code/api", "work/x"); got != "/explicit/work/x" {
+	if got := c.WorktreePath("/code/api", "feature/x"); got != "/explicit/feature/x" {
 		t.Errorf("an explicit baseDir wins over FLOWTREE_PARENT: %s", got)
 	}
 	if got := config.ExpandHome("~/x"); strings.HasPrefix(got, "~") {

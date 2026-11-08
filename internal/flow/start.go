@@ -15,7 +15,7 @@ type StartOpts struct {
 }
 
 func missingName(k Kind) error {
-	if k == Work {
+	if k == Feature {
 		return fmt.Errorf("missing argument <name>")
 	}
 	return fmt.Errorf("missing argument <version>")
@@ -55,7 +55,7 @@ func firstNonEmpty(vals ...string) string {
 
 func checkStartable(e *Env, k Kind, name, branch, base string) error {
 	g := e.MainGit()
-	if k != Work {
+	if k != Feature {
 		if err := checkNoneOpen(e); err != nil {
 			return err
 		}

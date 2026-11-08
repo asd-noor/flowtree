@@ -13,18 +13,18 @@ import (
 
 // flowOpts are the `init --flow` flags. Empty strings mean "ask, or use the default".
 type flowOpts struct {
-	enabled                          bool
-	master, develop                  string
-	workPrefix, relPrefix, hotPrefix string
-	versionTag                       string
-	remote                           string
+	enabled                             bool
+	master, develop                     string
+	featurePrefix, relPrefix, hotPrefix string
+	versionTag                          string
+	remote                              string
 }
 
 func bindFlowFlags(f *pflag.FlagSet, o *flowOpts) {
 	f.BoolVar(&o.enabled, "flow", false, "also set up git-flow: master/develop branches and flow settings")
 	f.StringVar(&o.master, "master", "", "production branch name (default: existing master or main, else master)")
 	f.StringVar(&o.develop, "develop", "", "integration branch name (default develop)")
-	f.StringVarP(&o.workPrefix, "work-prefix", "p", "", "prefix of work branches (default work/)")
+	f.StringVarP(&o.featurePrefix, "feature-prefix", "p", "", "prefix of feature branches (default feature/)")
 	f.StringVarP(&o.relPrefix, "release-prefix", "r", "", "prefix of release branches (default release/)")
 	f.StringVarP(&o.hotPrefix, "hotfix-prefix", "x", "", "prefix of hotfix branches (default hotfix/)")
 	f.StringVarP(&o.versionTag, "version-tag", "t", "", "prefix of version tags, e.g. v (default none)")
@@ -66,7 +66,7 @@ func (r *initRun) flowSettings() (flow.Settings, error) {
 	}{
 		{"Branch name for production releases", o.master, &s.Master},
 		{"Branch name for next release development", o.develop, &s.Develop},
-		{"Work branches prefix", o.workPrefix, &s.WorkPrefix},
+		{"Feature branches prefix", o.featurePrefix, &s.FeaturePrefix},
 		{"Release branches prefix", o.relPrefix, &s.ReleasePrefix},
 		{"Hotfix branches prefix", o.hotPrefix, &s.HotfixPrefix},
 		{"Version tag prefix", o.versionTag, &s.VersionTag},

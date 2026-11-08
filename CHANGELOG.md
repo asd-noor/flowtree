@@ -8,6 +8,12 @@ All notable changes to flowtree are documented here. The format follows
 
 ### Changed
 
+- **Breaking:** the `work` kind is now `feature` (`flowtree feature …`, branches `feature/<name>`, setting
+  `featurePrefix`, `init --feature-prefix`). Existing `work/*` branches and `flowtree.workPrefix` are not migrated.
+- `feature finish` always merges into develop with a merge commit and never rebases. It fetches first, and when
+  develop or its remote copy already contains the branch (a merged pull request) it only cleans up. Its `-F`,
+  `-r`/`--no-rebase`, `-p`, `-S` and `--no-ff` flags and the `flowtree.finishRebase` setting are gone.
+
 - Release branches get their own worktree, like work and hotfix branches; the main checkout only ever holds
   master or develop. `release start`, `checkout` and `track` no longer switch the main checkout. A release
   that is still checked out in the main checkout from an older version is moved into a worktree by

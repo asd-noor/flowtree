@@ -31,13 +31,12 @@ type Config struct {
 
 // Flow holds the git-flow settings; see package flow. Empty fields mean "not set".
 type Flow struct {
-	Master       string
-	Develop      string
-	WorkPrefix   string
-	RelPrefix    string
-	HotPrefix    string
-	VersionTag   string
-	FinishRebase string // flowtree.finishRebase: "true" or "false"; empty means true
+	Master        string
+	Develop       string
+	FeaturePrefix string
+	RelPrefix     string
+	HotPrefix     string
+	VersionTag    string
 }
 
 // Hooks groups hooks by the event they run on.

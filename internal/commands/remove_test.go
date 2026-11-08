@@ -85,7 +85,7 @@ func TestRemoveWithBranchMergedAndUnmerged(t *testing.T) {
 	h.git("worktree", "add", "-q", "-b", "unmerged", h.wt("unmerged"))
 	testutil.WriteFile(t, filepath.Join(h.wt("unmerged"), "f.txt"), "x")
 	testutil.Git(t, h.wt("unmerged"), "add", "-A")
-	testutil.Git(t, h.wt("unmerged"), "commit", "-q", "-m", "work")
+	testutil.Git(t, h.wt("unmerged"), "commit", "-q", "-m", "feature")
 
 	if _, err := h.run(t, "remove", "--with-branch", "merged"); err != nil {
 		t.Fatal(err)

@@ -38,7 +38,7 @@ type Git    func(args ...string) (string, error)                                
 `*gitx.Error` carrying git's stderr, and branch lookup failures are `*gitx.BranchError`. Tests inject a fake
 Runner or use the real one against a temp repository.
 
-Only interactive commands bypass the seam (`work rebase -i`, `exec`), because they need the terminal.
+Only interactive commands bypass the seam (`feature rebase -i`, `exec`), because they need the terminal.
 
 ## Commands receive their world
 

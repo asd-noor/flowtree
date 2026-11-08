@@ -10,7 +10,7 @@ shown by `list`, or an absolute path.
 
 ```
 flowtree init [--flow] [-w DIR] [-f] [-d]
-              [--master B] [--develop B] [-p work/] [-r release/] [-x hotfix/] [-t TAGPREFIX] [--remote R]
+              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [-t TAGPREFIX] [--remote R]
 ```
 
 Stores flowtree's settings in the repository's git config (`.git/config`, section `flowtree`; see
@@ -40,7 +40,7 @@ flowtree config --unset <key> [--global]
 flowtree config hooks                    # path and contents of the post-create hooks file
 ```
 
-Keys: `baseDir`, `remote`, `master`, `develop`, `workPrefix`, `releasePrefix`, `hotfixPrefix`,
+Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`,
 `versionTagPrefix` (any case, optional `flowtree.` prefix). The listing marks each value `(local)`, `(global)`,
 `(system)` or `(default)`. Values are validated before they are written and unknown keys are rejected. Keys
 complete with Tab. `config hooks` prints where `flowtree-hooks.json` lives, and an example when the file does not
@@ -113,25 +113,25 @@ Runs a command in the worktree with your terminal attached and exits with the co
 Takes you where a branch lives; with shell integration your shell `cd`s there. Rows:
 
 - `@`: the main worktree (also matched by the branch it is on, so `switch develop` finds it while it is on develop);
-- every `work/*`, `release/*` and `hotfix/*` worktree;
+- every `feature/*`, `release/*` and `hotfix/*` worktree;
 - `master` and `develop` when the main worktree is not on them: selecting one **moves the main
   worktree onto it** (it must be clean);
-- `work/*`, `release/*` and `hotfix/*` branches with no worktree: selecting one creates it.
+- `feature/*`, `release/*` and `hotfix/*` branches with no worktree: selecting one creates it.
 
 A query is case-insensitive and tiered: exact, then substring, then fuzzy (letters in order). Topic branches
-also match without their prefix (`login` for `work/login`). If exactly one row matches it is used at once;
+also match without their prefix (`login` for `feature/login`). If exactly one row matches it is used at once;
 otherwise the picker opens with the query prefilled. Without a terminal an ambiguous query is an error.
 Unlike `print-dir`, `switch` can change state, and says so on stderr when it does.
 
 ### `relocate [-n]`
 
-Moves topic (work, release and hotfix) worktrees to `<baseDir>/<branch>` after `baseDir` changed (`-n` shows the plan). Locked
+Moves topic (feature, release and hotfix) worktrees to `<baseDir>/<branch>` after `baseDir` changed (`-n` shows the plan). Locked
 worktrees, missing directories and occupied targets are skipped with a reason; it refuses to run while you are
 inside a worktree it would move; the main worktree is never moved.
 
 ## Flow commands
 
-`<kind>` is `work`, `release` or `hotfix`. `<name>` is the name without its prefix (a version for release and
+`<kind>` is `feature`, `release` or `hotfix`. `<name>` is the name without its prefix (a version for release and
 hotfix). The behaviour behind these is described in [git-flow.md](git-flow.md).
 
 | Command | Effect |
@@ -146,14 +146,15 @@ hotfix). The behaviour behind these is described in [git-flow.md](git-flow.md).
 
 `--dry-run` (on `start`, `finish`, `delete`) prints the planned steps and changes nothing.
 
-### `work finish`
+### `feature finish`
 
 ```
-flowtree work finish [-F] [-r | --no-rebase] [-p] [-S] [--no-ff] [--push] [-k] [--keeplocal] [--keepremote] [-D] [--dry-run] [<name>]
+flowtree feature finish [--push] [-k] [--keeplocal] [--keepremote] [-D] [--dry-run] [<name>]
 ```
 
-`-F` fetch first; the branch is first rebased onto develop in its worktree (not with `-S` unless `-r`; a warning says when commits already on the remote were rewritten) (`-p` keeps merges; `--no-rebase` skips it, `-r` forces it; the default is the `finishRebase` setting, on unless configured otherwise); `-S` squash; `--no-ff` always make a merge
-commit (default: fast-forward when possible); `--push` push develop afterwards; `-k` keep local and remote
+Fetches (when the remote exists), then merges into develop with `--no-ff`; the branch is never rebased. If
+develop or its remote copy already contains the branch (a merged pull request), it only cleans up.
+`--push` push develop afterwards; `-k` keep local and remote
 branch; `--keeplocal`/`--keepremote` keep one; `-D` (`--force-delete`) remove the worktree even with untracked files.
 
 ### `release finish`, `hotfix finish`
@@ -171,6 +172,6 @@ and the tag. The tag name is `<version tag prefix><version>` unless `-T` is give
 
 | Command | Effect |
 |---------|--------|
-| `work diff [<name>]` | The changes on the branch since it left develop. |
-| `work rebase [-i] [-p] [<name>]` | Rebase onto develop inside the worktree; `-i` is interactive and needs a terminal. |
-| `work pull <remote> [<name>]` | Fetch, then fast-forward pull the branch in its worktree; if it does not exist locally, create it tracking `<remote>/<branch>` with a worktree. |
+| `feature diff [<name>]` | The changes on the branch since it left develop. |
+| `feature rebase [-i] [-p] [<name>]` | Rebase onto develop inside the worktree; `-i` is interactive and needs a terminal. |
+| `feature pull <remote> [<name>]` | Fetch, then fast-forward pull the branch in its worktree; if it does not exist locally, create it tracking `<remote>/<branch>` with a worktree. |

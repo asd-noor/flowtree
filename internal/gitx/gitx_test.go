@@ -11,11 +11,11 @@ import (
 )
 
 func TestParseWorktrees(t *testing.T) {
-	out := "worktree /r\nHEAD aaa\nbranch refs/heads/main\n\nworktree /w/x\nHEAD bbb\nbranch refs/heads/work/x\n\nworktree /w/d\nHEAD ccc\ndetached\n"
+	out := "worktree /r\nHEAD aaa\nbranch refs/heads/main\n\nworktree /w/x\nHEAD bbb\nbranch refs/heads/feature/x\n\nworktree /w/d\nHEAD ccc\ndetached\n"
 	wts := gitx.ParseWorktrees(out)
 	want := []gitx.Worktree{
 		{Path: "/r", Head: "aaa", Branch: "main", Main: true},
-		{Path: "/w/x", Head: "bbb", Branch: "work/x"},
+		{Path: "/w/x", Head: "bbb", Branch: "feature/x"},
 		{Path: "/w/d", Head: "ccc"},
 	}
 	if !slices.Equal(wts, want) {

@@ -46,7 +46,7 @@ editor path of annotated tags.
 
 `skills/flowtree/` is embedded into the binary (`skills/embed.go`) and installed by `flowtree install-skill`.
 When commands or flags change, update the skill too. Two tests guard it: every `flowtree <command>` in a code
-span of the skill must be a real command (and `work|release|hotfix <sub>` a real subcommand), and the front
+span of the skill must be a real command (and `feature|release|hotfix <sub>` a real subcommand), and the front
 matter must have `name` and a `description` of at most 1024 characters.
 
 ## Conventions

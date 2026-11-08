@@ -68,7 +68,7 @@ func TestInitForceNonInteractiveWithoutFlagResetsToDefault(t *testing.T) {
 
 func TestInitForceResetsRemoteAndFlow(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	for k, v := range map[string]string{"remote": "up", "master": "main", "develop": "dev", "workPrefix": "feat/"} {
+	for k, v := range map[string]string{"remote": "up", "master": "main", "develop": "dev", "featurePrefix": "feat/"} {
 		testutil.Git(t, repo, "config", "flowtree."+k, v)
 	}
 	d, _, _ := initDeps(t, repo, "", false, nil)
@@ -76,7 +76,7 @@ func TestInitForceResetsRemoteAndFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := loadCfg(t, repo, nil)
-	if cfg.Remote != "origin" || cfg.FlowEnabled() || cfg.Flow.WorkPrefix != "" || cfg.BaseDir != "../x" {
+	if cfg.Remote != "origin" || cfg.FlowEnabled() || cfg.Flow.FeaturePrefix != "" || cfg.BaseDir != "../x" {
 		t.Fatalf("--force must reset remote and flow too: %+v", cfg)
 	}
 }
@@ -84,13 +84,13 @@ func TestInitForceResetsRemoteAndFlow(t *testing.T) {
 func TestInitForceFlowStartsFromTheResetDefaults(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	testutil.Git(t, repo, "config", "flowtree.remote", "up")
-	testutil.Git(t, repo, "config", "flowtree.workPrefix", "feat/")
+	testutil.Git(t, repo, "config", "flowtree.featurePrefix", "feat/")
 	d, _, _ := initDeps(t, repo, "", false, nil)
 	if err := runInitCmd(t, d, "--force", "--flow", "-d"); err != nil {
 		t.Fatal(err)
 	}
 	cfg := loadCfg(t, repo, nil)
-	if cfg.Remote != "origin" || cfg.Flow.WorkPrefix != "work/" || !cfg.FlowEnabled() {
+	if cfg.Remote != "origin" || cfg.Flow.FeaturePrefix != "feature/" || !cfg.FlowEnabled() {
 		t.Fatalf("flow settings must come from the defaults, not the old config: %+v", cfg)
 	}
 }

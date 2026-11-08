@@ -23,12 +23,12 @@ func TestBuildSwitchTargets(t *testing.T) {
 	s := flow.DefaultSettings()
 	wts := []gitx.Worktree{
 		{Path: "/r", Branch: "develop", Main: true},
-		{Path: "/w/work/a", Branch: "work/a"},
+		{Path: "/w/feature/a", Branch: "feature/a"},
 		{Path: "/w/hotfix/1", Branch: "hotfix/1"},
 	}
-	branches := []string{"develop", "master", "release/1.0", "work/a", "work/b", "hotfix/1", "random"}
+	branches := []string{"develop", "master", "release/1.0", "feature/a", "feature/b", "hotfix/1", "random"}
 	ts := flow.BuildSwitchTargets(s, "/r", wts, branches)
-	if got, want := strings.Join(keys(ts), " "), "@ work/a hotfix/1 master release/1.0 work/b"; got != want {
+	if got, want := strings.Join(keys(ts), " "), "@ feature/a hotfix/1 master release/1.0 feature/b"; got != want {
 		t.Fatalf("keys = %q, want %q", got, want)
 	}
 	main := ts[0]
@@ -38,7 +38,7 @@ func TestBuildSwitchTargets(t *testing.T) {
 	for _, c := range []struct {
 		key    string
 		action flow.SwitchAction
-	}{{"work/a", flow.GoDir}, {"master", flow.MoveMain}, {"release/1.0", flow.Ensure}, {"work/b", flow.Ensure}} {
+	}{{"feature/a", flow.GoDir}, {"master", flow.MoveMain}, {"release/1.0", flow.Ensure}, {"feature/b", flow.Ensure}} {
 		for _, tg := range ts {
 			if tg.Key == c.key && tg.Action != c.action {
 				t.Errorf("%s: action %d, want %d", c.key, tg.Action, c.action)
@@ -49,9 +49,9 @@ func TestBuildSwitchTargets(t *testing.T) {
 
 func TestBuildSwitchTargetsStrayTopicInMain(t *testing.T) {
 	s := flow.DefaultSettings()
-	wts := []gitx.Worktree{{Path: "/r", Branch: "work/x", Main: true}}
-	ts := flow.BuildSwitchTargets(s, "/r", wts, []string{"work/x", "develop"})
-	if got, want := strings.Join(keys(ts), " "), "@ work/x develop"; got != want {
+	wts := []gitx.Worktree{{Path: "/r", Branch: "feature/x", Main: true}}
+	ts := flow.BuildSwitchTargets(s, "/r", wts, []string{"feature/x", "develop"})
+	if got, want := strings.Join(keys(ts), " "), "@ feature/x develop"; got != want {
 		t.Fatalf("keys = %q, want %q", got, want)
 	}
 	if ts[0].Alt != "" || ts[1].Action != flow.Ensure || !strings.Contains(ts[1].Label, "will be moved out") {
@@ -112,24 +112,24 @@ func TestSwitchMoveMainNeedsCleanTree(t *testing.T) {
 
 func TestSwitchCreatesMissingWorktree(t *testing.T) {
 	e, repo := setup(t)
-	testutil.Git(t, repo, "branch", "work/x", "develop")
+	testutil.Git(t, repo, "branch", "feature/x", "develop")
 	cd := recordCd(e)
-	dir, err := flow.Switch(e, targetNamed(t, e, "work/x"))
-	if err != nil || !strings.HasSuffix(dir, "worktrees/work/x") || *cd != dir {
+	dir, err := flow.Switch(e, targetNamed(t, e, "feature/x"))
+	if err != nil || !strings.HasSuffix(dir, "worktrees/feature/x") || *cd != dir {
 		t.Fatalf("%s %v (cd %q)", dir, err, *cd)
 	}
 	if _, err := os.Stat(dir); err != nil {
 		t.Error("worktree not created")
 	}
-	if again := targetNamed(t, e, "work/x"); again.Action != flow.GoDir || again.Dir != dir {
+	if again := targetNamed(t, e, "feature/x"); again.Action != flow.GoDir || again.Dir != dir {
 		t.Errorf("an existing worktree should be a plain GoDir row: %+v", again)
 	}
 }
 
 func TestSwitchRepairsStrayTopicInMain(t *testing.T) {
 	e, repo := setup(t)
-	testutil.Git(t, repo, "checkout", "-q", "-b", "work/x", "develop")
-	dir, err := flow.Switch(e, targetNamed(t, e, "work/x"))
+	testutil.Git(t, repo, "checkout", "-q", "-b", "feature/x", "develop")
+	dir, err := flow.Switch(e, targetNamed(t, e, "feature/x"))
 	if err != nil || dir == repo {
 		t.Fatalf("%s %v", dir, err)
 	}

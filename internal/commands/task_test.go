@@ -63,3 +63,11 @@ func TestApplyEditText(t *testing.T) {
 		t.Error("edit text layout")
 	}
 }
+
+func TestBoardNeedsTerminal(t *testing.T) {
+	d, _, _ := testDeps(t, flowRepo(t), nil)
+	err := run(t, d, "board")
+	if err == nil || !strings.Contains(err.Error(), "flowtree task list") {
+		t.Fatalf("err = %v", err)
+	}
+}

@@ -93,6 +93,7 @@ flowtree list | remove [-f] [--with-branch] [--force-branch] <worktree>... | exe
 flowtree print-dir [<worktree>]    # prints a worktree's path; read-only (`@` = main)
 flowtree switch [QUERY]            # changes your worktree; may move the main checkout or create a worktree
 flowtree relocate [-n]
+flowtree board                     # terminal kanban for people (needs a terminal)
 flowtree shell-init [bash|zsh|fish] | completion <shell>
 flowtree install-skill <dir>       # install the embedded agent skill into a skills directory
 
@@ -134,7 +135,8 @@ flowtree task show 1 | edit 1 | comment 1 "..." | backlog 1 | human 1
 ```
 
 Columns follow git rather than manual moves: a task without a branch is in todo (or the backlog), with a branch it
-is doing, and once its branch is merged into its target it is done. See [docs/commands.md](docs/commands.md#board).
+is doing, and once its branch is merged into its target it is done. `flowtree board` shows the columns side by
+side in the terminal (enter for details, `e` to edit, live reload). See [docs/commands.md](docs/commands.md#board).
 
 ## Configuration
 

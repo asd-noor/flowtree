@@ -216,3 +216,10 @@ A task's column is never set by hand; it follows from git:
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
+| `board` | Terminal kanban for people; needs a terminal (without one, use `task list`). |
+
+`board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,
+`enter`/`tab` toggles the detail pane (branch, tags, description, subtasks, comments), `e` edits the card in your
+git editor (title line, blank line, description), `q`/`esc`/`ctrl+c` quit. The board file is polled every second, so
+changes from other commands show up with the selection kept on the same card. Git-only changes (a merge that moves
+a card to done) appear once the file changes or after an edit.

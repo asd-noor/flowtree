@@ -297,16 +297,11 @@ func editInEditor(ctx context.Context, d Deps, e *flow.Env, c board.Card) (board
 	if !d.IsTTY() {
 		return c, errors.New("no terminal for an editor; pass --title, -d or -t")
 	}
-	editor, err := e.MainGit()("var", "GIT_EDITOR")
+	run, file, err := editorCmd(ctx, e, c)
 	if err != nil {
 		return c, err
 	}
-	file := filepath.Join(os.TempDir(), fmt.Sprintf("flowtree-task-%d.md", c.ID))
-	if err := os.WriteFile(file, []byte(editText(c)), 0o600); err != nil {
-		return c, err
-	}
 	defer func() { _ = os.Remove(file) }()
-	run := exec.CommandContext(ctx, "sh", "-c", editor+` "$@"`, editor, file)
 	run.Stdin, run.Stdout, run.Stderr = d.Stdin, d.Stdout, d.Stderr
 	if err := run.Run(); err != nil {
 		return c, fmt.Errorf("editor failed: %w", err)
@@ -316,6 +311,20 @@ func editInEditor(ctx context.Context, d Deps, e *flow.Env, c board.Card) (board
 		return c, err
 	}
 	return applyEditText(c, string(data))
+}
+
+// editorCmd writes the card's text to a temp file and returns the editor command for it, not yet started,
+// with the file for the caller to read back and remove.
+func editorCmd(ctx context.Context, e *flow.Env, c board.Card) (*exec.Cmd, string, error) {
+	editor, err := e.MainGit()("var", "GIT_EDITOR")
+	if err != nil {
+		return nil, "", err
+	}
+	file := filepath.Join(os.TempDir(), fmt.Sprintf("flowtree-task-%d.md", c.ID))
+	if err := os.WriteFile(file, []byte(editText(c)), 0o600); err != nil {
+		return nil, "", err
+	}
+	return exec.CommandContext(ctx, "sh", "-c", editor+` "$@"`, editor, file), file, nil
 }
 
 func editText(c board.Card) string { return c.Title + "\n\n" + c.Description }

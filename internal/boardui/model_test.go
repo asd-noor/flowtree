@@ -1,7 +1,9 @@
 package boardui
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -153,5 +155,24 @@ func TestRenderShowsColumnsAndDetail(t *testing.T) {
 	}
 	if n := len(strings.Split(out, "\n")); n > m.height {
 		t.Errorf("%d lines for height %d", n, m.height)
+	}
+}
+
+func TestEditAndCommentKeysRunTheirEditor(t *testing.T) {
+	var got []string
+	prep := func(name string) func(Card) (*exec.Cmd, func(error) error, error) {
+		return func(c Card) (*exec.Cmd, func(error) error, error) {
+			got = append(got, fmt.Sprintf("%s #%d", name, c.ID))
+			return exec.Command("true"), func(error) error { return nil }, nil
+		}
+	}
+	m := key(newModel(Source{Edit: prep("edit"), Comment: prep("comment")}, sample()), "l") // todo: card 1
+	for _, k := range []string{"e", "c"} {
+		if _, cmd := m.Update(tea.KeyPressMsg{Code: rune(k[0]), Text: k}); cmd == nil {
+			t.Errorf("%s should hand the terminal to an editor", k)
+		}
+	}
+	if strings.Join(got, ", ") != "edit #1, comment #1" {
+		t.Errorf("editors prepared: %v", got)
 	}
 }

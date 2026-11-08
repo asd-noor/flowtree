@@ -23,6 +23,8 @@ type Source struct {
 	Load func() ([]Card, error)
 	// Edit prepares an external editor for a card: the process to run, and what to do once it exits.
 	Edit func(Card) (*exec.Cmd, func(runErr error) error, error)
+	// Comment prepares an external editor for a new comment on a card, the same way.
+	Comment func(Card) (*exec.Cmd, func(runErr error) error, error)
 }
 
 const (
@@ -91,7 +93,9 @@ func (m model) onKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "enter", "tab":
 		m.detail = !m.detail
 	case "e":
-		return m.edit()
+		return m.external(m.src.Edit)
+	case "c":
+		return m.external(m.src.Comment)
 	}
 	return m, nil
 }
@@ -153,12 +157,13 @@ func (m model) loaded(msg loadedMsg) model {
 	return m.clamped()
 }
 
-func (m model) edit() (tea.Model, tea.Cmd) {
+// external runs an editor prepared by prep for the selected card, handing it the terminal.
+func (m model) external(prep func(Card) (*exec.Cmd, func(error) error, error)) (tea.Model, tea.Cmd) {
 	c, ok := m.selected()
-	if !ok || m.src.Edit == nil {
+	if !ok || prep == nil {
 		return m, nil
 	}
-	cmd, done, err := m.src.Edit(c)
+	cmd, done, err := prep(c)
 	if err != nil {
 		m.notice = err.Error()
 		return m, nil

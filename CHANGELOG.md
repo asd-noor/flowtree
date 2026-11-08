@@ -11,6 +11,7 @@ All notable changes to flowtree are documented here. The format follows
 - Subtasks have a description, their brief: `work start -d`, `task edit <n>/<sub>`, shown by `task show`
   and `board`. `flowtree task prompt <n>[/<sub>]` prints a task or subtask as a Markdown brief (descriptions,
   branch, worktree path, how it is finished) to hand to an agent.
+- `flowtree board`: `c` writes a comment on the selected task in your editor.
 - A per-repository board: `flowtree task add|list|show|edit|comment|todo|backlog|human`, stored in
   `<git-common-dir>/flowtree-board.json` (shared by all worktrees, never pushed). A task's column follows git:
   todo or backlog without a branch, doing while the branch exists, review when asked at the current tip, done once

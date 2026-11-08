@@ -33,7 +33,7 @@ func footer(m model) string {
 	if m.notice != "" {
 		return ansi.Truncate("! "+m.notice, m.width, "…")
 	}
-	return "h/l columns  j/k cards  enter detail  e edit  q quit"
+	return "h/l columns  j/k cards  enter detail  e edit  c comment  q quit"
 }
 
 // columnLines draws every column side by side: a header, then the cards, windowed to height lines.

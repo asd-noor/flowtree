@@ -14,6 +14,10 @@ All notable changes to flowtree are documented here. The format follows
   merged into its target, abandoned when deleted unmerged. `list` and `show` take `--json`.
 - `flowtree board`: a terminal kanban of the board for people, with a detail pane, editing in your editor and live
   reload. Agents keep using `flowtree task`.
+- The flow keeps the board current: `feature`/`hotfix start -T <n>` links task #n to the new branch (without `-T`
+  a task is added), `work start` adds a subtask, `finish` and `delete` record the last tip. New
+  `feature`/`hotfix review [--undo]` marks a task ready for review until the next commit; `feature rebase` keeps
+  the mark. A board failure only warns.
 - `work` branches: local subtasks of a feature or hotfix for parallel work, named `work/<parent>/<name>`.
   `work start [-P <parent>] <name>` starts one off the parent's tip (without `-P`: the parent whose worktree you
   are in, else a picker); `work finish` rebases it onto the parent and fast-forwards the parent. They cannot be

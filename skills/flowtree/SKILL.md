@@ -104,6 +104,8 @@ Use `flowtree <kind> start|finish|delete` for those.
 flowtree task list --json            # pick work from todo; skip tasks with "human": true or in the backlog
 flowtree task show <n> --json        # description, subtasks, comments
 flowtree task comment <n> "..."      # report progress
+flowtree feature start -T <n> <name> # take task #n: its branch, in doing
+flowtree feature review <name>       # ready for review (a new commit moves it back to doing)
 flowtree task add -d "..." "Title"   # only when the user asks for a new task
 ```
 

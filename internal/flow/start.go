@@ -14,6 +14,7 @@ type StartOpts struct {
 	Name   string
 	Base   string // defaults to the kind's base branch
 	Parent string // work only: the feature or hotfix the subtask belongs to
+	Task   int    // feature and hotfix only: the board task the branch is for (0: a new task)
 	Fetch  bool
 }
 
@@ -73,10 +74,17 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 	if err := checkStartable(e, o.Kind, name, branch, base); err != nil {
 		return nil, err
 	}
+	if o.Task > 0 && o.Kind == Release {
+		return nil, fmt.Errorf("releases have no task; -T is for features and hotfixes")
+	}
+	if err := checkTask(e, o.Task); err != nil {
+		return nil, err
+	}
 	return Plan(
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
 		One("check "+e.S.Remote+" state", func(e *Env) error { return checkStartRemote(e, o.Kind, branch, base, o.Base == "") }),
 		createSteps(o.Kind, name, branch, base),
+		If(o.Kind != Release, linkStep(o.Task, branch, name)),
 	), nil
 }
 
@@ -93,7 +101,7 @@ func planStartWork(e *Env, o StartOpts) ([]Step, error) {
 	if err := checkStartable(e, Work, o.Name, branch, parent); err != nil {
 		return nil, err
 	}
-	return createSteps(Work, o.Name, branch, parent), nil
+	return Plan(createSteps(Work, o.Name, branch, parent), subtaskStep(o.Name, branch, parent)), nil
 }
 
 // createSteps create the branch and its worktree, then print a summary.

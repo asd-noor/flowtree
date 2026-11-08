@@ -135,8 +135,10 @@ flowtree task show 1 | edit 1 | comment 1 "..." | backlog 1 | human 1
 ```
 
 Columns follow git rather than manual moves: a task without a branch is in todo (or the backlog), with a branch it
-is doing, and once its branch is merged into its target it is done. `flowtree board` shows the columns side by
-side in the terminal (enter for details, `e` to edit, live reload). See [docs/commands.md](docs/commands.md#board).
+is doing, and once its branch is merged into its target it is done. `feature start -T 1 login` links task #1 to the
+new branch (without `-T` a task is added), `work start` adds subtasks, and `feature review` moves the task to
+review until the next commit. `flowtree board` shows the columns side by side in the terminal (enter for details,
+`e` to edit, live reload). See [docs/commands.md](docs/commands.md#board).
 
 ## Configuration
 

@@ -84,3 +84,84 @@ func (b Board) With(id int, fn func(Card) Card) (Board, error) {
 	cards[i] = fn(cards[i])
 	return Board{NextID: b.NextID, Cards: cards}, nil
 }
+
+// mapCards returns a board with fn applied to every card.
+func (b Board) mapCards(fn func(Card) Card) Board {
+	cards := make([]Card, len(b.Cards))
+	for i, c := range b.Cards {
+		cards[i] = fn(c)
+	}
+	return Board{NextID: b.NextID, Cards: cards}
+}
+
+// Link gives card id its branch; the card must not have one yet.
+func (b Board) Link(id int, branch, start string) (Board, error) {
+	c, ok := b.Card(id)
+	switch {
+	case !ok:
+		return b, fmt.Errorf("no task #%d", id)
+	case c.Branch != "" && c.Branch != branch:
+		return b, fmt.Errorf("task #%d already belongs to '%s'", id, c.Branch)
+	}
+	return b.With(id, func(c Card) Card {
+		c.Branch, c.Start, c.Tip, c.Backlog = branch, start, start, false
+		return c
+	})
+}
+
+// Ensure returns the board with a card for branch, adding one titled title when there is none.
+func (b Board) Ensure(branch, title, start string, now time.Time) Board {
+	if _, ok := b.ByBranch(branch); ok {
+		return b
+	}
+	b, _ = b.Add(Card{Title: title, Branch: branch, Start: start, Tip: start, Created: now})
+	return b
+}
+
+// AddSubtask records s on the card of parent, unless it is there already.
+func (b Board) AddSubtask(parent string, s Subtask) Board {
+	return b.mapCards(func(c Card) Card {
+		if c.Branch != parent || slices.ContainsFunc(c.Subtasks, func(x Subtask) bool { return x.Branch == s.Branch }) {
+			return c
+		}
+		c.Subtasks = append(slices.Clone(c.Subtasks), s)
+		return c
+	})
+}
+
+// Track records the current tip of branch, on its card or its subtask.
+func (b Board) Track(branch, tip string) Board {
+	return b.mapCards(func(c Card) Card {
+		if c.Branch == branch {
+			c.Tip = tip
+		}
+		c.Subtasks = mapSlice(c.Subtasks, func(s Subtask) Subtask {
+			if s.Branch == branch {
+				s.Tip = tip
+			}
+			return s
+		})
+		return c
+	})
+}
+
+// SetReview sets the review marker of branch's card to tip; an empty tip clears it.
+func (b Board) SetReview(branch, tip string) Board {
+	return b.mapCards(func(c Card) Card {
+		if c.Branch == branch {
+			c.ReviewTip = tip
+		}
+		return c
+	})
+}
+
+func mapSlice[T, U any](xs []T, f func(T) U) []U {
+	if xs == nil {
+		return nil
+	}
+	out := make([]U, len(xs))
+	for i, x := range xs {
+		out[i] = f(x)
+	}
+	return out
+}

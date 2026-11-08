@@ -84,3 +84,16 @@ refuse while subtasks are open.
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
 | `board` | Interactive terminal kanban, for humans only. Agents must not run it (it needs a terminal and blocks); use `task list` / `task show`. |
+
+The flow commands keep the board up to date (a board failure only prints a warning; git is never rolled back):
+
+| Command | Board |
+|---------|-------|
+| `feature`/`hotfix start -T <n> <name>` | links task #n to the new branch (it must exist and have no branch) |
+| `feature`/`hotfix start <name>` | adds a task named after the branch |
+| `work start` | adds a subtask to the parent's task |
+| `feature`/`hotfix review [--undo] [<name>]` | marks the task ready for review at the current tip; a new commit moves it back to doing; `--undo` clears it |
+| `feature rebase` | moves a review mark that was at the old tip to the new one |
+| `finish`, `delete` | record the branch's last tip, so the task reads as done (merged) or abandoned (not) once the branch is gone |
+
+Releases have no task. `--dry-run` shows the board steps as `board: ...`.

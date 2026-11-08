@@ -77,6 +77,7 @@ func planFinishFeature(e *Env, o FinishOpts, branch string) ([]Step, error) {
 			e.Say("\nSummary of actions:\n- The feature branch '%s' was merged into '%s'", branch, e.S.Develop)
 			return nil
 		}),
+		trackStep(branch),
 		One("remove worktree and branch "+branch, func(e *Env) error { return Cleanup(e, branch, o.Cleanup) }),
 		If(o.Push, pushStep(e.S.Develop)),
 	), nil
@@ -103,6 +104,8 @@ func planFinishWork(e *Env, o FinishOpts, branch string) ([]Step, error) {
 			e.Say("\nSummary of actions:\n- The work branch '%s' was rebased onto '%s' and merged into it", branch, parent)
 			return nil
 		}),
+		trackStep(parent),
+		trackStep(branch),
 		One("remove worktree and branch "+branch, func(e *Env) error { return Cleanup(e, branch, o.Cleanup) }),
 	), nil
 }
@@ -220,6 +223,7 @@ func planFinishRelease(e *Env, o FinishOpts, branch string) ([]Step, error) {
 		If(!o.NoBackmerge, One("merge "+back+" into "+e.S.Develop, func(e *Env) error {
 			return backMerge(e, o, branch, back, tag)
 		})),
+		trackStep(branch),
 		One("remove worktree and branch "+branch, func(e *Env) error { return Cleanup(e, branch, o.Cleanup) }),
 		If(o.Push, pushStep(pushed...)),
 	), nil

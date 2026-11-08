@@ -119,10 +119,10 @@ func PlanDelete(e *Env, o DeleteOpts) ([]Step, error) {
 		return nil, fmt.Errorf("branch '%s' has not been merged into '%s'; use -f to force the deletion", branch, base)
 	}
 	co := CleanupOpts{KeepRemote: !o.Remote, Force: o.Force}
-	return One("remove worktree and branch "+branch, func(e *Env) error {
+	return Plan(trackStep(branch), One("remove worktree and branch "+branch, func(e *Env) error {
 		e.Say("Summary of actions:")
 		return Cleanup(e, branch, co)
-	}), nil
+	})), nil
 }
 
 // Names lists topic names of kind k that start with prefix, for completion.

@@ -207,6 +207,19 @@ A task's column is never set by hand; it follows from git:
 | done | the branch (or its last known tip, once deleted) has commits of its own and is merged into its target: develop for a feature, master for a hotfix, the parent for a subtask |
 | abandoned | the branch is gone and was not merged |
 
+The flow commands keep the board up to date (a board failure only prints a warning; git is never rolled back):
+
+| Command | Board |
+|---------|-------|
+| `feature`/`hotfix start -T <n> <name>` | links task #n to the new branch (it must exist and have no branch) |
+| `feature`/`hotfix start <name>` | adds a task named after the branch |
+| `work start` | adds a subtask to the parent's task |
+| `feature`/`hotfix review [--undo] [<name>]` | marks the task ready for review at the current tip; a new commit moves it back to doing; `--undo` clears it |
+| `feature rebase` | moves a review mark that was at the old tip to the new one |
+| `finish`, `delete` | record the branch's last tip, so the task reads as done (merged) or abandoned (not) once the branch is gone |
+
+Releases have no task. `--dry-run` shows the board steps as `board: ...`.
+
 | Command | Effect |
 |---------|--------|
 | `task add [-d <text>] [-t <tags>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. |

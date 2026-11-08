@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"flowtree/internal/board"
 	"flowtree/internal/gitx"
 )
 
@@ -52,7 +53,7 @@ func PlanRebase(e *Env, o RebaseOpts) ([]Step, error) {
 	if err != nil {
 		return nil, err
 	}
-	var dir string
+	var dir, before string
 	return Plan(
 		One("find or create the worktree of "+branch, func(e *Env) (err error) {
 			dir, err = EnsureWorktree(e, branch)
@@ -60,7 +61,11 @@ func PlanRebase(e *Env, o RebaseOpts) ([]Step, error) {
 		}),
 		One(fmt.Sprintf("rebase %s onto %s", branch, e.S.Develop), func(e *Env) error {
 			e.Say("Will try to rebase '%s'...", e.S.Name(Feature, branch))
+			before = tipOf(e, branch)
 			return runRebase(e, o, dir)
+		}),
+		boardStep("keep the review mark of "+branch+" across the rebase", func(e *Env, b board.Board) (board.Board, error) {
+			return carriedReview(b, branch, before, tipOf(e, branch)), nil
 		}),
 	), nil
 }

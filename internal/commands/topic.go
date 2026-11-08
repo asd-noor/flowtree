@@ -37,8 +37,11 @@ func newTopicCmd(k flow.Kind) Constructor {
 // published or tracked.
 func topicSubs(k flow.Kind) []func(flow.Kind, Deps) *cobra.Command {
 	subs := []func(flow.Kind, Deps) *cobra.Command{newListSub, newStartSub, newFinishSub, newCheckoutSub, newDeleteSub}
-	if k == flow.Work {
+	switch k {
+	case flow.Work:
 		return subs
+	case flow.Feature, flow.Hotfix:
+		subs = append(subs, newReviewSub)
 	}
 	return append(subs, newPublishSub, newTrackSub)
 }
@@ -204,6 +207,9 @@ func newStartSub(k flow.Kind, d Deps) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&o.Fetch, "fetch", "F", false, "fetch the remote first")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
+	if k != flow.Release {
+		cmd.Flags().IntVarP(&o.Task, "task", "T", 0, "the board task this branch is for (default: a new task named after it)")
+	}
 	return cmd
 }
 
@@ -293,6 +299,31 @@ func newPublishSub(k flow.Kind, d Deps) *cobra.Command {
 			return withFlow(cmd.Context(), d, func(e *flow.Env) error { return flow.Publish(e, k, optArg(args, 0)) })
 		},
 	}
+}
+
+func newReviewSub(k flow.Kind, d Deps) *cobra.Command {
+	var undo bool
+	cmd := &cobra.Command{
+		Use:   "review [--undo] [" + nameArg(k) + "]",
+		Short: fmt.Sprintf("Mark the %s's task as ready for review; new commits move it back to doing", k),
+		Long: "Records the branch's current tip on its board task, which then shows in review. A new commit moves\n" +
+			"the task back to doing by itself; run review again when it is ready. --undo clears the mark.",
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeTopics(k, d),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withFlow(cmd.Context(), d, func(e *flow.Env) error {
+				branch, err := flow.Review(e, k, optArg(args, 0), undo)
+				if err == nil && undo {
+					d.Printf("The review mark of '%s' was cleared\n", branch)
+				} else if err == nil {
+					d.Printf("'%s' is ready for review\n", branch)
+				}
+				return err
+			})
+		},
+	}
+	cmd.Flags().BoolVar(&undo, "undo", false, "clear the review mark")
+	return cmd
 }
 
 // ---- delete

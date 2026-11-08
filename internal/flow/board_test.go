@@ -61,3 +61,13 @@ func TestSubtaskTargetIsItsParent(t *testing.T) {
 		t.Errorf("subtask merged into its parent: %s", got)
 	}
 }
+
+func TestCarriedReviewMovesOnlyAMarkAtTheOldTip(t *testing.T) {
+	b, _ := board.Empty().Add(board.Card{Branch: "feature/a", ReviewTip: "old"})
+	if c, _ := flow.CarriedReviewForTest(b, "feature/a", "old", "new").Card(1); c.ReviewTip != "new" || c.Tip != "new" {
+		t.Errorf("mark at the old tip should move: %+v", c)
+	}
+	if c, _ := flow.CarriedReviewForTest(b, "feature/a", "other", "new").Card(1); c.ReviewTip != "old" {
+		t.Errorf("a mark at another tip stays: %+v", c)
+	}
+}

@@ -23,7 +23,6 @@ without anyone stepping on anyone. Each clone runs `flowtree init` (or `init --f
 | `master` | none | Production branch. Set by `init --flow`. |
 | `develop` | none | Integration branch. Set by `init --flow`. |
 | `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix` | `feature/`, `release/`, `hotfix/`, `work/` | Branch prefixes; they must differ and must not be empty. |
-| `versionTagPrefix` | empty | Prefix of version tags (`v` gives `v1.2.0`). |
 
 Flow is **set up** when both `master` and `develop` are set; setting only one of them is an error. `master` and
 `develop` must differ. Key names are case-insensitive and may carry the `flowtree.` prefix; git itself shows them

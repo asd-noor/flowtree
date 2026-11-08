@@ -10,7 +10,7 @@ shown by `list`, or an absolute path.
 
 ```
 flowtree init [--flow] [-w DIR] [-f] [-d]
-              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [-t TAGPREFIX] [--remote R]
+              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [--remote R]
 ```
 
 Stores flowtree's settings in the repository's git config (`.git/config`, section `flowtree`; see
@@ -23,8 +23,8 @@ Stores flowtree's settings in the repository's git config (`.git/config`, sectio
 - If the repository already has local flowtree settings, `init` prints a note and changes nothing (exit 0).
   `-f` removes the repository's `flowtree` section first, then stores the new settings (it also repairs a broken
   configuration). `--flow` on a repository configured without flow adds the flow settings and keeps the rest.
-- `--flow` also sets up git-flow: it asks for (or takes flags for) the branch names, prefixes, version tag
-  prefix and remote, stores `master`, `develop`, the three prefixes and `versionTagPrefix` (and `remote` when it is
+- `--flow` also sets up git-flow: it asks for (or takes flags for) the branch names, prefixes and
+  remote, stores `master`, `develop` and the branch prefixes (and `remote` when it is
   not `origin`), creates `master` and `develop` if missing (the production branch defaults to an existing
   `master` or `main`), and puts the main worktree on develop when it was on master and is clean. It needs at
   least one commit and fails before storing anything if the settings are invalid.
@@ -41,7 +41,7 @@ flowtree config hooks                    # path and contents of the post-create 
 ```
 
 Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`,
-`versionTagPrefix` (any case, optional `flowtree.` prefix). The listing marks each value `(local)`, `(global)`,
+`workPrefix` (any case, optional `flowtree.` prefix). The listing marks each value `(local)`, `(global)`,
 `(system)` or `(default)`. Values are validated before they are written and unknown keys are rejected. Keys
 complete with Tab. `config hooks` prints where `flowtree-hooks.json` lives, and an example when the file does not
 exist yet.
@@ -166,7 +166,7 @@ flowtree release finish [-F] [-s] [-u KEY] [-m MSG | -f FILE] [-p] [-k] [--keepl
 
 `-m`/`-f` tag message (not both); `-s`/`-u` sign; `-n` no tag; `-b` no back-merge into develop; `-T` custom tag
 name; `-S` squash into master; `--ff-master` (release only) fast-forward master; `-p` push develop, master
-and the tag. The tag name is `<version tag prefix><version>` unless `-T` is given.
+and the tag. The tag name is the version exactly as given to `start` (`release start v1.2.0` tags `v1.2.0`) unless `-T` is given.
 
 ### `work start`, `work finish`
 

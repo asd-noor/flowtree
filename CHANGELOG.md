@@ -44,6 +44,10 @@ All notable changes to flowtree are documented here. The format follows
   `release checkout` or `switch`, or finished in place as before.
 - Only one release or hotfix can be open at a time: `release start` refuses while a hotfix is open, and the
   other way round.
+- **Breaking:** the version tag prefix is gone (`flowtree.versionTagPrefix`, `init -t`). A release or hotfix is
+  tagged with its version exactly as given: `release start v1.2.0` makes `release/v1.2.0` and tags `v1.2.0`.
+  A leftover `flowtree.versionTagPrefix` is now an unknown key; remove it with
+  `git config --unset flowtree.versionTagPrefix`.
 
 ## [0.2.1]
 

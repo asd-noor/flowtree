@@ -33,7 +33,7 @@ func TestLoadWithNothingSetGivesDefaults(t *testing.T) {
 
 func TestSetAndLoad(t *testing.T) {
 	g, repo := open(t)
-	for k, v := range map[string]string{"baseDir": "/abs", "remote": "up", "master": "main", "develop": "dev", "featurePrefix": "feat/", "versionTagPrefix": "v"} {
+	for k, v := range map[string]string{"baseDir": "/abs", "remote": "up", "master": "main", "develop": "dev", "featurePrefix": "feat/"} {
 		if err := config.Set(g, config.Local, k, v); err != nil {
 			t.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func TestSetAndLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := config.Flow{Master: "main", Develop: "dev", FeaturePrefix: "feat/", VersionTag: "v"}
+	want := config.Flow{Master: "main", Develop: "dev", FeaturePrefix: "feat/"}
 	if c.BaseDir != "/abs" || c.Remote != "up" || c.Flow != want || !c.FlowEnabled() {
 		t.Fatalf("%+v", c)
 	}
@@ -77,8 +77,8 @@ func TestSetValidatesValues(t *testing.T) {
 	if err := config.Set(g, config.Local, "baseDir", " "); err == nil {
 		t.Error("empty baseDir must be rejected")
 	}
-	if err := config.Set(g, config.Local, "versionTagPrefix", ""); err != nil {
-		t.Errorf("an empty tag prefix is valid: %v", err)
+	if err := config.Set(g, config.Local, "versionTagPrefix", "v"); err == nil {
+		t.Error("versionTagPrefix is gone and must be rejected as unknown")
 	}
 }
 

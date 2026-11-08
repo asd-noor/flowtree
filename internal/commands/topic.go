@@ -414,7 +414,7 @@ func bindReleaseFinish(f *pflag.FlagSet, o *flow.FinishOpts, k flow.Kind) {
 	f.StringVarP(&o.MessageFile, "messagefile", "f", "", "read the tag message from a file")
 	f.BoolVarP(&o.NoTag, "notag", "n", false, "do not tag")
 	f.BoolVarP(&o.NoBackmerge, "nobackmerge", "b", false, "do not merge back into develop")
-	f.StringVarP(&o.TagName, "tagname", "T", "", "use this tag name instead of <version tag prefix><version>")
+	f.StringVarP(&o.TagName, "tagname", "T", "", "use this tag name instead of <version>")
 	if k == flow.Release {
 		f.BoolVar(&o.FFMaster, "ff-master", false, "fast-forward master instead of creating a merge commit")
 	}

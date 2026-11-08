@@ -43,8 +43,8 @@ func TestInitFlowCreatesBranchesAndSettings(t *testing.T) {
 
 func TestInitFlowFlags(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	Run(t, repo, "init", "--flow", "-d", "--master", "prod", "--develop", "next", "-p", "feat/", "-t", "v", "--remote", "up").MustSucceed(t)
-	for key, want := range map[string]string{"master": "prod", "develop": "next", "featurePrefix": "feat/", "versionTagPrefix": "v", "remote": "up"} {
+	Run(t, repo, "init", "--flow", "-d", "--master", "prod", "--develop", "next", "-p", "feat/", "--remote", "up").MustSucceed(t)
+	for key, want := range map[string]string{"master": "prod", "develop": "next", "featurePrefix": "feat/", "remote": "up"} {
 		if got := localSetting(t, repo, key); got != want {
 			t.Errorf("flowtree.%s = %q, want %q", key, got, want)
 		}

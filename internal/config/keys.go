@@ -42,7 +42,6 @@ var settings = []setting{
 	{"releasePrefix", nonEmpty("releasePrefix", func(c *Config, v string) { c.Flow.RelPrefix = v }), func(c Config) string { return c.Flow.RelPrefix }, "release/"},
 	{"hotfixPrefix", nonEmpty("hotfixPrefix", func(c *Config, v string) { c.Flow.HotPrefix = v }), func(c Config) string { return c.Flow.HotPrefix }, "hotfix/"},
 	{"workPrefix", nonEmpty("workPrefix", func(c *Config, v string) { c.Flow.WorkPrefix = v }), func(c Config) string { return c.Flow.WorkPrefix }, "work/"},
-	{"versionTagPrefix", anyValue(func(c *Config, v string) { c.Flow.VersionTag = v }), func(c Config) string { return c.Flow.VersionTag }, ""},
 }
 
 // Keys lists the setting names, for completion and help.
@@ -255,7 +254,7 @@ func (f Flow) Pairs() []Pair {
 	return []Pair{
 		{"master", f.Master}, {"develop", f.Develop},
 		{"featurePrefix", f.FeaturePrefix}, {"releasePrefix", f.RelPrefix}, {"hotfixPrefix", f.HotPrefix},
-		{"workPrefix", f.WorkPrefix}, {"versionTagPrefix", f.VersionTag},
+		{"workPrefix", f.WorkPrefix},
 	}
 }
 

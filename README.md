@@ -86,7 +86,7 @@ flowtree switch                    # pick where to go (built-in picker); `flowtr
 
 ```
 flowtree init [--flow] [-w DIR] [-f] [-d]
-              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [-t TAGPREFIX] [--remote R]
+              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [--remote R]
 flowtree add [-b NEW] [--exec CMD] [-q] <branch> [<commitish>]
 flowtree config [<key> [<value>]] [--global] [--unset] | config hooks
 flowtree list | remove [-f] [--with-branch] [--force-branch] <worktree>... | exec <worktree> -- CMD...
@@ -153,7 +153,7 @@ flowtree config baseDir ~/worktrees/api  # or: git config flowtree.baseDir ~/wor
 flowtree config --global remote upstream
 ```
 
-Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `versionTagPrefix`.
+Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix`.
 An unknown `flowtree.*` key is an error, so typos do not go unnoticed.
 
 - `baseDir`: where worktrees go, `<baseDir>/<branch>`; relative to the main worktree, `~` is expanded. When it is

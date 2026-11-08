@@ -181,7 +181,7 @@ func label(k Kind) string {
 
 func planFinishRelease(e *Env, o FinishOpts, branch string) ([]Step, error) {
 	ver := e.S.Name(o.Kind, branch)
-	tag := firstNonEmpty(o.TagName, e.S.VersionTag+ver)
+	tag := firstNonEmpty(o.TagName, ver)
 	mode := NoFF
 	switch {
 	case o.Squash:

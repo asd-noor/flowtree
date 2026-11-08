@@ -37,7 +37,6 @@ type Flow struct {
 	RelPrefix     string
 	HotPrefix     string
 	WorkPrefix    string
-	VersionTag    string
 }
 
 // Hooks groups hooks by the event they run on.

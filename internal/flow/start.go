@@ -132,8 +132,8 @@ func checkStartable(e *Env, k Kind, name, branch, base string) error {
 		if err := checkNoneOpen(e); err != nil {
 			return err
 		}
-		if gitx.TagExists(g, e.S.VersionTag+name) {
-			return fmt.Errorf("tag '%s' already exists; pick another name", e.S.VersionTag+name)
+		if gitx.TagExists(g, name) {
+			return fmt.Errorf("tag '%s' already exists; pick another name", name)
 		}
 	}
 	if _, ok := Rev(g, base); !ok {

@@ -17,7 +17,6 @@ type flowOpts struct {
 	master, develop                     string
 	featurePrefix, relPrefix, hotPrefix string
 	workPrefix                          string
-	versionTag                          string
 	remote                              string
 }
 
@@ -29,7 +28,6 @@ func bindFlowFlags(f *pflag.FlagSet, o *flowOpts) {
 	f.StringVarP(&o.relPrefix, "release-prefix", "r", "", "prefix of release branches (default release/)")
 	f.StringVarP(&o.hotPrefix, "hotfix-prefix", "x", "", "prefix of hotfix branches (default hotfix/)")
 	f.StringVar(&o.workPrefix, "work-prefix", "", "prefix of work branches (default work/)")
-	f.StringVarP(&o.versionTag, "version-tag", "t", "", "prefix of version tags, e.g. v (default none)")
 	f.StringVar(&o.remote, "remote", "", "remote used for fetch and push (default origin)")
 }
 
@@ -48,7 +46,7 @@ func chooseFlowSettings(_ context.Context, r *initRun) error {
 		return err
 	}
 	r.flowS = &s
-	r.pairs = append(r.pairs, nonBlank(s.ToConfig().Pairs())...)
+	r.pairs = append(r.pairs, s.ToConfig().Pairs()...)
 	if s.Remote != config.DefaultRemote {
 		r.pairs = append(r.pairs, config.Pair{Key: "remote", Value: s.Remote})
 	}
@@ -72,7 +70,6 @@ func (r *initRun) flowSettings() (flow.Settings, error) {
 		{"Release branches prefix", o.relPrefix, &s.ReleasePrefix},
 		{"Hotfix branches prefix", o.hotPrefix, &s.HotfixPrefix},
 		{"Work (subtask) branches prefix", o.workPrefix, &s.WorkPrefix},
-		{"Version tag prefix", o.versionTag, &s.VersionTag},
 		{"Remote", o.remote, &s.Remote},
 	}
 	for _, f := range fields {
@@ -106,15 +103,4 @@ func setupFlowBranches(ctx context.Context, r *initRun) error {
 	}
 	repo := Repo{Git: r.git, Main: r.main, Cwd: r.main, Config: r.cfg}
 	return flow.EnsureBranches(r.d.flowEnv(ctx, repo, s))
-}
-
-// nonBlank drops pairs with an empty value: an unset tag prefix needs no key (the others are never empty).
-func nonBlank(pairs []config.Pair) []config.Pair {
-	var out []config.Pair
-	for _, p := range pairs {
-		if p.Value != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }

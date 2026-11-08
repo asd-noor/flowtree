@@ -159,9 +159,8 @@ func TestReleaseLifecycle(t *testing.T) {
 	Run(t, repo, "release", "list").MustSucceed(t) // no release left; just must not fail
 }
 
-func TestReleaseVersionTagPrefixAndFlags(t *testing.T) {
-	repo := testutil.NewRepo(t)
-	Run(t, repo, "init", "--flow", "-d", "-t", "v").MustSucceed(t)
+func TestReleaseFinishFlags(t *testing.T) {
+	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "2.0.0").MustSucceed(t)
 	wt := worktreeDir(repo, "release/2.0.0")
 	commitFile(t, wt, "x")
@@ -180,14 +179,13 @@ func TestReleaseVersionTagPrefixAndFlags(t *testing.T) {
 	}
 }
 
-func TestReleaseTagGetsPrefix(t *testing.T) {
-	repo := testutil.NewRepo(t)
-	Run(t, repo, "init", "--flow", "-d", "-t", "v").MustSucceed(t)
-	Run(t, repo, "release", "start", "2.0.0").MustSucceed(t)
-	commitFile(t, worktreeDir(repo, "release/2.0.0"), "x")
-	Run(t, repo, "release", "finish", "-m", "m", "2.0.0").MustSucceed(t)
-	if !strings.Contains(testutil.Git(t, repo, "tag", "-l"), "v2.0.0") {
-		t.Error("tag should carry the version tag prefix")
+func TestReleaseTagIsTheNameAsTyped(t *testing.T) {
+	repo := flowRepo(t)
+	Run(t, repo, "release", "start", "v2.0.0").MustSucceed(t)
+	commitFile(t, worktreeDir(repo, "release/v2.0.0"), "x")
+	Run(t, repo, "release", "finish", "-m", "m", "v2.0.0").MustSucceed(t)
+	if got := strings.TrimSpace(testutil.Git(t, repo, "tag", "-l")); got != "v2.0.0" {
+		t.Errorf("tag = %q, want the release name", got)
 	}
 }
 

@@ -56,7 +56,7 @@ func newInitCmd(d Deps) *cobra.Command {
 			"when FLOWTREE_PARENT is defined) nothing is stored, so the default keeps following the environment.\n\n" +
 			"If flowtree is already configured, init prints a note and changes nothing (exit 0); --force resets the\n" +
 			"repository's flowtree settings first.\n\n" +
-			"With --flow it also sets up git-flow: it stores the branch names, prefixes and tag prefix, creates the\n" +
+			"With --flow it also sets up git-flow: it stores the branch names and prefixes, creates the\n" +
 			"master and develop branches if they are missing, and puts the main worktree on develop. On a repository\n" +
 			"that is configured without flow, --flow adds the flow settings and keeps the rest. With -d init never asks.\n" +
 			"Use 'flowtree config' to see or change single settings later.",

@@ -29,13 +29,13 @@ func TestInitForceRestoresABrokenConfigurationWhenInitFails(t *testing.T) {
 func TestInitForceRestoreKeepsEveryValue(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	testutil.Git(t, repo, "config", "flowtree.remote", "up")
-	testutil.Git(t, repo, "config", "flowtree.versionTagPrefix", "") // an empty value must survive too
+	testutil.Git(t, repo, "config", "flowtree.featurePrefix", "feat/")
 	d, _, _ := initDeps(t, repo, "", false, nil)
 	if err := runInitCmd(t, d, "--force", "--flow", "-d", "--master", "x", "--develop", "x"); err == nil {
 		t.Fatal("expected init to fail")
 	}
 	got := localKeys(t, repo)
-	if !strings.Contains(got, "flowtree.remote up") || !strings.Contains(got, "flowtree.versiontagprefix") {
+	if !strings.Contains(got, "flowtree.remote up") || !strings.Contains(got, "flowtree.featureprefix feat/") {
 		t.Fatalf("%s", got)
 	}
 }

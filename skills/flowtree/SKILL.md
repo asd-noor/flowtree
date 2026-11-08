@@ -92,11 +92,12 @@ flowtree hotfix finish 1.4.1 -m "1.4.1
 - <what the hotfix fixes, in short>"
 ```
 
-`finish` merges into `master` with `--no-ff`, creates an annotated tag (name = version, plus the configured tag
-prefix), merges the tag into `develop`, then removes the worktree and branch.
+`finish` merges into `master` with `--no-ff`, creates an annotated tag named exactly as the version you gave
+`start` (`release start v1.4.0` tags `v1.4.0`), merges the tag into `develop`, then removes the worktree and
+branch.
 
-**Tag message format.** The first line is the tag name (with its prefix, e.g. `v1.4.0` when the tag prefix is
-`v`), then a blank line, then one short bullet per important point of the release:
+**Tag message format.** The first line is the tag name (the version as given, e.g. `v1.4.0`), then a blank
+line, then one short bullet per important point of the release:
 
 ```
 <tag>

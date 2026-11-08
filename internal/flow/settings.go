@@ -25,7 +25,6 @@ type Settings struct {
 	ReleasePrefix   string
 	HotfixPrefix    string
 	WorkPrefix      string
-	VersionTag      string // prefix of version tags, e.g. "v"
 	Remote          string
 }
 
@@ -64,7 +63,6 @@ func (s Settings) override(f config.Flow) Settings {
 	pick(&s.ReleasePrefix, f.RelPrefix)
 	pick(&s.HotfixPrefix, f.HotPrefix)
 	pick(&s.WorkPrefix, f.WorkPrefix)
-	s.VersionTag = f.VersionTag
 	return s
 }
 
@@ -73,7 +71,6 @@ func (s Settings) ToConfig() config.Flow {
 	return config.Flow{
 		Master: s.Master, Develop: s.Develop,
 		FeaturePrefix: s.FeaturePrefix, RelPrefix: s.ReleasePrefix, HotPrefix: s.HotfixPrefix, WorkPrefix: s.WorkPrefix,
-		VersionTag: s.VersionTag,
 	}
 }
 

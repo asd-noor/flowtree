@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"flowtree/internal/board"
 )
@@ -147,8 +148,8 @@ func TestRenderShowsColumnsAndDetail(t *testing.T) {
 	m := newModel(Source{}, []Card{c})
 	m.width = 120
 	m = key(key(m, "l"), "enter")
-	out := render(m)
-	for _, want := range []string{"BACKLOG (0)", "[TODO (1)]", ">#7 Login [h]", "branch: feature/login", "Body text", "doing", "work/login/api"} {
+	out := ansi.Strip(render(m))
+	for _, want := range []string{"╭ BACKLOG 0 ─", "╭ TODO 1 ─", "▌#7 Login human", "feature/login", "branch: feature/login", "Body text", "doing", "work/login/api"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
@@ -181,9 +182,21 @@ func TestRenderEmptyColumnAndBoard(t *testing.T) {
 	for name, cards := range map[string][]Card{"empty board": nil, "empty column": {card(1, "a", board.Doing)}} {
 		m := newModel(Source{}, cards)
 		m.width = 120
-		out := render(key(m, "enter"))
-		if !strings.Contains(out, "[BACKLOG (0)]") || !strings.Contains(out, "(no card selected)") {
+		out := ansi.Strip(render(key(m, "enter")))
+		if !strings.Contains(out, "BACKLOG 0") || !strings.Contains(out, "(no card selected)") {
 			t.Errorf("%s: unexpected render:\n%s", name, out)
+		}
+	}
+}
+
+func TestRenderFitsSmallTerminals(t *testing.T) {
+	for _, size := range [][2]int{{0, 0}, {6, 3}, {20, 5}, {80, 8}} {
+		m := key(newModel(Source{}, sample()), "enter")
+		m.width, m.height = size[0], size[1]
+		for _, l := range strings.Split(render(m), "\n") {
+			if w := ansi.StringWidth(l); w > max(m.width, 0) && l != footer(m) {
+				t.Errorf("%dx%d: line %d wide: %q", size[0], size[1], w, ansi.Strip(l))
+			}
 		}
 	}
 }

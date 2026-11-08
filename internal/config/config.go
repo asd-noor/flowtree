@@ -15,16 +15,16 @@ const (
 	DefaultBaseDir = "../worktrees"
 	DefaultRemote  = "origin"
 
-	// ParentEnv names a directory under which every repository gets <parent>/<repo name>, unless
+	// WorkdirEnv names a directory under which every repository gets <workdir>/<repo name>, unless
 	// flowtree.baseDir is set.
-	ParentEnv = "FLOWTREE_PARENT"
+	WorkdirEnv = "FLOWTREE_WORKDIR"
 )
 
 // Config is the effective configuration of a repository.
 type Config struct {
 	BaseDir string // flowtree.baseDir; empty means "use the default"
 	Remote  string
-	Parent  string // $FLOWTREE_PARENT at load time
+	Workdir string // $FLOWTREE_WORKDIR at load time
 	Flow    Flow
 	Hooks   Hooks
 }
@@ -84,12 +84,12 @@ func ExpandHome(p string) string {
 }
 
 // DefaultBaseDirFor is the base directory used when flowtree.baseDir is not set:
-// $FLOWTREE_PARENT/<repo directory name> when the variable is defined, else ../worktrees.
+// $FLOWTREE_WORKDIR/<repo directory name> when the variable is defined, else ../worktrees.
 func (c Config) DefaultBaseDirFor(mainWorktree string) string {
-	if c.Parent == "" {
+	if c.Workdir == "" {
 		return DefaultBaseDir
 	}
-	return filepath.Join(ExpandHome(c.Parent), filepath.Base(mainWorktree))
+	return filepath.Join(ExpandHome(c.Workdir), filepath.Base(mainWorktree))
 }
 
 // ResolveBaseDir returns the absolute worktree base directory for a main worktree.

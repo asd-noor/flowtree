@@ -34,7 +34,7 @@ func anyValue(set func(*Config, string)) func(*Config, string) error {
 }
 
 var settings = []setting{
-	{"baseDir", nonEmpty("baseDir", func(c *Config, v string) { c.BaseDir = v }), func(c Config) string { return c.BaseDir }, "../worktrees, or $FLOWTREE_PARENT/<repo name>"},
+	{"baseDir", nonEmpty("baseDir", func(c *Config, v string) { c.BaseDir = v }), func(c Config) string { return c.BaseDir }, "../worktrees, or $FLOWTREE_WORKDIR/<repo name>"},
 	{"remote", nonEmpty("remote", func(c *Config, v string) { c.Remote = v }), func(c Config) string { return c.Remote }, DefaultRemote},
 	{"master", nonEmpty("master", func(c *Config, v string) { c.Flow.Master = v }), func(c Config) string { return c.Flow.Master }, ""},
 	{"develop", nonEmpty("develop", func(c *Config, v string) { c.Flow.Develop = v }), func(c Config) string { return c.Flow.Develop }, ""},
@@ -178,7 +178,7 @@ func scopeOf(byScope map[string]map[string][]string, e Entry) string {
 // Load reads the configuration of the repository whose main worktree is main.
 func Load(g gitx.Git, main string, getenv func(string) string) (Config, error) {
 	c := Defaults()
-	c.Parent = getenv(ParentEnv)
+	c.Workdir = getenv(WorkdirEnv)
 	entries, err := rawEntries(g)
 	if err != nil {
 		return Config{}, err

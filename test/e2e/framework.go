@@ -136,7 +136,7 @@ func Run(t testing.TB, dir string, args ...string) Result {
 	return RunEnv(t, dir, nil, args...)
 }
 
-// RunEnv is Run with extra KEY=VALUE environment entries, e.g. "FLOWTREE_PARENT=/x".
+// RunEnv is Run with extra KEY=VALUE environment entries, e.g. "FLOWTREE_WORKDIR=/x".
 func RunEnv(t testing.TB, dir string, extra []string, args ...string) Result {
 	t.Helper()
 	cmd := exec.Command(Binary(t), args...)

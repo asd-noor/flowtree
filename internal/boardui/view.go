@@ -79,8 +79,8 @@ func columnCells(m model, i int, s board.Status, height, w int) []string {
 // window picks how many of n cards show and from which, keeping the cursor row in view.
 func window(n, cursor, h int, active bool) (shown, off int) {
 	shown = min(n, max(h, 0))
-	if active && cursor >= shown {
-		off = cursor - shown + 1
+	if active {
+		off = max(0, min(n-shown, cursor-shown+1))
 	}
 	return shown, off
 }

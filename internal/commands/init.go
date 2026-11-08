@@ -52,8 +52,8 @@ func newInitCmd(d Deps) *cobra.Command {
 		Short: "Configure flowtree for this repository",
 		Long: "Stores flowtree's settings in the repository's git config (section flowtree, in .git/config), so nothing\n" +
 			"is added to the working tree. Plain init only sets the worktree directory (base dir): -w, or the answer to the\n" +
-			"prompt on a terminal. When neither differs from the default (../worktrees, or $FLOWTREE_PARENT/<repo name>\n" +
-			"when FLOWTREE_PARENT is defined) nothing is stored, so the default keeps following the environment.\n\n" +
+			"prompt on a terminal. When neither differs from the default (../worktrees, or $FLOWTREE_WORKDIR/<repo name>\n" +
+			"when FLOWTREE_WORKDIR is defined) nothing is stored, so the default keeps following the environment.\n\n" +
 			"If flowtree is already configured, init prints a note and changes nothing (exit 0); --force resets the\n" +
 			"repository's flowtree settings first.\n\n" +
 			"With --flow it also sets up git-flow: it stores the branch names and prefixes, creates the\n" +
@@ -122,7 +122,7 @@ func loadSettings(_ context.Context, r *initRun) error {
 	}
 	if err != nil {
 		cfg = config.Defaults()
-		cfg.Parent = r.d.Getenv(config.ParentEnv)
+		cfg.Workdir = r.d.Getenv(config.WorkdirEnv)
 	}
 	r.cfg = cfg
 	return nil
@@ -196,7 +196,7 @@ func checkNotInitialised(_ context.Context, r *initRun) error {
 }
 
 // chooseBaseDir stores a base dir only when it differs from the default, so an unset base dir keeps
-// following $FLOWTREE_PARENT.
+// following $FLOWTREE_WORKDIR.
 func chooseBaseDir(_ context.Context, r *initRun) error {
 	if r.kept {
 		return nil

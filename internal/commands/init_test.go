@@ -80,9 +80,9 @@ func TestInitFlagBaseDirIsStoredAndExpandsHome(t *testing.T) {
 	}
 }
 
-func TestInitFollowsParentEnvInsteadOfStoringIt(t *testing.T) {
+func TestInitFollowsWorkdirEnvInsteadOfStoringIt(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	env := map[string]string{config.ParentEnv: "/srv/trees"}
+	env := map[string]string{config.WorkdirEnv: "/srv/trees"}
 	d, _, _ := initDeps(t, repo, "", false, env)
 	if err := runInitCmd(t, d); err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestInitFollowsParentEnvInsteadOfStoringIt(t *testing.T) {
 	if got, want := loadCfg(t, repo, env).WorktreePath(repo, "feature/x"), "/srv/trees/repo/feature/x"; got != want {
 		t.Fatalf("worktree path = %q, want %q", got, want)
 	}
-	if got := loadCfg(t, repo, map[string]string{config.ParentEnv: "/other"}).ResolveBaseDir(repo); got != "/other/repo" {
+	if got := loadCfg(t, repo, map[string]string{config.WorkdirEnv: "/other"}).ResolveBaseDir(repo); got != "/other/repo" {
 		t.Fatalf("changing the variable must change the default: %q", got)
 	}
 }
@@ -114,7 +114,7 @@ func TestInitPromptsOnTTY(t *testing.T) {
 
 func TestInitPromptEmptyAnswerKeepsDefault(t *testing.T) {
 	repo := testutil.NewRepo(t)
-	d, _, errb := initDeps(t, repo, "\n", true, map[string]string{config.ParentEnv: "/srv/trees"})
+	d, _, errb := initDeps(t, repo, "\n", true, map[string]string{config.WorkdirEnv: "/srv/trees"})
 	if err := runInitCmd(t, d); err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestInitPromptEmptyAnswerKeepsDefault(t *testing.T) {
 		t.Fatalf("accepting the default must not store it: %q", keys)
 	}
 	if !strings.Contains(errb.String(), "[/srv/trees/repo]") {
-		t.Fatalf("prompt should show the FLOWTREE_PARENT default, got %q", errb.String())
+		t.Fatalf("prompt should show the FLOWTREE_WORKDIR default, got %q", errb.String())
 	}
 }
 

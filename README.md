@@ -157,7 +157,7 @@ Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`
 An unknown `flowtree.*` key is an error, so typos do not go unnoticed.
 
 - `baseDir`: where worktrees go, `<baseDir>/<branch>`; relative to the main worktree, `~` is expanded. When it is
-  not set, the default is `$FLOWTREE_PARENT/<repo name>` if `FLOWTREE_PARENT` is defined, else `../worktrees`.
+  not set, the default is `$FLOWTREE_WORKDIR/<repo name>` if `FLOWTREE_WORKDIR` is defined, else `../worktrees`.
   `flowtree relocate` moves existing worktrees after a change.
 - Hooks (copy a `.env`, symlink a cache, run a setup command) run after every new worktree. They live in
   `.git/flowtree-hooks.json` (inside the git directory, so a clone cannot inject code); `flowtree config hooks`

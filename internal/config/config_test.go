@@ -132,13 +132,13 @@ func TestBaseDirDefaults(t *testing.T) {
 	if got := c.ResolveBaseDir("/code/api"); got != "/code/worktrees" {
 		t.Error(got)
 	}
-	c.Parent = "/wt"
+	c.Workdir = "/wt"
 	if got := c.WorktreePath("/code/api", "feature/x"); got != "/wt/api/feature/x" {
-		t.Errorf("FLOWTREE_PARENT/<repo>/<branch>: %s", got)
+		t.Errorf("FLOWTREE_WORKDIR/<repo>/<branch>: %s", got)
 	}
 	c.BaseDir = "/explicit"
 	if got := c.WorktreePath("/code/api", "feature/x"); got != "/explicit/feature/x" {
-		t.Errorf("an explicit baseDir wins over FLOWTREE_PARENT: %s", got)
+		t.Errorf("an explicit baseDir wins over FLOWTREE_WORKDIR: %s", got)
 	}
 	if got := config.ExpandHome("~/x"); strings.HasPrefix(got, "~") {
 		t.Error(got)
@@ -147,8 +147,8 @@ func TestBaseDirDefaults(t *testing.T) {
 
 func TestParentFromEnvironment(t *testing.T) {
 	g, repo := open(t)
-	c, err := config.Load(g, repo, env(map[string]string{config.ParentEnv: "/srv/trees"}))
-	if err != nil || c.Parent != "/srv/trees" {
+	c, err := config.Load(g, repo, env(map[string]string{config.WorkdirEnv: "/srv/trees"}))
+	if err != nil || c.Workdir != "/srv/trees" {
 		t.Fatalf("%+v %v", c, err)
 	}
 	if got := c.ResolveBaseDir(repo); got != filepath.Join("/srv/trees", filepath.Base(repo)) {

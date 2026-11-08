@@ -83,6 +83,9 @@ func TestRenderPrompt(t *testing.T) {
 			t.Errorf("prompt lacks %q:\n%s", want, got)
 		}
 	}
+	if strings.Contains(got, "commit") {
+		t.Errorf("the brief must not set a commit policy; the one handing it out does:\n%s", got)
+	}
 	if got := renderPrompt(prompt{ID: 4, Title: "Later"}); !strings.Contains(got, "feature start -T 4") {
 		t.Errorf("a task without a branch should say how to start it:\n%s", got)
 	}

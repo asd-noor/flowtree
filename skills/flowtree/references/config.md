@@ -17,7 +17,7 @@ flowtree config hooks                 # path and contents of the hooks file
 | `baseDir` | `$FLOWTREE_PARENT/<repo name>` if that variable is defined, else `../worktrees` | Where worktrees go: `<baseDir>/<branch>`. Relative to the main worktree; `~` is expanded. |
 | `remote` | `origin` | Remote for fetch, push, track, delete and sync checks. |
 | `master`, `develop` | none (set by `init --flow`) | Production and integration branches. Flow is set up when both are set. |
-| `featurePrefix`, `releasePrefix`, `hotfixPrefix` | `feature/`, `release/`, `hotfix/` | Branch prefixes; they must differ. |
+| `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix` | `feature/`, `release/`, `hotfix/`, `work/` | Branch prefixes; they must differ. |
 | `versionTagPrefix` | empty | Prefix of version tags (`v` gives `v1.2.0`). |
 
 Key names are case-insensitive and may start with `flowtree.`. An unknown `flowtree.*` key is an error. Local

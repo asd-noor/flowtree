@@ -10,7 +10,7 @@ the worktree you are in. `feature` names also accept a unique prefix. Worktree n
 | Command | Effect |
 |---------|--------|
 | `init [--flow] [-d] [-f] [-w <dir>]` | Store settings in the repository's git config (nothing is written to the working tree). `-d` = no prompts (use this). `--flow` also sets up git-flow: creates `master`/`develop` if missing and stores the flow settings. `-w` sets the worktree directory (stored only when it differs from the default). Existing settings are left alone (exit 0) except that `--flow` adds missing flow settings; `-f` resets them first. |
-| `config [<key> [<value>]] [--global] [--unset]` | List settings with their origin, print one, set one (this repo, or `--global`) or remove one. Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `versionTagPrefix`. Unknown keys are rejected. |
+| `config [<key> [<value>]] [--global] [--unset]` | List settings with their origin, print one, set one (this repo, or `--global`) or remove one. Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix`, `versionTagPrefix`. Unknown keys are rejected. |
 | `config hooks` | Print the path of the post-create hooks file and its contents (or an example when missing). |
 | `init --flow` options | `--master <b>`, `--develop <b>`, `-p <feature prefix>`, `-r <release prefix>`, `-x <hotfix prefix>`, `-t <version tag prefix>`, `--remote <name>`. |
 | `shell-init [bash\|zsh\|fish]` | Prints the shell function that follows worktrees with `cd`, plus completion. For humans; not useful to agents. |
@@ -49,6 +49,17 @@ the worktree you are in. `feature` names also accept a unique prefix. Worktree n
 
 Flags: `-k` keep local and remote branch (the worktree is still removed); `--keeplocal`/`--keepremote` keep only
 that copy; `-D` force worktree removal even with untracked files; `--push` push `develop` afterwards.
+
+## work
+
+| Command | Effect |
+|---------|--------|
+| `work start [-P <parent>] [--dry-run] <name>` | New `work/<parent>/<name>` off the parent's tip, with a worktree. Without `-P`: the feature/hotfix whose worktree you are in; else a picker (fails without a terminal). Names must not contain `/`. |
+| `work finish [-k] [--keeplocal] [-D] [--dry-run] [<name>]` | Rebase onto the parent, fast-forward the parent (its worktree must be clean), remove the work worktree and branch. |
+
+Work branches are local: no `publish`, `track` or `pull`. A bare name means the subtask of the parent you are in,
+else the only one of that name; otherwise give `feature/login/api`. `feature`/`hotfix` `finish` and `delete`
+refuse while subtasks are open.
 
 ## release / hotfix
 

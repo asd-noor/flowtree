@@ -16,6 +16,7 @@ type flowOpts struct {
 	enabled                             bool
 	master, develop                     string
 	featurePrefix, relPrefix, hotPrefix string
+	workPrefix                          string
 	versionTag                          string
 	remote                              string
 }
@@ -27,6 +28,7 @@ func bindFlowFlags(f *pflag.FlagSet, o *flowOpts) {
 	f.StringVarP(&o.featurePrefix, "feature-prefix", "p", "", "prefix of feature branches (default feature/)")
 	f.StringVarP(&o.relPrefix, "release-prefix", "r", "", "prefix of release branches (default release/)")
 	f.StringVarP(&o.hotPrefix, "hotfix-prefix", "x", "", "prefix of hotfix branches (default hotfix/)")
+	f.StringVar(&o.workPrefix, "work-prefix", "", "prefix of work branches (default work/)")
 	f.StringVarP(&o.versionTag, "version-tag", "t", "", "prefix of version tags, e.g. v (default none)")
 	f.StringVar(&o.remote, "remote", "", "remote used for fetch and push (default origin)")
 }
@@ -69,6 +71,7 @@ func (r *initRun) flowSettings() (flow.Settings, error) {
 		{"Feature branches prefix", o.featurePrefix, &s.FeaturePrefix},
 		{"Release branches prefix", o.relPrefix, &s.ReleasePrefix},
 		{"Hotfix branches prefix", o.hotPrefix, &s.HotfixPrefix},
+		{"Work (subtask) branches prefix", o.workPrefix, &s.WorkPrefix},
 		{"Version tag prefix", o.versionTag, &s.VersionTag},
 		{"Remote", o.remote, &s.Remote},
 	}

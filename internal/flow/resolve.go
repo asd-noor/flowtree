@@ -23,8 +23,9 @@ func (e noSuchBranchError) Error() string {
 func (e noSuchBranchError) Is(target error) bool { return target == ErrNoSuchBranch }
 
 // ResolveTopic turns what the user typed (or nothing) into a full branch name of kind k.
-// A name may omit the prefix; work names may also be a unique prefix of the name. With no name,
-// the branch of the worktree the command runs in is used.
+// A name may omit the prefix; feature names may also be a unique prefix of the name, and work names
+// may be the bare subtask name (see resolveWork). With no name, the branch of the worktree the command
+// runs in is used.
 func ResolveTopic(e *Env, k Kind, name string) (string, error) {
 	if name == "" {
 		return currentTopic(e, k)
@@ -34,10 +35,60 @@ func ResolveTopic(e *Env, k Kind, name string) (string, error) {
 	if gitx.BranchExists(g, branch) {
 		return branch, nil
 	}
-	if k == Feature {
+	switch k {
+	case Feature:
 		return uniquePrefixMatch(g, branch)
+	case Work:
+		return resolveWork(e, name)
 	}
 	return "", noSuchBranchError{branch}
+}
+
+// resolveWork finds a work branch by its bare name ("api"): the subtask of the parent the working
+// directory belongs to, else the only work branch of that name.
+func resolveWork(e *Env, name string) (string, error) {
+	if parent, ok := CurrentParent(e); ok && gitx.BranchExists(e.MainGit(), e.S.WorkBranch(parent, name)) {
+		return e.S.WorkBranch(parent, name), nil
+	}
+	all, err := gitx.LocalBranches(e.MainGit(), e.S.WorkPrefix)
+	if err != nil {
+		return "", err
+	}
+	matches := slices.DeleteFunc(all, func(b string) bool { return !strings.HasSuffix(b, "/"+name) })
+	switch len(matches) {
+	case 0:
+		return "", noSuchBranchError{e.S.Branch(Work, name)}
+	case 1:
+		return matches[0], nil
+	}
+	return "", fmt.Errorf("multiple work branches are named '%s'; give the parent too:\n  %s", name, strings.Join(matches, "\n  "))
+}
+
+// CurrentParent is the feature or hotfix the working directory belongs to: the branch of its worktree,
+// or the parent of the work branch checked out there.
+func CurrentParent(e *Env) (string, bool) {
+	b := currentBranch(e)
+	if k, ok := e.S.KindOf(b); ok && k == Work {
+		b = e.S.ParentOf(b)
+	}
+	return b, e.S.IsParent(b)
+}
+
+// Children lists the open work branches of a feature or hotfix.
+func Children(e *Env, parent string) ([]string, error) {
+	return gitx.LocalBranches(e.MainGit(), e.S.WorkPrefix+parent+"/")
+}
+
+// checkNoChildren refuses to finish or delete a parent while work branches of it are open.
+func checkNoChildren(e *Env, k Kind, branch string) error {
+	if k != Feature && k != Hotfix {
+		return nil
+	}
+	kids, err := Children(e, branch)
+	if err != nil || len(kids) == 0 {
+		return err
+	}
+	return fmt.Errorf("'%s' still has open work branches; finish or delete them first:\n  %s", branch, strings.Join(kids, "\n  "))
 }
 
 func uniquePrefixMatch(g gitx.Git, branch string) (string, error) {

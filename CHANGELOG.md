@@ -6,6 +6,14 @@ All notable changes to flowtree are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `work` branches: local subtasks of a feature or hotfix for parallel work, named `work/<parent>/<name>`.
+  `work start [-P <parent>] <name>` starts one off the parent's tip (without `-P`: the parent whose worktree you
+  are in, else a picker); `work finish` rebases it onto the parent and fast-forwards the parent. They cannot be
+  published or tracked. `feature`/`hotfix` `finish` and `delete` refuse while subtasks are open. New setting
+  `workPrefix` (default `work/`) and `init --work-prefix`.
+
 ### Changed
 
 - **Breaking:** the `work` kind is now `feature` (`flowtree feature …`, branches `feature/<name>`, setting

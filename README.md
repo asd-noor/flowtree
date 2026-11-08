@@ -10,9 +10,14 @@ Git worktrees plus an opinionated git-flow. One binary:
 
 | flowtree | git-flow | branches from | merges into | lives in |
 |----------|----------|---------------|-------------|----------|
-| `feature`    | feature/bugfix/support | develop | develop | its own worktree |
+| `feature` | feature/bugfix/support | develop | develop (merge commit) | its own worktree |
 | `release` | release | develop | master (tagged), the tag back into develop | its own worktree |
 | `hotfix`  | hotfix  | master  | master (tagged), the tag back into develop | its own worktree |
+| `work`    | (none) | its parent feature or hotfix | the parent (rebased, fast-forward) | its own worktree, local only |
+
+Features and hotfixes are tasks; `work` branches are their subtasks, for parallel work on one task. A work branch
+is named `work/<parent>/<name>` (`work/feature/login/api`); `work start -P feature/login api` creates it, or
+`work start api` from inside the parent's worktree. A feature or hotfix cannot finish while subtasks are open.
 
 The main checkout rests on `develop` and only ever holds `master` or `develop`. Every topic branch gets its own
 worktree.

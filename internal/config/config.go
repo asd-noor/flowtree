@@ -36,6 +36,7 @@ type Flow struct {
 	FeaturePrefix string
 	RelPrefix     string
 	HotPrefix     string
+	WorkPrefix    string
 	VersionTag    string
 }
 

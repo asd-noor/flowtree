@@ -26,7 +26,7 @@ func List(e *Env, k Kind, verbose bool) ([]Entry, error) {
 	for i, b := range branches {
 		entries[i] = Entry{Name: e.S.Name(k, b), Branch: b, Current: b == current}
 		if verbose {
-			entries[i].State = stateOf(e.MainGit(), b, e.S.Base(k))
+			entries[i].State = stateOf(e.MainGit(), b, e.S.BaseOf(k, b))
 		}
 	}
 	return entries, nil
@@ -111,7 +111,10 @@ func PlanDelete(e *Env, o DeleteOpts) ([]Step, error) {
 	if err != nil {
 		return nil, err
 	}
-	base := e.S.Base(o.Kind)
+	if err := checkNoChildren(e, o.Kind, branch); err != nil {
+		return nil, err
+	}
+	base := e.S.BaseOf(o.Kind, branch)
 	if !o.Force && !e.MainGit().Ok("merge-base", "--is-ancestor", branch, base) {
 		return nil, fmt.Errorf("branch '%s' has not been merged into '%s'; use -f to force the deletion", branch, base)
 	}

@@ -9,7 +9,7 @@ import (
 	"flowtree/internal/testutil"
 )
 
-func TestWorkDiff(t *testing.T) {
+func TestFeatureDiff(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
 	commitFile(t, worktreeDir(repo, "feature/a"), "changed.txt")
@@ -25,7 +25,7 @@ func TestWorkDiff(t *testing.T) {
 	}
 }
 
-func TestWorkRebase(t *testing.T) {
+func TestFeatureRebase(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
 	wt := worktreeDir(repo, "feature/a")
@@ -49,7 +49,7 @@ func TestWorkRebase(t *testing.T) {
 	}
 }
 
-func TestWorkRebaseConflictReportsAndLeavesRebaseInProgress(t *testing.T) {
+func TestFeatureRebaseConflictReportsAndLeavesRebaseInProgress(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
 	wt := worktreeDir(repo, "feature/a")
@@ -60,7 +60,7 @@ func TestWorkRebaseConflictReportsAndLeavesRebaseInProgress(t *testing.T) {
 	Run(t, repo, "feature", "rebase", "a").MustFail(t)
 }
 
-func TestWorkPullFastForwardsAndCreates(t *testing.T) {
+func TestFeaturePullFastForwardsAndCreates(t *testing.T) {
 	repo, remote := flowRepoWithRemote(t)
 	Run(t, repo, "feature", "start", "feat").MustSucceed(t)
 	wt := worktreeDir(repo, "feature/feat")

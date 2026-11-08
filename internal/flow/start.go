@@ -1,21 +1,59 @@
 package flow
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"flowtree/internal/gitx"
 )
 
 // StartOpts describe `<kind> start`.
 type StartOpts struct {
-	Kind  Kind
-	Name  string
-	Base  string // defaults to the kind's base branch
-	Fetch bool
+	Kind   Kind
+	Name   string
+	Base   string // defaults to the kind's base branch
+	Parent string // work only: the feature or hotfix the subtask belongs to
+	Fetch  bool
+}
+
+// ErrNoParent is returned by ResolveParent when no parent was given and none follows from the working
+// directory; a caller on a terminal may then offer a choice.
+var ErrNoParent = errors.New("no parent given (-P <feature/x|hotfix/x>) and the working directory is not in a feature or hotfix worktree")
+
+// ResolveParent is the parent a new work branch belongs to: the one given, else the feature or hotfix
+// the working directory belongs to.
+func ResolveParent(e *Env, given string) (string, error) {
+	if given == "" {
+		if p, ok := CurrentParent(e); ok {
+			return p, nil
+		}
+		return "", ErrNoParent
+	}
+	if !e.S.IsParent(given) {
+		return "", fmt.Errorf("parent '%s' must be a feature or hotfix branch (%s..., %s...)", given, e.S.FeaturePrefix, e.S.HotfixPrefix)
+	}
+	if !gitx.BranchExists(e.MainGit(), given) {
+		return "", fmt.Errorf("parent '%s' does not exist", given)
+	}
+	return given, nil
+}
+
+// Parents lists the open features and hotfixes, the branches a work branch can belong to.
+func Parents(e *Env) ([]string, error) {
+	var out []string
+	for _, k := range []Kind{Feature, Hotfix} {
+		bs, err := gitx.LocalBranches(e.MainGit(), e.S.Prefix(k))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, bs...)
+	}
+	return out, nil
 }
 
 func missingName(k Kind) error {
-	if k == Feature {
+	if k == Feature || k == Work {
 		return fmt.Errorf("missing argument <name>")
 	}
 	return fmt.Errorf("missing argument <version>")
@@ -26,22 +64,48 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 	if o.Name == "" {
 		return nil, missingName(o.Kind)
 	}
+	if o.Kind == Work {
+		return planStartWork(e, o)
+	}
 	branch := e.S.Branch(o.Kind, o.Name)
 	name := e.S.Name(o.Kind, branch)
 	base := firstNonEmpty(o.Base, e.S.Base(o.Kind))
 	if err := checkStartable(e, o.Kind, name, branch, base); err != nil {
 		return nil, err
 	}
-	var path string
 	return Plan(
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
 		One("check "+e.S.Remote+" state", func(e *Env) error { return checkStartRemote(e, o.Kind, branch, base, o.Base == "") }),
+		createSteps(o.Kind, name, branch, base),
+	), nil
+}
+
+// planStartWork starts a local subtask off the tip of its parent; it never touches the remote.
+func planStartWork(e *Env, o StartOpts) ([]Step, error) {
+	if strings.Contains(o.Name, "/") {
+		return nil, fmt.Errorf("a work name must not contain '/' (got '%s'); the parent goes in -P", o.Name)
+	}
+	parent, err := ResolveParent(e, o.Parent)
+	if err != nil {
+		return nil, err
+	}
+	branch := e.S.WorkBranch(parent, o.Name)
+	if err := checkStartable(e, Work, o.Name, branch, parent); err != nil {
+		return nil, err
+	}
+	return createSteps(Work, o.Name, branch, parent), nil
+}
+
+// createSteps create the branch and its worktree, then print a summary.
+func createSteps(k Kind, name, branch, base string) []Step {
+	var path string
+	return Plan(
 		One(createDesc(branch, base), func(e *Env) (err error) {
 			path, err = createTopic(e, branch, base)
 			return err
 		}),
-		One("print summary", func(e *Env) error { printStartSummary(e, o.Kind, name, branch, base, path); return nil }),
-	), nil
+		One("print summary", func(e *Env) error { printStartSummary(e, k, name, branch, base, path); return nil }),
+	)
 }
 
 func firstNonEmpty(vals ...string) string {
@@ -55,7 +119,7 @@ func firstNonEmpty(vals ...string) string {
 
 func checkStartable(e *Env, k Kind, name, branch, base string) error {
 	g := e.MainGit()
-	if k != Feature {
+	if k == Release || k == Hotfix {
 		if err := checkNoneOpen(e); err != nil {
 			return err
 		}

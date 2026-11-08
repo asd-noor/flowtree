@@ -9,7 +9,7 @@ import (
 	"flowtree/internal/testutil"
 )
 
-func TestWorkPullAmbiguousNameIsNotMisreportedAsMissing(t *testing.T) {
+func TestFeaturePullAmbiguousNameIsNotMisreportedAsMissing(t *testing.T) {
 	repo, _ := flowRepoWithRemote(t)
 	testutil.Git(t, repo, "branch", "feature/login", "develop")
 	testutil.Git(t, repo, "branch", "feature/logout", "develop")
@@ -19,7 +19,7 @@ func TestWorkPullAmbiguousNameIsNotMisreportedAsMissing(t *testing.T) {
 	}
 }
 
-func TestWorkPullCreatesAWorktreeForARemoteOnlyBranch(t *testing.T) {
+func TestFeaturePullCreatesAWorktreeForARemoteOnlyBranch(t *testing.T) {
 	repo, _ := flowRepoWithRemote(t)
 	testutil.Git(t, repo, "push", "-q", "origin", "develop:feature/remote-only")
 	Run(t, repo, "feature", "pull", "origin", "remote-only").MustSucceed(t)

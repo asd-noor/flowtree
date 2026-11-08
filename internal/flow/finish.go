@@ -43,8 +43,14 @@ func PlanFinish(e *Env, o FinishOpts) ([]Step, error) {
 	if err := checkMainCanReturn(e, branch); err != nil {
 		return nil, err
 	}
-	if o.Kind == Feature {
+	if err := checkNoChildren(e, o.Kind, branch); err != nil {
+		return nil, err
+	}
+	switch o.Kind {
+	case Feature:
 		return planFinishFeature(e, o, branch)
+	case Work:
+		return planFinishWork(e, o, branch)
 	}
 	return planFinishRelease(e, o, branch)
 }
@@ -74,6 +80,49 @@ func planFinishFeature(e *Env, o FinishOpts, branch string) ([]Step, error) {
 		One("remove worktree and branch "+branch, func(e *Env) error { return Cleanup(e, branch, o.Cleanup) }),
 		If(o.Push, pushStep(e.S.Develop)),
 	), nil
+}
+
+func planFinishWork(e *Env, o FinishOpts, branch string) ([]Step, error) {
+	parent := e.S.ParentOf(branch)
+	if !gitx.BranchExists(e.MainGit(), parent) {
+		return nil, fmt.Errorf("the parent '%s' of '%s' does not exist", parent, branch)
+	}
+	if w, ok, err := e.WorktreeOf(parent); err != nil {
+		return nil, err
+	} else if ok {
+		if err := RequireClean(e, w.Path); err != nil {
+			return nil, err
+		}
+	}
+	return Plan(
+		One("rebase "+branch+" onto "+parent, func(e *Env) error { return rebaseOnto(e, branch, parent) }),
+		One("fast-forward "+parent+" to "+branch, func(e *Env) error {
+			if err := MergeInto(e, parent, branch, FastForward, ""); err != nil {
+				return err
+			}
+			e.Say("\nSummary of actions:\n- The work branch '%s' was rebased onto '%s' and merged into it", branch, parent)
+			return nil
+		}),
+		One("remove worktree and branch "+branch, func(e *Env) error { return Cleanup(e, branch, o.Cleanup) }),
+	), nil
+}
+
+// rebaseOnto rebases branch onto onto inside its worktree, creating the worktree if needed. A conflict
+// aborts the rebase, so nothing changes.
+func rebaseOnto(e *Env, branch, onto string) error {
+	dir, err := EnsureWorktree(e, branch)
+	if err != nil {
+		return err
+	}
+	if err := RequireClean(e, dir); err != nil {
+		return err
+	}
+	if _, err := e.Git(dir)("rebase", onto); err != nil {
+		_ = e.Git(dir).Ok("rebase", "--abort")
+		return fmt.Errorf("finish was aborted due to conflicts during rebase; rebase manually in '%s' "+
+			"(git rebase %s), then re-run: flowtree work finish %s\n%w", dir, onto, e.S.Name(Work, branch), err)
+	}
+	return nil
 }
 
 // mergedUpstream reports whether develop, or its remote copy (a pull request merged on the forge),

@@ -15,6 +15,7 @@ const (
 	DefaultFeaturePrefix = "feature/"
 	DefaultRelPrefix     = "release/"
 	DefaultHotPrefix     = "hotfix/"
+	DefaultWorkPrefix    = "work/"
 )
 
 // Settings are the resolved flow settings of a repository.
@@ -23,6 +24,7 @@ type Settings struct {
 	FeaturePrefix   string
 	ReleasePrefix   string
 	HotfixPrefix    string
+	WorkPrefix      string
 	VersionTag      string // prefix of version tags, e.g. "v"
 	Remote          string
 }
@@ -31,7 +33,7 @@ type Settings struct {
 func DefaultSettings() Settings {
 	return Settings{
 		Master: DefaultMaster, Develop: DefaultDevelop,
-		FeaturePrefix: DefaultFeaturePrefix, ReleasePrefix: DefaultRelPrefix, HotfixPrefix: DefaultHotPrefix,
+		FeaturePrefix: DefaultFeaturePrefix, ReleasePrefix: DefaultRelPrefix, HotfixPrefix: DefaultHotPrefix, WorkPrefix: DefaultWorkPrefix,
 		Remote: config.DefaultRemote,
 	}
 }
@@ -61,6 +63,7 @@ func (s Settings) override(f config.Flow) Settings {
 	pick(&s.FeaturePrefix, f.FeaturePrefix)
 	pick(&s.ReleasePrefix, f.RelPrefix)
 	pick(&s.HotfixPrefix, f.HotPrefix)
+	pick(&s.WorkPrefix, f.WorkPrefix)
 	s.VersionTag = f.VersionTag
 	return s
 }
@@ -69,7 +72,7 @@ func (s Settings) override(f config.Flow) Settings {
 func (s Settings) ToConfig() config.Flow {
 	return config.Flow{
 		Master: s.Master, Develop: s.Develop,
-		FeaturePrefix: s.FeaturePrefix, RelPrefix: s.ReleasePrefix, HotPrefix: s.HotfixPrefix,
+		FeaturePrefix: s.FeaturePrefix, RelPrefix: s.ReleasePrefix, HotPrefix: s.HotfixPrefix, WorkPrefix: s.WorkPrefix,
 		VersionTag: s.VersionTag,
 	}
 }
@@ -82,7 +85,7 @@ func (s Settings) Validate() error {
 	if s.Master == s.Develop {
 		return fmt.Errorf("master and develop must be different branches (both are '%s')", s.Master)
 	}
-	prefixes := []string{s.FeaturePrefix, s.ReleasePrefix, s.HotfixPrefix}
+	prefixes := []string{s.FeaturePrefix, s.ReleasePrefix, s.HotfixPrefix, s.WorkPrefix}
 	for i, p := range prefixes {
 		if p == "" {
 			return fmt.Errorf("branch prefixes must not be empty")

@@ -42,7 +42,7 @@ Completion is dynamic and reads the repository you are in:
 
 - worktree names for `print-dir`, `exec`, `remove`;
 - branch names (local, plus remote-only) for `add`;
-- open `feature`/`release`/`hotfix` names for `finish`, `checkout`, `publish`, `delete`, `rebase`, `diff`;
+- open `feature`/`release`/`hotfix`/`work` names for `finish`, `checkout`, `publish`, `delete`, `rebase`, `diff`;
 - branches that exist only on the remote for `track`;
 - remotes for `feature pull`;
 - row names for `switch`.

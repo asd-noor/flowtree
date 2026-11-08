@@ -12,6 +12,7 @@ worktrees, so you `cd` between them instead of switching branches in one checkou
 | `feature` | `feature/` | develop | develop | its own worktree |
 | `release` | `release/` | develop | master (tagged), then the tag into develop | its own worktree |
 | `hotfix` | `hotfix/` | master | master (tagged), then the tag into develop | its own worktree |
+| `work` | `work/<parent>/` | its parent (a feature or hotfix) | the parent: rebased, then fast-forwarded | its own worktree, never pushed |
 
 Names and prefixes are settings (`flowtree init --flow`, see [configuration.md](configuration.md)). `feature`
 replaces git-flow's `feature`, `bugfix` and `support`.
@@ -19,7 +20,23 @@ replaces git-flow's `feature`, `bugfix` and `support`.
 ## The main-checkout rule
 
 The main checkout (the directory you cloned into) rests on `develop`. It only ever holds `master` or
-`develop`. `feature/*`, `release/*` and `hotfix/*` branches each get a worktree at `<baseDir>/<branch>`.
+`develop`. `feature/*`, `release/*`, `hotfix/*` and `work/*` branches each get a worktree at `<baseDir>/<branch>`.
+
+## Work branches
+
+A feature or hotfix is a task; a work branch is a subtask of one, so several people or agents can work on a task
+in parallel. Its name carries its parent: `work/feature/login/api` belongs to `feature/login`.
+
+- `work start [-P <parent>] <name>`: the parent is `-P` (a full branch name), else the feature or hotfix whose
+  worktree you are in (or the parent of the work branch you are in), else, on a terminal, a picker. The branch
+  starts from the parent's tip. Names must not contain `/`.
+- `work finish`: rebases the work branch onto its parent inside its worktree (a conflict aborts the rebase and
+  changes nothing), fast-forwards the parent (in the parent's worktree, which must have no uncommitted changes,
+  or in a throwaway worktree), then removes the work worktree and branch.
+- Work branches are local: there is no `work publish`, `track` or `pull`.
+- A bare name (`api`) means the subtask of the parent you are in; elsewhere it must be unique, or give
+  `feature/login/api`.
+- `feature finish`, `hotfix finish` and their `delete` refuse while the branch has open work branches.
 
 If you check a topic branch out in the main checkout by hand, the commands that need its worktree
 (`checkout`, `switch`, `rebase`, `pull`) move the main checkout back (master for hotfix, else develop; it

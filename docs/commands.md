@@ -131,8 +131,8 @@ inside a worktree it would move; the main worktree is never moved.
 
 ## Flow commands
 
-`<kind>` is `feature`, `release` or `hotfix`. `<name>` is the name without its prefix (a version for release and
-hotfix). The behaviour behind these is described in [git-flow.md](git-flow.md).
+`<kind>` is `feature`, `release`, `hotfix` or `work`. `<name>` is the name without its prefix (a version for
+release and hotfix). `work` has no `publish` or `track`; its `start` is described below. The behaviour behind these is described in [git-flow.md](git-flow.md).
 
 | Command | Effect |
 |---------|--------|
@@ -168,7 +168,20 @@ flowtree release finish [-F] [-s] [-u KEY] [-m MSG | -f FILE] [-p] [-k] [--keepl
 name; `-S` squash into master; `--ff-master` (release only) fast-forward master; `-p` push develop, master
 and the tag. The tag name is `<version tag prefix><version>` unless `-T` is given.
 
-### Work-only commands
+### `work start`, `work finish`
+
+```
+flowtree work start [-P <parent>] [--dry-run] <name>
+flowtree work finish [-k] [--keeplocal] [-D] [--dry-run] [<name>]
+```
+
+`start` creates `work/<parent>/<name>` from the parent's tip, in its own worktree. `-P` names the parent
+(`feature/login`, `hotfix/1.2.1`); without it the parent is the feature or hotfix whose worktree you are in, else
+a picker on a terminal, else an error. `finish` rebases the branch onto its parent, fast-forwards the parent and
+removes the work worktree and branch. A `<name>` may be bare (`api`, the subtask of the parent you are in, or the
+only one of that name) or carry the parent (`feature/login/api`).
+
+### Feature-only commands
 
 | Command | Effect |
 |---------|--------|

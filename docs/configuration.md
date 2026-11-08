@@ -22,7 +22,7 @@ without anyone stepping on anyone. Each clone runs `flowtree init` (or `init --f
 | `remote` | `origin` | The remote used for fetch, push, track, delete and the sync checks. |
 | `master` | none | Production branch. Set by `init --flow`. |
 | `develop` | none | Integration branch. Set by `init --flow`. |
-| `featurePrefix`, `releasePrefix`, `hotfixPrefix` | `feature/`, `release/`, `hotfix/` | Branch prefixes; they must differ and must not be empty. |
+| `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix` | `feature/`, `release/`, `hotfix/`, `work/` | Branch prefixes; they must differ and must not be empty. |
 | `versionTagPrefix` | empty | Prefix of version tags (`v` gives `v1.2.0`). |
 
 Flow is **set up** when both `master` and `develop` are set; setting only one of them is an error. `master` and

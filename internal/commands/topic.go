@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -22,9 +23,7 @@ func newTopicCmd(k flow.Kind) Constructor {
 			Args:  cobra.NoArgs,
 			RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 		}
-		for _, sub := range []func(flow.Kind, Deps) *cobra.Command{
-			newListSub, newStartSub, newFinishSub, newCheckoutSub, newPublishSub, newTrackSub, newDeleteSub,
-		} {
+		for _, sub := range topicSubs(k) {
 			cmd.AddCommand(sub(k, d))
 		}
 		if k == flow.Feature {
@@ -34,8 +33,20 @@ func newTopicCmd(k flow.Kind) Constructor {
 	}
 }
 
+// topicSubs are the subcommands of a kind; work branches are local only, so they cannot be
+// published or tracked.
+func topicSubs(k flow.Kind) []func(flow.Kind, Deps) *cobra.Command {
+	subs := []func(flow.Kind, Deps) *cobra.Command{newListSub, newStartSub, newFinishSub, newCheckoutSub, newDeleteSub}
+	if k == flow.Work {
+		return subs
+	}
+	return append(subs, newPublishSub, newTrackSub)
+}
+
 func topicShort(k flow.Kind) string {
 	switch k {
+	case flow.Work:
+		return "Work branches: local subtasks of a feature or hotfix, rebased onto it when finished"
 	case flow.Feature:
 		return "Feature branches: start from develop, merge back into develop with a merge commit"
 	case flow.Release:
@@ -45,7 +56,7 @@ func topicShort(k flow.Kind) string {
 }
 
 func nameArg(k flow.Kind) string {
-	if k == flow.Feature {
+	if k == flow.Feature || k == flow.Work {
 		return "<name>"
 	}
 	return "<version>"
@@ -175,6 +186,9 @@ func renderEntries(entries []flow.Entry) string {
 // ---- start / track / checkout / publish
 
 func newStartSub(k flow.Kind, d Deps) *cobra.Command {
+	if k == flow.Work {
+		return newWorkStartSub(d)
+	}
 	o := flow.StartOpts{Kind: k}
 	var dry bool
 	cmd := &cobra.Command{
@@ -191,6 +205,48 @@ func newStartSub(k flow.Kind, d Deps) *cobra.Command {
 	cmd.Flags().BoolVarP(&o.Fetch, "fetch", "F", false, "fetch the remote first")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
 	return cmd
+}
+
+func newWorkStartSub(d Deps) *cobra.Command {
+	o := flow.StartOpts{Kind: flow.Work}
+	var dry bool
+	cmd := &cobra.Command{
+		Use:   "start [-P <parent>] [--dry-run] <name>",
+		Short: "Start a work branch: a local subtask of a feature or hotfix",
+		Long: "Create work/<parent>/<name> from the tip of <parent> and give it its own worktree.\n" +
+			"Without -P the parent is the feature or hotfix whose worktree you are in; elsewhere, on a\n" +
+			"terminal, a picker offers the open features and hotfixes.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			o.Name = args[0]
+			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) {
+				parent, err := chooseParent(cmd.Context(), d, e, o.Parent)
+				if err != nil {
+					return nil, err
+				}
+				o.Parent = parent
+				return flow.PlanStart(e, o)
+			})
+		},
+	}
+	cmd.Flags().StringVarP(&o.Parent, "parent", "P", "", "the feature or hotfix branch it belongs to (e.g. feature/login)")
+	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
+	return cmd
+}
+
+// chooseParent is the parent given or inferred from the working directory, or, on a terminal when
+// neither works, a feature or hotfix picked from a list.
+func chooseParent(ctx context.Context, d Deps, e *flow.Env, given string) (string, error) {
+	parent, err := flow.ResolveParent(e, given)
+	if !errors.Is(err, flow.ErrNoParent) || !d.IsTTY() {
+		return parent, err
+	}
+	open, err := flow.Parents(e)
+	if err != nil || len(open) == 0 {
+		return "", errors.Join(flow.ErrNoParent, err)
+	}
+	row, err := d.pick(ctx, mapSlice(open, func(b string) picker.Row { return picker.Row{Key: b, Label: b} }), "")
+	return row.Key, err
 }
 
 func newTrackSub(k flow.Kind, d Deps) *cobra.Command {
@@ -289,15 +345,19 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 		},
 	}
 	bindCommonFinish(cmd.Flags(), &o, &keep, &dry)
-	if k == flow.Feature {
+	switch k {
+	case flow.Feature:
 		cmd.Flags().BoolVar(&o.Push, "push", false, "push develop afterwards")
-	} else {
+	case flow.Release, flow.Hotfix:
 		bindReleaseFinish(cmd.Flags(), &o, k)
 	}
 	return cmd
 }
 
 func finishShort(k flow.Kind) string {
+	if k == flow.Work {
+		return "Rebase a work branch onto its parent, fast-forward the parent and clean up"
+	}
 	if k == flow.Feature {
 		return "Merge a feature branch into develop and clean up"
 	}

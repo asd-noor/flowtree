@@ -17,6 +17,7 @@ where topic branches live in their own worktrees**. Branch model:
 | `feature` (feature/bugfix/support) | `feature/<name>` | `develop` | `develop` | its own worktree |
 | `release` | `release/<version>` | `develop` | `master` + tag, tag merged into `develop` | its own worktree |
 | `hotfix` | `hotfix/<version>` | `master` | `master` + tag, tag merged into `develop` | its own worktree |
+| `work` (subtask) | `work/<parent>/<name>` | its parent's tip | the parent: rebased, fast-forwarded | its own worktree, local only |
 
 The production branch may be called `main`; the branch names and prefixes are in git config (`flowtree config` lists them).
 
@@ -56,13 +57,21 @@ Check the repo is set up: any `flowtree feature list` fails with "flow is not se
 Then run `flowtree init --flow -d` (it creates `master`/`develop` if missing and stores the settings in git config); confirm
 with the user first if the repo already has branches or a different layout.
 
-**Work item**
+**Feature**
 ```sh
 flowtree feature start <name>        # prints "A worktree for it was created at '<path>'"
 # edit + commit inside <path>
 flowtree feature finish <name>       # run from anywhere; merge commit into develop, never rebases
 ```
 If a pull request already merged the branch, `finish` only cleans up. Options: `-k` (keep branches), `--push`.
+
+**Subtasks** (parallel work on one feature or hotfix; local branches, never pushed)
+```sh
+flowtree work start -P feature/<name> <sub>   # work/feature/<name>/<sub> off the feature's tip, own worktree
+# commit inside its worktree
+flowtree work finish <sub>                    # rebase onto the feature, fast-forward it, clean up
+```
+Finish or delete every subtask before `feature finish` / `hotfix finish`: they refuse while subtasks are open.
 
 **Release**
 ```sh

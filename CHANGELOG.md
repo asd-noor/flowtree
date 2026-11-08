@@ -4,6 +4,13 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [v0.4.2] - 2026-11-08
+
+### Changed
+
+- `flowtree board` has a new look: rounded columns with the count in the title, a color per status taken from the
+  terminal's 16 ANSI colors, two-line cards (title, then branch and tags), a boxed detail pane and a styled help bar.
+
 ## [v0.4.1] - 2026-11-08
 
 ### Fixed

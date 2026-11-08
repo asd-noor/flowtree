@@ -99,6 +99,14 @@ Preview any `start`, `finish` or `delete` with `--dry-run`: it prints the steps 
 `hotfix/` branches this way: that skips the base branch, the open-release check, tagging and the merge steps.
 Use `flowtree <kind> start|finish|delete` for those.
 
+**Board** (the repository's tasks; columns follow git, never move them by hand)
+```sh
+flowtree task list --json            # pick work from todo; skip tasks with "human": true or in the backlog
+flowtree task show <n> --json        # description, subtasks, comments
+flowtree task comment <n> "..."      # report progress
+flowtree task add -d "..." "Title"   # only when the user asks for a new task
+```
+
 ## Output and errors
 
 Success output of `start`/`finish` ends with a "Summary of actions" block. Errors go to stderr as

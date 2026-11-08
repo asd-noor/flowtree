@@ -8,6 +8,10 @@ All notable changes to flowtree are documented here. The format follows
 
 ### Added
 
+- A per-repository board: `flowtree task add|list|show|edit|comment|todo|backlog|human`, stored in
+  `<git-common-dir>/flowtree-board.json` (shared by all worktrees, never pushed). A task's column follows git:
+  todo or backlog without a branch, doing while the branch exists, review when asked at the current tip, done once
+  merged into its target, abandoned when deleted unmerged. `list` and `show` take `--json`.
 - `work` branches: local subtasks of a feature or hotfix for parallel work, named `work/<parent>/<name>`.
   `work start [-P <parent>] <name>` starts one off the parent's tip (without `-P`: the parent whose worktree you
   are in, else a picker); `work finish` rebases it onto the parent and fast-forwards the parent. They cannot be

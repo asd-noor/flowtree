@@ -98,12 +98,14 @@ flowtree install-skill <dir>       # install the embedded agent skill into a ski
 
 flowtree feature list [-v] | start [-F] <name> [<base>] | finish [flags] [<name>] | checkout|publish [<name>]
                  track <name> | delete [-f] [-r] <name> | diff [<name>] | rebase [-i] [-p] [<name>] | pull <remote> [<name>]
+flowtree work    list [-v] | start [-P <parent>] <name> | finish [flags] [<name>] | checkout [<name>] | delete [-f] <name>
 flowtree release list [-v] | start [-F] <version> [<base>] | finish [flags] [<version>] | checkout|publish|track|delete
 flowtree hotfix  …same as release; branches from master
 ```
 
 Run `flowtree <command> --help` for every flag. `finish` with no name uses the branch of the worktree you are in
-(or, on a terminal, offers a picker). Work names also accept a unique prefix.
+(or, on a terminal, offers a picker). Feature names also accept a unique prefix; work names may be the bare
+subtask name.
 
 - `feature finish` merges `--no-ff` into develop and never rebases; if a pull request already merged the branch,
   it only cleans up.
@@ -120,6 +122,19 @@ Run `flowtree <command> --help` for every flag. `finish` with no name uses the b
   is still removed), `-D` removes a worktree with untracked files.
 - `release`/`hotfix start` refuses if a release or hotfix is already open (only one of them at a time), or the
   tag exists.
+
+## Board
+
+Each repository has a kanban of its own, stored in the git directory (shared by all worktrees, never pushed):
+
+```sh
+flowtree task add -t ui "Login page"   # -> #1, in todo
+flowtree task list                     # #1    todo      Login page  [ui]
+flowtree task show 1 | edit 1 | comment 1 "..." | backlog 1 | human 1
+```
+
+Columns follow git rather than manual moves: a task without a branch is in todo (or the backlog), with a branch it
+is doing, and once its branch is merged into its target it is done. See [docs/commands.md](docs/commands.md#board).
 
 ## Configuration
 

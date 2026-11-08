@@ -71,3 +71,15 @@ refuse while subtasks are open.
 - Order: merge into `master` (`--no-ff`) → tag → merge the tag into `develop` → remove worktree/branch → push.
 - Re-running `finish` after a failed back-merge resumes (see troubleshooting).
 - `release start`/`hotfix start` fail if another branch of that kind is open or the tag already exists.
+
+## task (board)
+
+| Command | Effect |
+|---------|--------|
+| `task add [-d <text>] [-t <tags>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. |
+| `task list [-s <status>] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned. |
+| `task show [--json] <n>` | Description, subtasks and comments of a task. |
+| `task edit [--title <t>] [-d <text>] [-t <tags>] <n>` | Change fields; with no flags it opens `$EDITOR` (title line, blank line, description). |
+| `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
+| `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
+| `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |

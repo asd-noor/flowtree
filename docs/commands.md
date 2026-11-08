@@ -188,3 +188,31 @@ only one of that name) or carry the parent (`feature/login/api`).
 | `feature diff [<name>]` | The changes on the branch since it left develop. |
 | `feature rebase [-i] [-p] [<name>]` | Rebase onto develop inside the worktree; `-i` is interactive and needs a terminal. |
 | `feature pull <remote> [<name>]` | Fetch, then fast-forward pull the branch in its worktree; if it does not exist locally, create it tracking `<remote>/<branch>` with a worktree. |
+
+## Board
+
+The repository's kanban lives in `<git-common-dir>/flowtree-board.json`: one file for every worktree of the clone,
+never committed or pushed. Writes take a lock and replace the file atomically, so parallel commands in different
+worktrees are safe. A task is a feature or hotfix (before or after it has a branch); its subtasks are the work
+branches of that branch.
+
+A task's column is never set by hand; it follows from git:
+
+| Column | When |
+|--------|------|
+| backlog | no branch yet, parked (`task backlog`) |
+| todo | no branch yet |
+| doing | the branch exists |
+| review | review was asked for at the branch's current tip |
+| done | the branch (or its last known tip, once deleted) has commits of its own and is merged into its target: develop for a feature, master for a hotfix, the parent for a subtask |
+| abandoned | the branch is gone and was not merged |
+
+| Command | Effect |
+|---------|--------|
+| `task add [-d <text>] [-t <tags>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. |
+| `task list [-s <status>] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned. |
+| `task show [--json] <n>` | Description, subtasks and comments of a task. |
+| `task edit [--title <t>] [-d <text>] [-t <tags>] <n>` | Change fields; with no flags it opens `$EDITOR` (title line, blank line, description). |
+| `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
+| `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
+| `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |

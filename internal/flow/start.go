@@ -15,6 +15,7 @@ type StartOpts struct {
 	Base   string // defaults to the kind's base branch
 	Parent string // work only: the feature or hotfix the subtask belongs to
 	Task   int    // feature and hotfix only: the board task the branch is for (0: a new task)
+	Desc   string // work only: the subtask's description on the board
 	Fetch  bool
 }
 
@@ -101,7 +102,7 @@ func planStartWork(e *Env, o StartOpts) ([]Step, error) {
 	if err := checkStartable(e, Work, o.Name, branch, parent); err != nil {
 		return nil, err
 	}
-	return Plan(createSteps(Work, o.Name, branch, parent), subtaskStep(o.Name, branch, parent)), nil
+	return Plan(createSteps(Work, o.Name, branch, parent), subtaskStep(o.Name, branch, parent, o.Desc)), nil
 }
 
 // createSteps create the branch and its worktree, then print a summary.

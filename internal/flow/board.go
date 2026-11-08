@@ -100,12 +100,12 @@ func linkStep(task int, branch, title string) []Step {
 }
 
 // subtaskStep records a new work branch on its parent's task, adding that task if the parent has none.
-func subtaskStep(name, branch, parent string) []Step {
+func subtaskStep(name, branch, parent, desc string) []Step {
 	return boardStep("add subtask "+name+" to the task of "+parent, func(e *Env, b board.Board) (board.Board, error) {
 		start := tipOf(e, branch)
 		pstart, _ := e.MainGit()("merge-base", parent, e.S.Target(parent))
 		b = b.Ensure(parent, e.S.Name(kindOf(e.S, parent), parent), pstart, time.Now().UTC())
-		return b.AddSubtask(parent, board.Subtask{Name: name, Branch: branch, Start: start, Tip: start}), nil
+		return b.AddSubtask(parent, board.Subtask{Name: name, Branch: branch, Description: desc, Start: start, Tip: start}), nil
 	})
 }
 

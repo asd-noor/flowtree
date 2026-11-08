@@ -171,14 +171,14 @@ and the tag. The tag name is `<version tag prefix><version>` unless `-T` is give
 ### `work start`, `work finish`
 
 ```
-flowtree work start [-P <parent>] [--dry-run] <name>
+flowtree work start [-P <parent>] [-d <brief>] [--dry-run] <name>
 flowtree work finish [-k] [--keeplocal] [-D] [--dry-run] [<name>]
 ```
 
 `start` creates `work/<parent>/<name>` from the parent's tip, in its own worktree. `-P` names the parent
 (`feature/login`, `hotfix/1.2.1`); without it the parent is the feature or hotfix whose worktree you are in, else
 a picker on a terminal, else an error. `finish` rebases the branch onto its parent, fast-forwards the parent and
-removes the work worktree and branch. A `<name>` may be bare (`api`, the subtask of the parent you are in, or the
+removes the work worktree and branch. `-d` sets the subtask's description on the board: its brief. A `<name>` may be bare (`api`, the subtask of the parent you are in, or the
 only one of that name) or carry the parent (`feature/login/api`).
 
 ### Feature-only commands
@@ -225,7 +225,8 @@ Releases have no task. `--dry-run` shows the board steps as `board: ...`.
 | `task add [-d <text>] [-t <tags>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. |
 | `task list [-s <status>] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned. |
 | `task show [--json] <n>` | Description, subtasks and comments of a task. |
-| `task edit [--title <t>] [-d <text>] [-t <tags>] <n>` | Change fields; with no flags it opens `$EDITOR` (title line, blank line, description). |
+| `task edit [--title <t>] [-d <text>] [-t <tags>] <n>[/<sub>]` | Change fields; with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
+| `task prompt <n>[/<sub>]` | Print the task (or subtask) as a Markdown brief: descriptions, branch, absolute worktree path, how it is finished. Hand it to whoever works on it. |
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |

@@ -54,7 +54,7 @@ that copy; `-D` force worktree removal even with untracked files; `--push` push 
 
 | Command | Effect |
 |---------|--------|
-| `work start [-P <parent>] [--dry-run] <name>` | New `work/<parent>/<name>` off the parent's tip, with a worktree. Without `-P`: the feature/hotfix whose worktree you are in; else a picker (fails without a terminal). Names must not contain `/`. |
+| `work start [-P <parent>] [-d <brief>] [--dry-run] <name>` | New `work/<parent>/<name>` off the parent's tip, with a worktree; `-d` is its brief on the board. Without `-P`: the feature/hotfix whose worktree you are in; else a picker (fails without a terminal). Names must not contain `/`. |
 | `work finish [-k] [--keeplocal] [-D] [--dry-run] [<name>]` | Rebase onto the parent, fast-forward the parent (its worktree must be clean), remove the work worktree and branch. |
 
 Work branches are local: no `publish`, `track` or `pull`. A bare name means the subtask of the parent you are in,
@@ -79,7 +79,8 @@ refuse while subtasks are open.
 | `task add [-d <text>] [-t <tags>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. |
 | `task list [-s <status>] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned. |
 | `task show [--json] <n>` | Description, subtasks and comments of a task. |
-| `task edit [--title <t>] [-d <text>] [-t <tags>] <n>` | Change fields; with no flags it opens `$EDITOR` (title line, blank line, description). |
+| `task edit [--title <t>] [-d <text>] [-t <tags>] <n>[/<sub>]` | Change fields; with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
+| `task prompt <n>[/<sub>]` | Print the task (or subtask) as a Markdown brief: descriptions, branch, absolute worktree path, how it is finished. Hand it to whoever works on it. |
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |

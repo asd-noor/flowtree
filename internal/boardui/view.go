@@ -135,6 +135,9 @@ func subtaskText(c Card) string {
 	b.WriteString("\nSubtasks:\n")
 	for i, s := range c.Subtasks {
 		fmt.Fprintf(&b, "  %-9s %s (%s)\n", subStatus(c, i), s.Name, s.Branch)
+		if s.Description != "" {
+			fmt.Fprintf(&b, "            %s\n", strings.ReplaceAll(strings.TrimSpace(s.Description), "\n", "\n            "))
+		}
 	}
 	return b.String()
 }

@@ -217,7 +217,7 @@ func newWorkStartSub(d Deps) *cobra.Command {
 	o := flow.StartOpts{Kind: flow.Work}
 	var dry bool
 	cmd := &cobra.Command{
-		Use:   "start [-P <parent>] [--dry-run] <name>",
+		Use:   "start [-P <parent>] [-d <brief>] [--dry-run] <name>",
 		Short: "Start a work branch: a local subtask of a feature or hotfix",
 		Long: "Create work/<parent>/<name> from the tip of <parent> and give it its own worktree.\n" +
 			"Without -P the parent is the feature or hotfix whose worktree you are in; elsewhere, on a\n" +
@@ -236,6 +236,7 @@ func newWorkStartSub(d Deps) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&o.Parent, "parent", "P", "", "the feature or hotfix branch it belongs to (e.g. feature/login)")
+	cmd.Flags().StringVarP(&o.Desc, "description", "d", "", "the subtask's brief on the board (Markdown)")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
 	return cmd
 }

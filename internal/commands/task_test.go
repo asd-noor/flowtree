@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"flowtree/internal/board"
+	"flowtree/internal/flow"
 )
 
 func TestTaskCommands(t *testing.T) {
@@ -69,5 +70,20 @@ func TestBoardNeedsTerminal(t *testing.T) {
 	err := run(t, d, "board")
 	if err == nil || !strings.Contains(err.Error(), "flowtree task list") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestRenderPrompt(t *testing.T) {
+	sub := board.Subtask{Name: "api", Description: "POST /login"}
+	got := renderPrompt(prompt{ID: 3, Title: "Login", Desc: "Email and password.", Sub: &sub,
+		Branch: "work/feature/login/api", Kind: flow.Work, Name: "api"})
+	for _, want := range []string{"# Task #3: Login", "Email and password.", "## Subtask: api", "POST /login",
+		"`work/feature/login/api`", "none yet; create it with `flowtree work checkout api`", "`flowtree work finish api`"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("prompt lacks %q:\n%s", want, got)
+		}
+	}
+	if got := renderPrompt(prompt{ID: 4, Title: "Later"}); !strings.Contains(got, "feature start -T 4") {
+		t.Errorf("a task without a branch should say how to start it:\n%s", got)
 	}
 }

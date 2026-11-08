@@ -34,10 +34,11 @@ type Card struct {
 
 // Subtask is a work branch of the card's branch.
 type Subtask struct {
-	Name   string `json:"name"`
-	Branch string `json:"branch"`
-	Start  string `json:"start,omitempty"`
-	Tip    string `json:"tip,omitempty"`
+	Name        string `json:"name"`
+	Branch      string `json:"branch"`
+	Description string `json:"description,omitempty"` // Markdown; the brief for whoever works on it
+	Start       string `json:"start,omitempty"`
+	Tip         string `json:"tip,omitempty"`
 }
 
 // Comment is a note on a card.
@@ -138,6 +139,26 @@ func (b Board) Track(branch, tip string) Board {
 		c.Subtasks = mapSlice(c.Subtasks, func(s Subtask) Subtask {
 			if s.Branch == branch {
 				s.Tip = tip
+			}
+			return s
+		})
+		return c
+	})
+}
+
+// WithSubtask returns a board where subtask name of card id is replaced by fn(subtask).
+func (b Board) WithSubtask(id int, name string, fn func(Subtask) Subtask) (Board, error) {
+	c, ok := b.Card(id)
+	if !ok {
+		return b, fmt.Errorf("no task #%d", id)
+	}
+	if !slices.ContainsFunc(c.Subtasks, func(s Subtask) bool { return s.Name == name }) {
+		return b, fmt.Errorf("task #%d has no subtask '%s'", id, name)
+	}
+	return b.With(id, func(c Card) Card {
+		c.Subtasks = mapSlice(c.Subtasks, func(s Subtask) Subtask {
+			if s.Name == name {
+				return fn(s)
 			}
 			return s
 		})

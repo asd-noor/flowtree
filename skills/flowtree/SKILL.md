@@ -67,7 +67,7 @@ If a pull request already merged the branch, `finish` only cleans up. Options: `
 
 **Subtasks** (parallel work on one feature or hotfix; local branches, never pushed)
 ```sh
-flowtree work start -P feature/<name> <sub>   # work/feature/<name>/<sub> off the feature's tip, own worktree
+flowtree work start -P feature/<name> -d "<brief>" <sub>   # work/feature/<name>/<sub>, own worktree
 # commit inside its worktree
 flowtree work finish <sub>                    # rebase onto the feature, fast-forward it, clean up
 ```
@@ -118,6 +118,7 @@ Use `flowtree <kind> start|finish|delete` for those.
 **Board** (the repository's tasks; columns follow git, never move them by hand)
 ```sh
 flowtree task list --json            # pick work from todo; skip tasks with "human": true or in the backlog
+flowtree task prompt <n>[/<sub>]     # your brief: read it first and work from it
 flowtree task show <n> --json        # description, subtasks, comments
 flowtree task comment <n> "..."      # report progress
 flowtree feature start -T <n> <name> # take task #n: its branch, in doing

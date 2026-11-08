@@ -111,3 +111,26 @@ func TestReviewMarkSurvivesARebase(t *testing.T) {
 		t.Errorf("a rebase alone must keep the task in review: %s", v.Status)
 	}
 }
+
+func TestSubtaskBriefAndPrompt(t *testing.T) {
+	repo := flowRepo(t)
+	Run(t, repo, "task", "add", "-d", "Email and password.", "Login").MustSucceed(t)
+	Run(t, repo, "feature", "start", "-T", "1", "login").MustSucceed(t)
+	Run(t, repo, "work", "start", "-P", "feature/login", "-d", "POST /login", "api").MustSucceed(t)
+	Run(t, repo, "task", "edit", "1/api", "-d", "POST /login, returns a JWT").MustSucceed(t)
+	if res := Run(t, repo, "task", "edit", "1/api", "--title", "x").MustFail(t); !strings.Contains(res.Stderr, "only a description") {
+		t.Errorf("stderr = %q", res.Stderr)
+	}
+	if res := Run(t, repo, "task", "edit", "1/nope", "-d", "x").MustFail(t); !strings.Contains(res.Stderr, "no subtask") {
+		t.Errorf("stderr = %q", res.Stderr)
+	}
+	out := Run(t, repo, "task", "prompt", "1/api").MustSucceed(t).Stdout
+	for _, want := range []string{"Email and password.", "## Subtask: api", "returns a JWT", worktreeDir(repo, "work/feature/login/api")} {
+		if !strings.Contains(out, want) {
+			t.Errorf("prompt lacks %q:\n%s", want, out)
+		}
+	}
+	if show := Run(t, repo, "task", "show", "1").MustSucceed(t).Stdout; !strings.Contains(show, "returns a JWT") {
+		t.Errorf("show should list the subtask's description:\n%s", show)
+	}
+}

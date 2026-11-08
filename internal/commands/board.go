@@ -51,7 +51,7 @@ func loadCards(e *flow.Env, path string) func() ([]boardui.Card, error) {
 // then, under the board lock, so edits by others in the meantime are not overwritten.
 func editCard(cmd *cobra.Command, d Deps, e *flow.Env, path string) func(boardui.Card) (*exec.Cmd, func(error) error, error) {
 	return func(c boardui.Card) (*exec.Cmd, func(error) error, error) {
-		run, file, err := editorCmd(cmd.Context(), e, c.Card)
+		run, file, err := editorCmd(cmd.Context(), e, fmt.Sprintf("task-%d", c.ID), editText(c.Card))
 		if err != nil {
 			return nil, nil, err
 		}

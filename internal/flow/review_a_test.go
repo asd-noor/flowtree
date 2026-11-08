@@ -47,7 +47,11 @@ func openRelease(t *testing.T) (*flow.Env, string) {
 	if err := flow.Run(e, steps); err != nil {
 		t.Fatal(err)
 	}
-	commit(t, repo, "CHANGELOG.md", "1.0\n")
+	w, ok, err := e.WorktreeOf("release/1.0")
+	if err != nil || !ok {
+		t.Fatalf("release worktree: %v %v", ok, err)
+	}
+	commit(t, w.Path, "CHANGELOG.md", "1.0\n")
 	return e, repo
 }
 

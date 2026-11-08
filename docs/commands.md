@@ -113,10 +113,10 @@ Runs a command in the worktree with your terminal attached and exits with the co
 Takes you where a branch lives; with shell integration your shell `cd`s there. Rows:
 
 - `@`: the main worktree (also matched by the branch it is on, so `switch develop` finds it while it is on develop);
-- every `work/*` and `hotfix/*` worktree;
-- `master`, `develop` and `release/*` branches the main worktree is not on: selecting one **moves the main
+- every `work/*`, `release/*` and `hotfix/*` worktree;
+- `master` and `develop` when the main worktree is not on them: selecting one **moves the main
   worktree onto it** (it must be clean);
-- `work/*` and `hotfix/*` branches with no worktree: selecting one creates it.
+- `work/*`, `release/*` and `hotfix/*` branches with no worktree: selecting one creates it.
 
 A query is case-insensitive and tiered: exact, then substring, then fuzzy (letters in order). Topic branches
 also match without their prefix (`login` for `work/login`). If exactly one row matches it is used at once;
@@ -125,7 +125,7 @@ Unlike `print-dir`, `switch` can change state, and says so on stderr when it doe
 
 ### `relocate [-n]`
 
-Moves work and hotfix worktrees to `<baseDir>/<branch>` after `baseDir` changed (`-n` shows the plan). Locked
+Moves topic (work, release and hotfix) worktrees to `<baseDir>/<branch>` after `baseDir` changed (`-n` shows the plan). Locked
 worktrees, missing directories and occupied targets are skipped with a reason; it refuses to run while you are
 inside a worktree it would move; the main worktree is never moved.
 
@@ -137,11 +137,11 @@ hotfix). The behaviour behind these is described in [git-flow.md](git-flow.md).
 | Command | Effect |
 |---------|--------|
 | `<kind> list [-v]` (`ls`) | List branches of the kind; `*` marks the current one. `-v` adds the state: no commits yet, based on latest, may be rebased, merged (can be deleted). |
-| `<kind> start [-F] [--dry-run] <name> [<base>]` | Create the branch from `<base>` (default develop; master for hotfix) and its worktree (release: switch the main worktree). Runs hooks, prints a summary. |
+| `<kind> start [-F] [--dry-run] <name> [<base>]` | Create the branch from `<base>` (default develop; master for hotfix) and its worktree. Runs hooks, prints a summary. |
 | `<kind> finish [flags] [<name>]` | Merge and clean up. Flags below. |
-| `<kind> checkout [<name>]` | Print the branch's directory, creating its worktree (or switching the main worktree for a release) if needed. |
+| `<kind> checkout [<name>]` | Print the branch's directory, creating its worktree if needed. |
 | `<kind> publish [<name>]` | Push to the remote and set the upstream; refuses if the branch is already there. |
-| `<kind> track <name>` | Check out a branch that exists on the remote (a worktree; for release, switch the main worktree). |
+| `<kind> track <name>` | Check out a branch that exists on the remote (a worktree). |
 | `<kind> delete [-f] [-r] [--dry-run] <name>` | Remove worktree and local branch without merging. Refuses an unmerged branch unless `-f`; `-r` also deletes the remote branch. |
 
 `--dry-run` (on `start`, `finish`, `delete`) prints the planned steps and changes nothing.

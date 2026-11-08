@@ -14,8 +14,8 @@ type CleanupOpts struct {
 	Force      bool // remove the worktree even when it has untracked files
 }
 
-// Cleanup removes a topic branch's worktree, its local branch and its remote branch. A release
-// checked out in the main worktree is not removed: the main worktree goes back to develop.
+// Cleanup removes a topic branch's worktree, its local branch and its remote branch. A topic branch
+// checked out in the main worktree by hand is not removed: the main worktree goes back to develop.
 func Cleanup(e *Env, branch string, o CleanupOpts) error {
 	removed, err := removeCheckout(e, branch, o.Force)
 	if err != nil || !removed {

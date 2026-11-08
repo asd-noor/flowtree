@@ -46,9 +46,10 @@ func TestFinishRefusesWhenMainCannotReturnToDevelop(t *testing.T) {
 func TestFailedTagReportsAndRerunCompletes(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	commitFile(t, repo, "CHANGELOG.md")
+	wt := worktreeDir(repo, "release/1.0.0")
+	commitFile(t, wt, "CHANGELOG.md")
 
-	res := Run(t, repo, "release", "finish", "-s", "-m", "1.0.0")
+	res := Run(t, wt, "release", "finish", "-s", "-m", "1.0.0")
 	if res.Code == 0 {
 		t.Skip("tag signing works in this environment")
 	}
@@ -59,11 +60,11 @@ func TestFailedTagReportsAndRerunCompletes(t *testing.T) {
 		t.Fatal("master should already contain the release")
 	}
 
-	out := Run(t, repo, "release", "finish", "-m", "1.0.0").MustSucceed(t).Stdout
+	out := Run(t, wt, "release", "finish", "-m", "1.0.0").MustSucceed(t).Stdout
 	if !strings.Contains(out, "Resuming") || !strings.Contains(testutil.Git(t, repo, "tag", "-l"), "1.0.0") {
 		t.Errorf("re-run should resume and tag:\n%s", out)
 	}
-	if current(t, repo) != "develop" || strings.Contains(branches(t, repo), "release/1.0.0") {
-		t.Errorf("finish should complete: on %q\n%s", current(t, repo), branches(t, repo))
+	if exists(wt) || strings.Contains(branches(t, repo), "release/1.0.0") {
+		t.Errorf("finish should complete\n%s", branches(t, repo))
 	}
 }

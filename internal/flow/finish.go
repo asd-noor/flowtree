@@ -206,9 +206,9 @@ func planFinishRelease(e *Env, o FinishOpts, branch string) ([]Step, error) {
 	), nil
 }
 
-// checkMainCanReturn: finishing a branch that is checked out in the main worktree (a release, or a
-// work or hotfix branch that was checked out there by hand) sends the main worktree back to develop,
-// so develop must not be checked out elsewhere. Checked at plan time, before anything is merged.
+// checkMainCanReturn: finishing a topic branch that was checked out in the main worktree by hand
+// sends the main worktree back to develop, so develop must not be checked out elsewhere. Checked at
+// plan time, before anything is merged.
 func checkMainCanReturn(e *Env, branch string) error {
 	w, ok, err := e.WorktreeOf(branch)
 	if err != nil || !ok || !w.Main {

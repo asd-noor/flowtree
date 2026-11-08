@@ -51,10 +51,6 @@ func (s Settings) KindOf(branch string) (Kind, bool) {
 	return 0, false
 }
 
-// LivesInMain reports whether branches of this kind are checked out in the main worktree.
-// Releases only touch a changelog and a version, so they do not get a worktree of their own.
-func (k Kind) LivesInMain() bool { return k == Release }
-
 // EvacuateTarget is where the main worktree goes back to when a branch of kind k was
 // checked out there by hand: hotfixes branch from master, everything else from develop.
 func (s Settings) EvacuateTarget(k Kind) string { return s.Base(k) }

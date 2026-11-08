@@ -113,8 +113,10 @@ func TestStartRefusals(t *testing.T) {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	if res := Run(t, repo, "release", "start", "1.1.0").MustFail(t); !strings.Contains(res.Stderr, "finish that one first") {
-		t.Errorf("stderr = %q", res.Stderr)
+	for _, args := range [][]string{{"release", "start", "1.1.0"}, {"hotfix", "start", "1.0.1"}} {
+		if res := Run(t, repo, args...).MustFail(t); !strings.Contains(res.Stderr, "finish that one first") {
+			t.Errorf("%v: stderr = %q", args, res.Stderr)
+		}
 	}
 	if res := Run(t, repo, "work", "start").MustFail(t); res.Stderr == "" {
 		t.Error("missing name should be reported")
@@ -132,14 +134,15 @@ func TestFlowNeedsInit(t *testing.T) {
 func TestReleaseLifecycle(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	if current(t, repo) != "release/1.0.0" {
-		t.Fatalf("main worktree should be on the release, is on %q", current(t, repo))
+	wt := worktreeDir(repo, "release/1.0.0")
+	if current(t, repo) != "develop" || !exists(wt) {
+		t.Fatalf("the release should get a worktree, main stays on develop (is on %q)", current(t, repo))
 	}
-	commitFile(t, repo, "CHANGELOG.md")
-	Run(t, repo, "release", "finish", "-m", "Release 1.0.0").MustSucceed(t)
+	commitFile(t, wt, "CHANGELOG.md")
+	Run(t, wt, "release", "finish", "-m", "Release 1.0.0").MustSucceed(t)
 
-	if current(t, repo) != "develop" || strings.Contains(branches(t, repo), "release/1.0.0") {
-		t.Errorf("main should be back on develop with the release deleted; on %q\n%s", current(t, repo), branches(t, repo))
+	if exists(wt) || strings.Contains(branches(t, repo), "release/1.0.0") {
+		t.Errorf("the release worktree and branch should be gone\n%s", branches(t, repo))
 	}
 	if got := testutil.Git(t, repo, "tag", "-l", "1.0.0"); !strings.Contains(got, "1.0.0") {
 		t.Fatal("tag missing")
@@ -159,16 +162,17 @@ func TestReleaseVersionTagPrefixAndFlags(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	Run(t, repo, "init", "--flow", "-d", "-t", "v").MustSucceed(t)
 	Run(t, repo, "release", "start", "2.0.0").MustSucceed(t)
-	commitFile(t, repo, "x")
-	Run(t, repo, "release", "finish", "-n", "-b", "-k").MustSucceed(t) // no tag, no back-merge, keep branch
+	wt := worktreeDir(repo, "release/2.0.0")
+	commitFile(t, wt, "x")
+	Run(t, wt, "release", "finish", "-n", "-b", "-k").MustSucceed(t) // no tag, no back-merge, keep branch
 	if testutil.Git(t, repo, "tag", "-l") != "" {
 		t.Error("-n must not tag")
 	}
 	if !strings.Contains(branches(t, repo), "release/2.0.0") {
 		t.Error("-k must keep the branch")
 	}
-	if current(t, repo) != "develop" {
-		t.Error("main worktree should be back on develop")
+	if exists(wt) {
+		t.Error("-k keeps the branch, not the worktree")
 	}
 	if strings.Contains(testutil.Git(t, repo, "ls-tree", "--name-only", "develop"), "x") {
 		t.Error("-b must not merge into develop")
@@ -179,8 +183,8 @@ func TestReleaseTagGetsPrefix(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	Run(t, repo, "init", "--flow", "-d", "-t", "v").MustSucceed(t)
 	Run(t, repo, "release", "start", "2.0.0").MustSucceed(t)
-	commitFile(t, repo, "x")
-	Run(t, repo, "release", "finish", "-m", "m").MustSucceed(t)
+	commitFile(t, worktreeDir(repo, "release/2.0.0"), "x")
+	Run(t, repo, "release", "finish", "-m", "m", "2.0.0").MustSucceed(t)
 	if !strings.Contains(testutil.Git(t, repo, "tag", "-l"), "v2.0.0") {
 		t.Error("tag should carry the version tag prefix")
 	}
@@ -389,48 +393,45 @@ func TestPublishTrackCheckout(t *testing.T) {
 	}
 }
 
-func TestReleaseCheckoutSwitchesMain(t *testing.T) {
+func TestReleaseCheckoutRecreatesWorktree(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	testutil.Git(t, repo, "checkout", "-q", "develop")
-	res := Run(t, repo, "release", "checkout").MustFail(t) // not on a release, no name
+	wt := worktreeDir(repo, "release/1.0.0")
+	testutil.Git(t, repo, "worktree", "remove", wt)
+	res := Run(t, repo, "release", "checkout").MustFail(t) // not in a release worktree, no name
 	if res.Stderr == "" {
 		t.Error("expected an error")
 	}
 	Run(t, repo, "release", "checkout", "1.0.0").MustSucceed(t)
-	if current(t, repo) != "release/1.0.0" {
-		t.Errorf("main on %q", current(t, repo))
+	if !exists(wt) || current(t, repo) != "develop" {
+		t.Errorf("checkout should recreate the worktree; main on %q", current(t, repo))
 	}
 }
 
 func TestReleaseFinishResumesAfterBackMergeConflict(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "release notes\n")
-	testutil.Git(t, repo, "commit", "-q", "-am", "release edit")
-	// develop moves on with a conflicting edit while the release is open (done in a side worktree)
-	side := filepath.Join(t.TempDir(), "side")
-	testutil.Git(t, repo, "worktree", "add", "-q", side, "develop")
-	testutil.WriteFile(t, filepath.Join(side, "README.md"), "develop notes\n")
-	testutil.Git(t, side, "commit", "-q", "-am", "develop edit")
-	testutil.Git(t, repo, "worktree", "remove", "--force", side)
+	wt := worktreeDir(repo, "release/1.0.0")
+	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "release notes\n")
+	testutil.Git(t, wt, "commit", "-q", "-am", "release edit")
+	// develop (in the main worktree) moves on with a conflicting edit while the release is open
+	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "develop notes\n")
+	testutil.Git(t, repo, "commit", "-q", "-am", "develop edit")
 
-	res := Run(t, repo, "release", "finish", "-m", "1.0.0").MustFail(t)
+	res := Run(t, wt, "release", "finish", "-m", "1.0.0").MustFail(t)
 	if !strings.Contains(res.Stderr, "by hand") || !strings.Contains(testutil.Git(t, repo, "tag", "-l"), "1.0.0") {
 		t.Fatalf("expected a back-merge failure after tagging; stderr = %q", res.Stderr)
 	}
 
 	// resolve by hand, as the error says: merge the tag into develop
-	testutil.Git(t, repo, "worktree", "add", "-q", side, "develop")
-	testutil.Git(t, side, "merge", "-q", "-X", "ours", "--no-edit", "1.0.0")
-	testutil.Git(t, repo, "worktree", "remove", "--force", side)
+	testutil.Git(t, repo, "merge", "-q", "-X", "ours", "--no-edit", "1.0.0")
 
-	res = Run(t, repo, "release", "finish", "-m", "1.0.0").MustSucceed(t)
+	res = Run(t, wt, "release", "finish", "-m", "1.0.0").MustSucceed(t)
 	if !strings.Contains(res.Stdout, "Resuming") {
 		t.Errorf("stdout = %q", res.Stdout)
 	}
-	if current(t, repo) != "develop" || strings.Contains(branches(t, repo), "release/1.0.0") {
-		t.Errorf("finish should complete: main on %q\n%s", current(t, repo), branches(t, repo))
+	if exists(wt) || strings.Contains(branches(t, repo), "release/1.0.0") {
+		t.Errorf("finish should complete\n%s", branches(t, repo))
 	}
 }
 

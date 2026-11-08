@@ -38,7 +38,7 @@ func TestBuildSwitchTargets(t *testing.T) {
 	for _, c := range []struct {
 		key    string
 		action flow.SwitchAction
-	}{{"work/a", flow.GoDir}, {"master", flow.MoveMain}, {"release/1.0", flow.MoveMain}, {"work/b", flow.Ensure}} {
+	}{{"work/a", flow.GoDir}, {"master", flow.MoveMain}, {"release/1.0", flow.Ensure}, {"work/b", flow.Ensure}} {
 		for _, tg := range ts {
 			if tg.Key == c.key && tg.Action != c.action {
 				t.Errorf("%s: action %d, want %d", c.key, tg.Action, c.action)

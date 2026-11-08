@@ -24,18 +24,18 @@ the worktree you are in. `work` names also accept a unique prefix. Worktree name
 | `remove [-f] [--with-branch [--force-branch]] <worktree>...` | Remove worktrees. Never the main one, nor the one you are in (unless shell integration is active). `--with-branch` also deletes the branch if merged. |
 | `print-dir [<worktree>]` | Print the absolute path of an existing worktree; no name or `@` = main. Read-only. |
 | `exec <worktree> -- <command> [args...]` | Run a command in a worktree; exits with its exit code. |
-| `switch <query>` | Print the directory of a branch, moving the main checkout onto master/develop/release or creating a missing work/hotfix worktree if needed. A query must match one row exactly or by substring/fuzzy uniquely; otherwise it opens a picker (fails without a terminal). |
-| `relocate [-n]` | Move work/hotfix worktrees to `<baseDir>/<branch>` after `baseDir` changed. `-n` = dry run. Skips locked/missing/occupied; refuses if cwd is inside one that would move. |
+| `switch <query>` | Print the directory of a branch, moving the main checkout onto master/develop or creating a missing work/release/hotfix worktree if needed. A query must match one row exactly or by substring/fuzzy uniquely; otherwise it opens a picker (fails without a terminal). |
+| `relocate [-n]` | Move work/release/hotfix worktrees to `<baseDir>/<branch>` after `baseDir` changed. `-n` = dry run. Skips locked/missing/occupied; refuses if cwd is inside one that would move. |
 
 ## Common to all kinds
 
 | Command | Effect |
 |---------|--------|
 | `<kind> list [-v]` | List branches of this kind; `*` marks the current one; `-v` adds state (no commits yet / based on latest / may be rebased / merged). |
-| `<kind> start [-F] [--dry-run] <name> [<base>]` | New branch + worktree (`release`: new branch, main worktree switched onto it, which must be clean). Base defaults to `develop` (`work`, `release`) or `master` (`hotfix`). `-F` fetches first. |
-| `<kind> checkout [<name>]` | Print the worktree path, creating the worktree if the branch has none. For `release`: switch the main worktree onto the branch and print its path. |
+| `<kind> start [-F] [--dry-run] <name> [<base>]` | New branch + worktree. Base defaults to `develop` (`work`, `release`) or `master` (`hotfix`). `-F` fetches first. |
+| `<kind> checkout [<name>]` | Print the worktree path, creating the worktree if the branch has none. |
 | `<kind> publish [<name>]` | Push the branch to the remote and set the upstream. |
-| `<kind> track <name>` | Check out a branch that exists on the remote (for `release`: switch the main worktree onto it). |
+| `<kind> track <name>` | Check out a branch that exists on the remote (in a new worktree). |
 | `<kind> delete [-f] [-r] [--dry-run] <name>` | Remove worktree and local branch. Refuses if unmerged unless `-f`. `-r` also deletes the remote branch. |
 
 ## work

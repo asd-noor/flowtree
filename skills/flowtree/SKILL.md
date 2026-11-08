@@ -1,6 +1,6 @@
 ---
 name: flowtree
-description: Drives the flowtree CLI, which manages git worktrees and a git-flow variant where work/* and hotfix/* branches get their own worktree (release/* switches the main checkout). Use when a repo has flowtree settings (`git config --get flowtree.develop` prints a value), or when asked to start, finish, publish or clean up feature/bugfix/release/hotfix work with git-flow semantics in isolated worktrees, tag a release, ship a hotfix, create or remove a worktree, run something in a worktree, set up worktree post-create hooks (copy .env, symlink, run a setup command), or move worktrees to another directory.
+description: Drives the flowtree CLI, which manages git worktrees and a git-flow variant where work/*, release/* and hotfix/* branches each get their own worktree. Use when a repo has flowtree settings (`git config --get flowtree.develop` prints a value), or when asked to start, finish, publish or clean up feature/bugfix/release/hotfix work with git-flow semantics in isolated worktrees, tag a release, ship a hotfix, create or remove a worktree, run something in a worktree, set up worktree post-create hooks (copy .env, symlink, run a setup command), or move worktrees to another directory.
 license: GPL-3.0-or-later
 compatibility: Requires git (2.17 or newer) and the flowtree binary on PATH. Needs a shell that can run commands.
 metadata:
@@ -15,23 +15,21 @@ where topic branches live in their own worktrees**. Branch model:
 | Kind | Branch | Starts from | Finishes into | Lives in |
 |------|--------|-------------|---------------|----------|
 | `work` (feature/bugfix/support) | `work/<name>` | `develop` | `develop` | its own worktree |
-| `release` | `release/<version>` | `develop` | `master` + tag, tag merged into `develop` | the main checkout |
+| `release` | `release/<version>` | `develop` | `master` + tag, tag merged into `develop` | its own worktree |
 | `hotfix` | `hotfix/<version>` | `master` | `master` + tag, tag merged into `develop` | its own worktree |
 
 The production branch may be called `main`; the branch names and prefixes are in git config (`flowtree config` lists them).
 
 ## Rules for agents
 
-1. **Layout rule.** The main checkout holds only `master`, `develop` or a `release/*` branch; `work/*` and
-   `hotfix/*` live in their own worktrees. Never check out a `work/*` or `hotfix/*` branch in the main
-   checkout yourself (`git checkout`/`switch`): start it with `flowtree <kind> start` and work in the worktree.
-   `release start` switches the main checkout onto `release/<version>` and you work right there (it must be clean
-   first). If the rule gets broken, `work|hotfix checkout <name>` moves the branch out again.
+1. **Layout rule.** The main checkout holds only `master` or `develop`; `work/*`, `release/*` and `hotfix/*`
+   live in their own worktrees. Never check out a topic branch in the main checkout yourself
+   (`git checkout`/`switch`): start it with `flowtree <kind> start` and work in the worktree. If the rule gets
+   broken, `<kind> checkout <name>` moves the branch out again.
 2. **Your shell does not keep a `cd`** between tool calls and shell integration is not loaded. Get the worktree
    path from the output and use absolute paths or `git -C <path>` / `cd <path> && ...` in every command:
    ```sh
    dir=$(flowtree work checkout login)   # prints only the path; creates the worktree if missing
-                                         # (release: switches the main checkout and prints its path)
    dir=$(flowtree print-dir login)       # read-only: prints the path of an existing worktree
    dir=$(flowtree add -b spike --quiet)  # plain worktree on a new branch, prints only the path
    git -C "$dir" status
@@ -45,9 +43,9 @@ The production branch may be called `main`; the branch names and prefixes are in
 5. **Finish with flowtree, not by hand.** Do not `git merge`/`git branch -d`/`git worktree remove` a topic
    branch yourself; `finish` merges, tags, back-merges and cleans up in the right order. It merges inside
    the worktree that has the target branch checked out, usually the main checkout on develop: that checkout
-   must have no uncommitted tracked changes (it refuses otherwise) and its files change. A release `finish`
-   moves the main checkout back to develop, and `finish` run from inside a topic worktree removes that worktree.
-6. Commit your work in the topic worktree (the main checkout, for a release) before `finish`: it refuses if
+   must have no uncommitted tracked changes (it refuses otherwise) and its files change. `finish` run from
+   inside a topic worktree removes that worktree.
+6. Commit your work in the topic worktree before `finish`: it refuses if
    tracked files are modified. Untracked files do not count.
 7. Never use `-f`, `--force-branch`, `-D` or `delete -f`, and never remove a worktree the user did not ask
    about, without confirming: they discard uncommitted or unmerged work.
@@ -68,8 +66,8 @@ Options: `--no-ff` (always a merge commit), `-S` (squash), `--no-rebase` / `-r` 
 
 **Release**
 ```sh
-flowtree release start 1.4.0      # only one release may be open
-# the main checkout is now on release/1.4.0: version bump, changelog, fixes; commit there
+flowtree release start 1.4.0      # only one release or hotfix may be open
+# version bump, changelog, fixes; commit in the release worktree
 flowtree release finish -m "Release 1.4.0" 1.4.0
 ```
 
@@ -81,8 +79,7 @@ flowtree hotfix finish -m "Hotfix 1.4.1" 1.4.1
 ```
 
 `finish` merges into `master` with `--no-ff`, creates an annotated tag (name = version, plus the configured tag
-prefix), merges the tag into `develop`, then removes the worktree and branch (for a release: switches the main
-checkout back to `develop` and deletes the branch).
+prefix), merges the tag into `develop`, then removes the worktree and branch.
 
 Preview any `start`, `finish` or `delete` with `--dry-run`: it prints the steps and changes nothing.
 

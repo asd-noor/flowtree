@@ -11,11 +11,11 @@ Git worktrees plus an opinionated git-flow. One binary:
 | flowtree | git-flow | branches from | merges into | lives in |
 |----------|----------|---------------|-------------|----------|
 | `work`    | feature/bugfix/support | develop | develop | its own worktree |
-| `release` | release | develop | master (tagged), the tag back into develop | the main checkout |
+| `release` | release | develop | master (tagged), the tag back into develop | its own worktree |
 | `hotfix`  | hotfix  | master  | master (tagged), the tag back into develop | its own worktree |
 
-The main checkout rests on `develop` and only ever holds `master`, `develop` or a `release/*` branch. Releases
-only touch a changelog and a version, so they switch the main checkout instead of getting a worktree.
+The main checkout rests on `develop` and only ever holds `master` or `develop`. Every topic branch gets its own
+worktree.
 
 Documentation in [docs/](docs/): the [branch model](docs/git-flow.md), the
 [command reference](docs/commands.md), [configuration](docs/configuration.md),
@@ -66,8 +66,8 @@ flowtree work start login          # work/login off develop, in ../worktrees/wor
 # ...commit...
 flowtree work finish               # merge into develop, remove worktree + branch (name inferred from cwd)
 
-flowtree release start 1.2.0       # release/1.2.0 off develop; the main checkout switches to it
-flowtree release finish -m "1.2.0" # merge to master, tag, merge the tag into develop, main back on develop
+flowtree release start 1.2.0       # release/1.2.0 off develop, in ../worktrees/release/1.2.0
+flowtree release finish -m "1.2.0" # merge to master, tag, merge the tag into develop, remove worktree + branch
 
 flowtree hotfix start 1.2.1        # hotfix/1.2.1 off master
 flowtree hotfix finish -p          # as release finish, then push develop, master and the tag
@@ -105,13 +105,14 @@ Run `flowtree <command> --help` for every flag. `finish` with no name uses the b
   `-p` pushes develop, master and the tag.
 - `finish` merges inside the worktree that already has the target branch checked out (usually the main
   checkout, on develop; it must have no uncommitted changes), or in a throwaway worktree. That worktree's files
-  do change, but the directory you run it from is never switched to another branch, except that finishing a
-  release returns the main checkout to develop. A conflicting merge is aborted and nothing changes.
+  do change, but the directory you run it from is never switched to another branch. A conflicting merge is
+  aborted and nothing changes.
 - `finish` is resumable: if the back-merge into develop conflicts after master was merged and tagged, resolve it
   by hand and run `finish` again; it continues from there.
 - Finishing deletes the local branch, its worktree and the remote branch; `-k` keeps the branches (the worktree
   is still removed), `-D` removes a worktree with untracked files.
-- `start` refuses if a release or hotfix is already open, or the tag exists.
+- `release`/`hotfix start` refuses if a release or hotfix is already open (only one of them at a time), or the
+  tag exists.
 
 ## Configuration
 

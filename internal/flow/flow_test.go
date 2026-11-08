@@ -169,15 +169,15 @@ func TestEnsureWorktreeEvacuatesMain(t *testing.T) {
 	}
 }
 
-func TestTopicDirReleaseSwitchesMain(t *testing.T) {
+func TestReleaseGetsWorktree(t *testing.T) {
 	e, repo := setup(t)
 	testutil.Git(t, repo, "branch", "release/1.0", "develop")
-	dir, err := flow.TopicDir(e, flow.Release, "release/1.0")
-	if err != nil || dir != repo {
+	dir, err := flow.EnsureWorktree(e, "release/1.0")
+	if err != nil || !strings.HasSuffix(dir, "worktrees/release/1.0") {
 		t.Fatalf("%s %v", dir, err)
 	}
-	if got := gitx.CurrentBranch(e.MainGit()); got != "release/1.0" {
-		t.Errorf("main on %q", got)
+	if got := gitx.CurrentBranch(e.MainGit()); got != "develop" {
+		t.Errorf("main on %q, want develop", got)
 	}
 }
 

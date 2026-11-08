@@ -4,6 +4,17 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [Unreleased]
+
+### Changed
+
+- Release branches get their own worktree, like work and hotfix branches; the main checkout only ever holds
+  master or develop. `release start`, `checkout` and `track` no longer switch the main checkout. A release
+  that is still checked out in the main checkout from an older version is moved into a worktree by
+  `release checkout` or `switch`, or finished in place as before.
+- Only one release or hotfix can be open at a time: `release start` refuses while a hotfix is open, and the
+  other way round.
+
 ## [0.2.1]
 
 ### Fixed

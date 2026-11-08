@@ -76,10 +76,9 @@ command asks the shell to change directory.
 
 ## Layout rules and safe merging
 
-`flow/layout.go` enforces the main-checkout rule: `EnsureWorktree` creates (or finds) a worktree for a work or
-hotfix branch and evacuates the main checkout if the branch was checked out there; `TopicDir` does the same for
-releases, which live in the main checkout; `SwitchMain` checks out a branch in the main worktree, requiring it to
-be clean.
+`flow/layout.go` enforces the main-checkout rule: `EnsureWorktree` creates (or finds) a worktree for a topic
+branch and evacuates the main checkout if the branch was checked out there; `SwitchMain` checks out master or
+develop in the main worktree, requiring it to be clean.
 
 `flow/merge.go` is why `finish` never disturbs you. `RunOn(branch, fn)` runs `fn` in the worktree that has the
 branch checked out (which must be clean), or in a throwaway worktree created in the temp directory and always

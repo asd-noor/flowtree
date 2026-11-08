@@ -26,8 +26,7 @@ preserved. Commands write the file when you should end up somewhere else:
 | Command | You end up in |
 |---------|---------------|
 | `add` | the new worktree |
-| `work\|hotfix start`, `track`, `checkout` | the branch's worktree |
-| `release start`, `track`, `checkout` | the main worktree (it is now on the release) |
+| `<kind> start`, `track`, `checkout` | the branch's worktree |
 | `switch` | where you chose |
 | `finish`, `delete`, `remove` of the worktree you are standing in | the main worktree |
 | `work pull` that creates a worktree | that worktree |

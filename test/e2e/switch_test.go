@@ -29,22 +29,24 @@ func TestSwitchMovesMainAndCreatesWorktrees(t *testing.T) {
 	repo := flowRepo(t)
 	testutil.Git(t, repo, "branch", "work/later", "develop")
 	testutil.Git(t, repo, "branch", "release/9.9", "develop")
+	commitFile(t, repo, "on-develop") // so develop and master differ
 
 	if got := strings.TrimSpace(Run(t, repo, "switch", "later").MustSucceed(t).Stdout); got != worktreeDir(repo, "work/later") || !exists(got) {
 		t.Errorf("a branch without a worktree should get one, got %q", got)
 	}
-	res := Run(t, repo, "switch", "release/9.9").MustSucceed(t)
-	if strings.TrimSpace(res.Stdout) != repo || current(t, repo) != "release/9.9" {
-		t.Errorf("main should move onto the release; out=%q on %q", res.Stdout, current(t, repo))
+	if got := strings.TrimSpace(Run(t, repo, "switch", "release/9.9").MustSucceed(t).Stdout); got != worktreeDir(repo, "release/9.9") || current(t, repo) != "develop" {
+		t.Errorf("a release should get a worktree, not the main worktree; got %q, main on %q", got, current(t, repo))
 	}
-	Run(t, repo, "switch", "@").MustSucceed(t)
+	res := Run(t, repo, "switch", "main").MustSucceed(t)
+	if strings.TrimSpace(res.Stdout) != repo || current(t, repo) != "main" {
+		t.Errorf("main should move onto master; out=%q on %q", res.Stdout, current(t, repo))
+	}
 }
 
 func TestSwitchRefusesDirtyMain(t *testing.T) {
 	repo := flowRepo(t)
-	testutil.Git(t, repo, "branch", "release/9.9", "develop")
 	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "dirty\n")
-	res := Run(t, repo, "switch", "release/9.9").MustFail(t)
+	res := Run(t, repo, "switch", "main").MustFail(t)
 	if !strings.Contains(res.Stderr, "uncommitted") || current(t, repo) != "develop" {
 		t.Errorf("stderr=%q on %q", res.Stderr, current(t, repo))
 	}

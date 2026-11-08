@@ -80,14 +80,14 @@ func Publish(e *Env, k Kind, name string) error {
 	return nil
 }
 
-// Checkout returns the directory of a topic branch, creating its worktree (or switching the main
-// worktree to a release) when needed, and asks the shell to cd there.
+// Checkout returns the directory of a topic branch, creating its worktree when needed, and asks the
+// shell to cd there.
 func Checkout(e *Env, k Kind, name string) (string, error) {
 	branch, err := ResolveTopic(e, k, name)
 	if err != nil {
 		return "", err
 	}
-	dir, err := TopicDir(e, k, branch)
+	dir, err := EnsureWorktree(e, branch)
 	if err == nil {
 		e.cd(dir)
 	}

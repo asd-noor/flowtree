@@ -36,8 +36,8 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 	return Plan(
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
 		One("check "+e.S.Remote+" state", func(e *Env) error { return checkStartRemote(e, o.Kind, branch, base, o.Base == "") }),
-		One(createDesc(o.Kind, branch, base), func(e *Env) (err error) {
-			path, err = createTopic(e, o.Kind, branch, base)
+		One(createDesc(branch, base), func(e *Env) (err error) {
+			path, err = createTopic(e, branch, base)
 			return err
 		}),
 		One("print summary", func(e *Env) error { printStartSummary(e, o.Kind, name, branch, base, path); return nil }),
@@ -56,7 +56,7 @@ func firstNonEmpty(vals ...string) string {
 func checkStartable(e *Env, k Kind, name, branch, base string) error {
 	g := e.MainGit()
 	if k != Work {
-		if err := checkNoneOpen(e, k); err != nil {
+		if err := checkNoneOpen(e); err != nil {
 			return err
 		}
 		if gitx.TagExists(g, e.S.VersionTag+name) {
@@ -72,13 +72,19 @@ func checkStartable(e *Env, k Kind, name, branch, base string) error {
 	return nil
 }
 
-// checkNoneOpen enforces one open release (or hotfix) at a time.
-func checkNoneOpen(e *Env, k Kind) error {
-	open, err := Open(e, k)
-	if err != nil || len(open) == 0 {
-		return err
+// checkNoneOpen enforces one open release or hotfix at a time: a hotfix fixes a shipped release,
+// so the two never overlap.
+func checkNoneOpen(e *Env) error {
+	for _, k := range []Kind{Release, Hotfix} {
+		open, err := Open(e, k)
+		if err != nil {
+			return err
+		}
+		if len(open) > 0 {
+			return fmt.Errorf("there is an existing %s branch '%s'; finish that one first", k, open[0])
+		}
 	}
-	return fmt.Errorf("there is an existing %s branch '%s'; finish that one first", k, open[0])
+	return nil
 }
 
 func checkStartRemote(e *Env, k Kind, branch, base string, defaultBase bool) error {
@@ -91,37 +97,20 @@ func checkStartRemote(e *Env, k Kind, branch, base string, defaultBase bool) err
 	return nil
 }
 
-func createDesc(k Kind, branch, base string) string {
-	if k.LivesInMain() {
-		return fmt.Sprintf("create branch %s from %s and switch the main worktree to it", branch, base)
-	}
+func createDesc(branch, base string) string {
 	return fmt.Sprintf("create branch %s from %s in a new worktree", branch, base)
 }
 
-func createTopic(e *Env, k Kind, branch, base string) (string, error) {
-	var path string
-	if k.LivesInMain() {
-		if err := SwitchMain(e, "--no-track", "-b", branch, base); err != nil {
-			return "", err
-		}
-		path = e.Main
-	} else {
-		var err error
-		path, err = CreateWorktree(e, branch, gitx.AddOpts{NewBranch: branch, Commitish: base})
-		if err != nil {
-			return "", err
-		}
+func createTopic(e *Env, branch, base string) (string, error) {
+	path, err := CreateWorktree(e, branch, gitx.AddOpts{NewBranch: branch, Commitish: base})
+	if err == nil {
+		e.cd(path)
 	}
-	e.cd(path)
-	return path, nil
+	return path, err
 }
 
 func printStartSummary(e *Env, k Kind, name, branch, base, path string) {
-	where := fmt.Sprintf("- A worktree for it was created at '%s'", path)
-	if k.LivesInMain() {
-		where = fmt.Sprintf("- The main worktree (%s) is now on branch '%s'", path, branch)
-	}
-	e.Say("\nSummary of actions:\n- A new branch '%s' was created, based on '%s'\n%s\n", branch, base, where)
+	e.Say("\nSummary of actions:\n- A new branch '%s' was created, based on '%s'\n- %s\n", branch, base, whereIs(path))
 	e.Say("Now, start committing on your %s. When done, use:\n\n     flowtree %s finish %s\n", k, k, name)
 }
 
@@ -144,35 +133,25 @@ func PlanTrack(e *Env, k Kind, name string) ([]Step, error) {
 			return nil
 		}),
 		One("check out "+branch, func(e *Env) (err error) {
-			path, err = trackBranch(e, k, branch)
+			path, err = trackBranch(e, branch)
 			return err
 		}),
 		One("print summary", func(e *Env) error {
 			e.Say("\nSummary of actions:\n- A new remote tracking branch '%s' was created", branch)
-			e.Say("- %s", whereIs(k, branch, path))
+			e.Say("- %s", whereIs(path))
 			return nil
 		}),
 	), nil
 }
 
-func trackBranch(e *Env, k Kind, branch string) (string, error) {
-	path, err := checkoutTracked(e, k, branch)
+func trackBranch(e *Env, branch string) (string, error) {
+	path, err := worktreeForExisting(e, branch)
 	if err == nil {
 		e.cd(path)
 	}
 	return path, err
 }
 
-func checkoutTracked(e *Env, k Kind, branch string) (string, error) {
-	if !k.LivesInMain() {
-		return worktreeForExisting(e, branch)
-	}
-	return e.Main, SwitchMain(e, "--track", e.S.Remote+"/"+branch)
-}
-
-func whereIs(k Kind, branch, path string) string {
-	if k.LivesInMain() {
-		return fmt.Sprintf("The main worktree (%s) is now on branch '%s'", path, branch)
-	}
+func whereIs(path string) string {
 	return fmt.Sprintf("A worktree for it was created at '%s'", path)
 }

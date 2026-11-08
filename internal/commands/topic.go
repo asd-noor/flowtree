@@ -180,9 +180,8 @@ func newStartSub(k flow.Kind, d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start [-F] [--dry-run] " + nameArg(k) + " [<base>]",
 		Short: fmt.Sprintf("Start a new %s branch", k),
-		Long: fmt.Sprintf("Create a %s branch from <base> (default %s) and %s.",
-			k, map[bool]string{true: "master", false: "develop"}[k == flow.Hotfix],
-			map[bool]string{true: "switch the main worktree onto it", false: "give it its own worktree"}[k.LivesInMain()]),
+		Long: fmt.Sprintf("Create a %s branch from <base> (default %s) and give it its own worktree.",
+			k, map[bool]string{true: "master", false: "develop"}[k == flow.Hotfix]),
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			o.Name, o.Base = args[0], optArg(args, 1)

@@ -4,7 +4,7 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
-## [Unreleased]
+## [v0.3.0] - 2026-11-08
 
 ### Added
 

@@ -18,7 +18,7 @@ without anyone stepping on anyone. Each clone runs `flowtree init` (or `init --f
 
 | Key | Default | Meaning |
 |-----|---------|---------|
-| `baseDir` | `$FLOWTREE_PARENT/<repo name>` if the variable is defined, else `../worktrees` | Where worktrees go: `<baseDir>/<branch>`. Relative to the main worktree; `~` and `$HOME` are expanded. |
+| `baseDir` | `$FLOWTREE_WORKDIR/<repo name>` if the variable is defined, else `../worktrees` | Where worktrees go: `<baseDir>/<branch>`. Relative to the main worktree; `~` and `$HOME` are expanded. |
 | `remote` | `origin` | The remote used for fetch, push, track, delete and the sync checks. |
 | `master` | none | Production branch. Set by `init --flow`. |
 | `develop` | none | Integration branch. Set by `init --flow`. |
@@ -49,10 +49,10 @@ before they are written. You can equally use plain git: `git config flowtree.bas
 ## Where worktrees live
 
 `<baseDir>/<branch>`, so `feature/login` with the default setting is `../worktrees/feature/login` relative to the main
-worktree. To keep every repository's worktrees under one parent, define `FLOWTREE_PARENT`:
+worktree. To keep every repository's worktrees under one parent, define `FLOWTREE_WORKDIR`:
 
 ```sh
-export FLOWTREE_PARENT=~/worktrees      # ~/code/api gets ~/worktrees/api/<branch>, ~/code/web gets ~/worktrees/web/<branch>
+export FLOWTREE_WORKDIR=~/worktrees      # ~/code/api gets ~/worktrees/api/<branch>, ~/code/web gets ~/worktrees/web/<branch>
 ```
 
 This is the **default**, applied whenever `baseDir` is not set, and it is evaluated each time flowtree runs: change
@@ -100,6 +100,6 @@ environment.
 
 | Variable | Used by | Meaning |
 |----------|---------|---------|
-| `FLOWTREE_PARENT` | all commands | Default base directory parent: `$FLOWTREE_PARENT/<repo name>` when `baseDir` is not set. |
+| `FLOWTREE_WORKDIR` | all commands | Default base directory parent: `$FLOWTREE_WORKDIR/<repo name>` when `baseDir` is not set. |
 | `FLOWTREE_CDFILE` | all commands that move you | A file the command writes the target directory to. The shell wrapper from `shell-init` sets it and does the `cd`. You normally never set it yourself. |
 | `FLOWTREE_WORKTREE_PATH`, `FLOWTREE_REPO_ROOT` | command hooks | Set by flowtree for the hook. |

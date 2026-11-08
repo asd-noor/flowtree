@@ -105,7 +105,7 @@ default). An unknown key is an error, which catches typos. `config.Set` and `Uns
 `git config`. Flow settings are the `config.Flow` part of `Config`, converted to `flow.Settings` by
 `flow.FromConfig`, which fails with a pointer to `init --flow` unless both `master` and `develop` are set.
 
-`baseDir` has no stored default: `Config.ResolveBaseDir` uses it when set, else `$FLOWTREE_PARENT/<repo name>` when
+`baseDir` has no stored default: `Config.ResolveBaseDir` uses it when set, else `$FLOWTREE_WORKDIR/<repo name>` when
 the variable is defined (captured as `Config.Parent` at load time), else `../worktrees`. That is why `init` stores
 the value only when it differs.
 

@@ -41,13 +41,13 @@ func TestInitFromLinkedWorktreeUsesMain(t *testing.T) {
 	}
 }
 
-func TestParentEnvIsTheDefaultBaseDir(t *testing.T) {
+func TestWorkdirEnvIsTheDefaultBaseDir(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	Run(t, repo, "init", "-d").MustSucceed(t)
-	env := []string{"FLOWTREE_PARENT=/srv/trees"}
+	env := []string{"FLOWTREE_WORKDIR=/srv/trees"}
 	res := RunEnv(t, repo, env, "config", "baseDir").MustSucceed(t)
 	if strings.TrimSpace(res.Stdout) != "/srv/trees/repo" {
-		t.Fatalf("base dir with FLOWTREE_PARENT = %q", res.Stdout)
+		t.Fatalf("base dir with FLOWTREE_WORKDIR = %q", res.Stdout)
 	}
 	// an explicit setting wins over the environment
 	Run(t, repo, "config", "baseDir", "/explicit").MustSucceed(t)

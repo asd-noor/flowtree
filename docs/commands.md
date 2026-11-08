@@ -17,7 +17,7 @@ Stores flowtree's settings in the repository's git config (`.git/config`, sectio
 [configuration.md](configuration.md)). Nothing is written to the working tree. It works from a linked worktree too.
 
 - Plain `init` only sets the base directory: `-w`, or the answer to the prompt on a terminal. It is stored only
-  when it differs from the default (`$FLOWTREE_PARENT/<repo name>` when that variable is defined, else
+  when it differs from the default (`$FLOWTREE_WORKDIR/<repo name>` when that variable is defined, else
   `../worktrees`), so an unset base directory keeps following the environment. With nothing to store it says so.
   A leading `~` or `$HOME` is expanded before storing.
 - If the repository already has local flowtree settings, `init` prints a note and changes nothing (exit 0).

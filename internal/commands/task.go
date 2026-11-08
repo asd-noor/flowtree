@@ -606,7 +606,7 @@ func whereText(p prompt) string {
 	}
 	lines := []string{
 		fmt.Sprintf("- Branch: `%s`", p.Branch),
-		"- Worktree: " + dir + ". Work and commit there only.",
+		"- Worktree: " + dir + ". Work there only.",
 		fmt.Sprintf("- Report progress with `flowtree task comment %d \"...\"`.", p.ID),
 	}
 	if p.Kind == flow.Work {

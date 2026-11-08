@@ -176,3 +176,14 @@ func TestEditAndCommentKeysRunTheirEditor(t *testing.T) {
 		t.Errorf("editors prepared: %v", got)
 	}
 }
+
+func TestRenderEmptyColumnAndBoard(t *testing.T) {
+	for name, cards := range map[string][]Card{"empty board": nil, "empty column": {card(1, "a", board.Doing)}} {
+		m := newModel(Source{}, cards)
+		m.width = 120
+		out := render(key(m, "enter"))
+		if !strings.Contains(out, "[BACKLOG (0)]") || !strings.Contains(out, "(no card selected)") {
+			t.Errorf("%s: unexpected render:\n%s", name, out)
+		}
+	}
+}

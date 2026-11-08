@@ -12,12 +12,11 @@ import (
 
 // Run shows the board until the user quits. in and out must be a terminal.
 func Run(ctx context.Context, src Source, in io.Reader, out io.Writer) error {
-	mt := modTime(src.Path)
 	cards, err := src.Load()
 	if err != nil {
 		return err
 	}
-	if _, err := tea.NewProgram(newModel(src, cards, mt), tea.WithInput(in), tea.WithOutput(out), tea.WithContext(ctx)).Run(); err != nil {
+	if _, err := tea.NewProgram(newModel(src, cards), tea.WithInput(in), tea.WithOutput(out), tea.WithContext(ctx)).Run(); err != nil {
 		return fmt.Errorf("board: %w", err)
 	}
 	return nil

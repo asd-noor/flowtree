@@ -26,7 +26,7 @@ func newBoardCmd(d Deps) *cobra.Command {
 				return errors.New("no terminal for the board; use `flowtree task list`")
 			}
 			return withBoard(cmd.Context(), d, func(e *flow.Env, path string) error {
-				src := boardui.Source{Path: path, Load: loadCards(e, path), Edit: editCard(cmd, d, e, path)}
+				src := boardui.Source{Load: loadCards(e, path), Edit: editCard(cmd, d, e, path)}
 				return boardui.Run(cmd.Context(), src, d.Stdin, d.Stderr)
 			})
 		},

@@ -220,6 +220,5 @@ A task's column is never set by hand; it follows from git:
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,
 `enter`/`tab` toggles the detail pane (branch, tags, description, subtasks, comments), `e` edits the card in your
-git editor (title line, blank line, description), `q`/`esc`/`ctrl+c` quit. The board file is polled every second, so
-changes from other commands show up with the selection kept on the same card. Git-only changes (a merge that moves
-a card to done) appear once the file changes or after an edit.
+git editor (title line, blank line, description), `q`/`esc`/`ctrl+c` quit. The board is reloaded every second, statuses
+included, so changes from other commands and plain git commits show up, with the selection kept on the same card.

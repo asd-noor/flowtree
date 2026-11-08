@@ -1,7 +1,6 @@
 package boardui
 
 import (
-	"os"
 	"os/exec"
 	"slices"
 	"time"
@@ -20,7 +19,6 @@ type Card struct {
 
 // Source is everything the board reaches outside itself for.
 type Source struct {
-	Path string // board file, polled for changes
 	// Load reads the board and computes every status.
 	Load func() ([]Card, error)
 	// Edit prepares an external editor for a card: the process to run, and what to do once it exits.
@@ -30,7 +28,9 @@ type Source struct {
 const (
 	defaultWidth  = 80
 	defaultHeight = 24
-	pollEvery     = time.Second
+	// reloadEvery is how often the board is reloaded: statuses follow git, so a plain commit can move a
+	// card without the board file changing.
+	reloadEvery = time.Second
 )
 
 type model struct {
@@ -39,7 +39,6 @@ type model struct {
 	col, row      int
 	detail        bool
 	width, height int
-	mtime         time.Time
 	notice        string // last error, shown until the next key
 }
 
@@ -47,19 +46,18 @@ type (
 	tickMsg   time.Time
 	loadedMsg struct {
 		cards []Card
-		mtime time.Time
 		err   error
 	}
 	editedMsg struct{ err error }
 )
 
-func newModel(src Source, cards []Card, mtime time.Time) model {
-	return model{src: src, cards: cards, width: defaultWidth, height: defaultHeight, mtime: mtime}.clamped()
+func newModel(src Source, cards []Card) model {
+	return model{src: src, cards: cards, width: defaultWidth, height: defaultHeight}.clamped()
 }
 
 func (m model) Init() tea.Cmd { return tick() }
 
-func tick() tea.Cmd { return tea.Tick(pollEvery, func(t time.Time) tea.Msg { return tickMsg(t) }) }
+func tick() tea.Cmd { return tea.Tick(reloadEvery, func(t time.Time) tea.Msg { return tickMsg(t) }) }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -68,7 +66,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.onKey(msg)
 	case tickMsg:
-		return m, tea.Batch(poll(m.src, m.mtime), tick())
+		return m, tea.Batch(reload(m.src), tick())
 	case loadedMsg:
 		return m.loaded(msg), nil
 	case editedMsg:
@@ -145,11 +143,10 @@ func (m model) focus(id int) model {
 func (m model) loaded(msg loadedMsg) model {
 	if msg.err != nil {
 		m.notice = msg.err.Error()
-		m.mtime = msg.mtime // do not retry a damaged file every second
 		return m
 	}
 	cur, had := m.selected()
-	m.cards, m.mtime = msg.cards, msg.mtime
+	m.cards = msg.cards
 	if had {
 		return m.focus(cur.ID)
 	}
@@ -176,29 +173,9 @@ func (m model) edited(msg editedMsg) (tea.Model, tea.Cmd) {
 	return m, reload(m.src)
 }
 
-// poll reloads the board when its file changed since mtime.
-func poll(src Source, mtime time.Time) tea.Cmd {
+func reload(src Source) tea.Cmd {
 	return func() tea.Msg {
-		if now := modTime(src.Path); !now.Equal(mtime) {
-			return load(src)
-		}
-		return nil
+		cards, err := src.Load()
+		return loadedMsg{cards: cards, err: err}
 	}
-}
-
-func reload(src Source) tea.Cmd { return func() tea.Msg { return load(src) } }
-
-func load(src Source) loadedMsg {
-	mt := modTime(src.Path)
-	cards, err := src.Load()
-	return loadedMsg{cards: cards, mtime: mt, err: err}
-}
-
-// modTime is the file's modification time; a missing file reads as the zero time.
-func modTime(path string) time.Time {
-	st, err := os.Stat(path)
-	if err != nil {
-		return time.Time{}
-	}
-	return st.ModTime()
 }

@@ -2,7 +2,6 @@ package boardui
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -49,7 +48,7 @@ func TestGroupingKeepsBoardOrder(t *testing.T) {
 }
 
 func TestNavigation(t *testing.T) {
-	m := newModel(Source{}, sample(), time.Time{})
+	m := newModel(Source{}, sample())
 	m = key(key(m, "l"), "l") // backlog -> todo -> doing
 	if c, _ := m.selected(); c.ID != 2 {
 		t.Fatalf("doing selected %d", c.ID)
@@ -69,7 +68,7 @@ func TestNavigation(t *testing.T) {
 }
 
 func TestColumnChangeClampsRow(t *testing.T) {
-	m := newModel(Source{}, sample(), time.Time{})
+	m := newModel(Source{}, sample())
 	m = key(m, "l")
 	m = key(key(m, "j"), "j") // todo row 1
 	m = key(m, "l")           // doing has one card
@@ -79,7 +78,7 @@ func TestColumnChangeClampsRow(t *testing.T) {
 }
 
 func TestDetailToggle(t *testing.T) {
-	m := newModel(Source{}, sample(), time.Time{})
+	m := newModel(Source{}, sample())
 	if m = key(m, "enter"); !m.detail {
 		t.Fatal("enter should open")
 	}
@@ -89,7 +88,7 @@ func TestDetailToggle(t *testing.T) {
 }
 
 func TestReloadKeepsSelectionById(t *testing.T) {
-	m := key(key(newModel(Source{}, sample(), time.Time{}), "l"), "j") // card 3
+	m := key(key(newModel(Source{}, sample()), "l"), "j") // card 3
 	moved := []Card{card(3, "c", board.Doing), card(1, "a", board.Todo), card(2, "b", board.Doing)}
 	m = m.loaded(loadedMsg{cards: moved})
 	if c, _ := m.selected(); c.ID != 3 || board.Columns[m.col] != board.Doing {
@@ -105,7 +104,7 @@ func TestReloadKeepsSelectionById(t *testing.T) {
 }
 
 func TestReloadErrorKeepsCards(t *testing.T) {
-	m := newModel(Source{}, sample(), time.Time{}).loaded(loadedMsg{err: os.ErrInvalid})
+	m := newModel(Source{}, sample()).loaded(loadedMsg{err: os.ErrInvalid})
 	if len(m.cards) != 4 || m.notice == "" {
 		t.Fatalf("%d cards, notice %q", len(m.cards), m.notice)
 	}
@@ -113,7 +112,7 @@ func TestReloadErrorKeepsCards(t *testing.T) {
 
 func TestQuitKeys(t *testing.T) {
 	for _, k := range []string{"q", "esc"} {
-		m := newModel(Source{}, sample(), time.Time{})
+		m := newModel(Source{}, sample())
 		var cmd tea.Cmd
 		if k == "esc" {
 			_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -126,24 +125,15 @@ func TestQuitKeys(t *testing.T) {
 	}
 }
 
-func TestPollReloadsOnlyWhenFileChanged(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "b.json")
-	if err := os.WriteFile(path, []byte("{}"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+func TestTickReloadsEvenWithoutAFileChange(t *testing.T) {
 	loads := 0
-	src := Source{Path: path, Load: func() ([]Card, error) { loads++; return sample(), nil }}
-	mt := modTime(path)
-	if msg := poll(src, mt)(); msg != nil || loads != 0 {
-		t.Fatalf("unchanged file reloaded: %v", msg)
+	src := Source{Load: func() ([]Card, error) { loads++; return sample(), nil }}
+	msg, ok := reload(src)().(loadedMsg)
+	if !ok || loads != 1 || len(msg.cards) != 4 {
+		t.Fatalf("%+v loads=%d", msg, loads)
 	}
-	later := mt.Add(time.Minute)
-	if err := os.Chtimes(path, later, later); err != nil {
-		t.Fatal(err)
-	}
-	msg, ok := poll(src, mt)().(loadedMsg)
-	if !ok || loads != 1 || len(msg.cards) != 4 || !msg.mtime.Equal(later) {
-		t.Fatalf("changed file: %+v loads=%d", msg, loads)
+	if _, cmd := newModel(src, nil).Update(tickMsg(time.Now())); cmd == nil {
+		t.Error("a tick must schedule a reload")
 	}
 }
 
@@ -152,7 +142,7 @@ func TestRenderShowsColumnsAndDetail(t *testing.T) {
 	c.Human, c.Description, c.Branch = true, "Body text", "feature/login"
 	c.Subtasks = []board.Subtask{{Name: "api", Branch: "work/login/api"}}
 	c.SubStatus = []board.Status{board.Doing}
-	m := newModel(Source{}, []Card{c}, time.Time{})
+	m := newModel(Source{}, []Card{c})
 	m.width = 120
 	m = key(key(m, "l"), "enter")
 	out := render(m)

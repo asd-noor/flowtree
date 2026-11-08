@@ -22,9 +22,7 @@ without anyone stepping on anyone. Each clone runs `flowtree init` (or `init --f
 | `remote` | `origin` | The remote used for fetch, push, track, delete and the sync checks. |
 | `master` | none | Production branch. Set by `init --flow`. |
 | `develop` | none | Integration branch. Set by `init --flow`. |
-| `workPrefix`, `releasePrefix`, `hotfixPrefix` | `work/`, `release/`, `hotfix/` | Branch prefixes; they must differ and must not be empty. |
-| `versionTagPrefix` | empty | Prefix of version tags (`v` gives `v1.2.0`). |
-| `finishRebase` | `true` | Whether `work finish` rebases the branch onto develop before merging. `finish --rebase` / `--no-rebase` override it per run. |
+| `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix` | `feature/`, `release/`, `hotfix/`, `work/` | Branch prefixes; they must differ and must not be empty. |
 
 Flow is **set up** when both `master` and `develop` are set; setting only one of them is an error. `master` and
 `develop` must differ. Key names are case-insensitive and may carry the `flowtree.` prefix; git itself shows them
@@ -50,7 +48,7 @@ before they are written. You can equally use plain git: `git config flowtree.bas
 
 ## Where worktrees live
 
-`<baseDir>/<branch>`, so `work/login` with the default setting is `../worktrees/work/login` relative to the main
+`<baseDir>/<branch>`, so `feature/login` with the default setting is `../worktrees/feature/login` relative to the main
 worktree. To keep every repository's worktrees under one parent, define `FLOWTREE_PARENT`:
 
 ```sh
@@ -84,7 +82,7 @@ command hooks run code. `flowtree config hooks` prints the exact path and, when 
 
 The file is read strictly: unknown fields and invalid hooks are errors. A missing file means no hooks.
 
-`post_create` hooks run, in order, after every worktree flowtree creates (`add`, `work start`, `hotfix start`,
+`post_create` hooks run, in order, after every worktree flowtree creates (`add`, `feature start`, `hotfix start`,
 `checkout`, `track`, `switch`, `pull` when they create one). A failing hook prints a warning and the worktree
 stays.
 

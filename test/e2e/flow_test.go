@@ -47,21 +47,21 @@ func current(t *testing.T, dir string) string {
 	return strings.TrimSpace(testutil.Git(t, dir, "branch", "--show-current"))
 }
 
-func TestWorkLifecycle(t *testing.T) {
+func TestFeatureLifecycle(t *testing.T) {
 	repo := flowRepo(t)
-	res := Run(t, repo, "work", "start", "login").MustSucceed(t)
-	wt := worktreeDir(repo, "work/login")
+	res := Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	wt := worktreeDir(repo, "feature/login")
 	if !exists(wt) || !strings.Contains(res.Stdout, wt) {
 		t.Fatalf("worktree not created at %s:\n%s", wt, res.Stdout)
 	}
-	if got := Run(t, repo, "work", "list", "-v").MustSucceed(t).Stdout; !strings.Contains(got, "login") || !strings.Contains(got, "no commits yet") {
+	if got := Run(t, repo, "feature", "list", "-v").MustSucceed(t).Stdout; !strings.Contains(got, "login") || !strings.Contains(got, "no commits yet") {
 		t.Errorf("list: %q", got)
 	}
 	commitFile(t, wt, "login.txt")
 
 	cdfile := filepath.Join(t.TempDir(), "cd")
-	res = RunEnv(t, wt, []string{"FLOWTREE_CDFILE=" + cdfile}, "work", "finish").MustSucceed(t) // name inferred from cwd
-	if exists(wt) || strings.Contains(branches(t, repo), "work/login") {
+	res = RunEnv(t, wt, []string{"FLOWTREE_CDFILE=" + cdfile}, "feature", "finish").MustSucceed(t) // name inferred from cwd
+	if exists(wt) || strings.Contains(branches(t, repo), "feature/login") {
 		t.Errorf("worktree or branch left behind:\n%s\n%s", res.Stdout, branches(t, repo))
 	}
 	if !exists(filepath.Join(repo, "login.txt")) || current(t, repo) != "develop" {
@@ -72,51 +72,54 @@ func TestWorkLifecycle(t *testing.T) {
 	}
 }
 
-func TestWorkFinishModes(t *testing.T) {
-	for flag, parents := range map[string]int{"": 1, "--no-ff": 2, "-S": 1} {
-		repo := flowRepo(t)
-		Run(t, repo, "work", "start", "a").MustSucceed(t)
-		wt := worktreeDir(repo, "work/a")
-		commitFile(t, wt, "a1")
-		commitFile(t, wt, "a2")
-		args := []string{"work", "finish", "a"}
-		if flag != "" {
-			args = append(args, flag)
-		}
-		Run(t, repo, args...).MustSucceed(t)
-		got := len(strings.Fields(testutil.Git(t, repo, "rev-list", "--parents", "-n1", "develop"))) - 1
-		if got != parents {
-			t.Errorf("%q: develop head has %d parents, want %d", flag, got, parents)
+func TestFeatureFinishAlwaysCreatesAMergeCommit(t *testing.T) {
+	repo := flowRepo(t)
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	commitFile(t, worktreeDir(repo, "feature/a"), "a1") // develop did not move: a fast-forward would be possible
+	Run(t, repo, "feature", "finish", "a").MustSucceed(t)
+	if got := len(strings.Fields(testutil.Git(t, repo, "rev-list", "--parents", "-n1", "develop"))) - 1; got != 2 {
+		t.Errorf("develop head has %d parents, want a merge commit", got)
+	}
+	for _, flag := range []string{"--no-ff", "-S", "-r", "--no-rebase", "-F"} {
+		if res := Run(t, repo, "feature", "finish", "x", flag).MustFail(t); !strings.Contains(res.Stderr, "unknown") {
+			t.Errorf("%s: stderr = %q", flag, res.Stderr)
 		}
 	}
 }
 
-func TestWorkFinishRebase(t *testing.T) {
-	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "work/a")
-	commitFile(t, wt, "a")
-	commitFile(t, repo, "on-develop") // develop moved on
-	Run(t, repo, "work", "finish", "a").MustSucceed(t)
-	if out := testutil.Git(t, repo, "log", "--merges", "--oneline", "develop"); out != "" {
-		t.Errorf("rebased finish should be linear:\n%s", out)
+func TestFeatureFinishAfterPullRequestOnlyCleansUp(t *testing.T) {
+	repo, _ := flowRepoWithRemote(t)
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	commitFile(t, worktreeDir(repo, "feature/a"), "a")
+	Run(t, repo, "feature", "publish", "a").MustSucceed(t)
+	testutil.Git(t, repo, "push", "-q", "origin", "feature/a:develop") // the forge merged the pull request
+	before := testutil.Git(t, repo, "rev-parse", "develop")
+
+	res := Run(t, repo, "feature", "finish", "a").MustSucceed(t)
+	if !strings.Contains(res.Stdout, "already merged") {
+		t.Errorf("stdout = %q", res.Stdout)
 	}
-	if !exists(filepath.Join(repo, "a")) || !exists(filepath.Join(repo, "on-develop")) {
-		t.Error("both changes must be on develop")
+	if testutil.Git(t, repo, "rev-parse", "develop") != before {
+		t.Error("finish must not merge again when the pull request already did")
+	}
+	if strings.Contains(branches(t, repo), "feature/a") || exists(worktreeDir(repo, "feature/a")) {
+		t.Error("the branch and its worktree should be gone")
 	}
 }
 
 func TestStartRefusals(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "x").MustSucceed(t)
-	if res := Run(t, repo, "work", "start", "x").MustFail(t); !strings.Contains(res.Stderr, "already exists") {
+	Run(t, repo, "feature", "start", "x").MustSucceed(t)
+	if res := Run(t, repo, "feature", "start", "x").MustFail(t); !strings.Contains(res.Stderr, "already exists") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	if res := Run(t, repo, "release", "start", "1.1.0").MustFail(t); !strings.Contains(res.Stderr, "finish that one first") {
-		t.Errorf("stderr = %q", res.Stderr)
+	for _, args := range [][]string{{"release", "start", "1.1.0"}, {"hotfix", "start", "1.0.1"}} {
+		if res := Run(t, repo, args...).MustFail(t); !strings.Contains(res.Stderr, "finish that one first") {
+			t.Errorf("%v: stderr = %q", args, res.Stderr)
+		}
 	}
-	if res := Run(t, repo, "work", "start").MustFail(t); res.Stderr == "" {
+	if res := Run(t, repo, "feature", "start").MustFail(t); res.Stderr == "" {
 		t.Error("missing name should be reported")
 	}
 }
@@ -124,7 +127,7 @@ func TestStartRefusals(t *testing.T) {
 func TestFlowNeedsInit(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	Run(t, repo, "init", "-d").MustSucceed(t)
-	if res := Run(t, repo, "work", "list").MustFail(t); !strings.Contains(res.Stderr, "init --flow") {
+	if res := Run(t, repo, "feature", "list").MustFail(t); !strings.Contains(res.Stderr, "init --flow") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 }
@@ -132,14 +135,15 @@ func TestFlowNeedsInit(t *testing.T) {
 func TestReleaseLifecycle(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	if current(t, repo) != "release/1.0.0" {
-		t.Fatalf("main worktree should be on the release, is on %q", current(t, repo))
+	wt := worktreeDir(repo, "release/1.0.0")
+	if current(t, repo) != "develop" || !exists(wt) {
+		t.Fatalf("the release should get a worktree, main stays on develop (is on %q)", current(t, repo))
 	}
-	commitFile(t, repo, "CHANGELOG.md")
-	Run(t, repo, "release", "finish", "-m", "Release 1.0.0").MustSucceed(t)
+	commitFile(t, wt, "CHANGELOG.md")
+	Run(t, wt, "release", "finish", "-m", "Release 1.0.0").MustSucceed(t)
 
-	if current(t, repo) != "develop" || strings.Contains(branches(t, repo), "release/1.0.0") {
-		t.Errorf("main should be back on develop with the release deleted; on %q\n%s", current(t, repo), branches(t, repo))
+	if exists(wt) || strings.Contains(branches(t, repo), "release/1.0.0") {
+		t.Errorf("the release worktree and branch should be gone\n%s", branches(t, repo))
 	}
 	if got := testutil.Git(t, repo, "tag", "-l", "1.0.0"); !strings.Contains(got, "1.0.0") {
 		t.Fatal("tag missing")
@@ -155,34 +159,33 @@ func TestReleaseLifecycle(t *testing.T) {
 	Run(t, repo, "release", "list").MustSucceed(t) // no release left; just must not fail
 }
 
-func TestReleaseVersionTagPrefixAndFlags(t *testing.T) {
-	repo := testutil.NewRepo(t)
-	Run(t, repo, "init", "--flow", "-d", "-t", "v").MustSucceed(t)
+func TestReleaseFinishFlags(t *testing.T) {
+	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "2.0.0").MustSucceed(t)
-	commitFile(t, repo, "x")
-	Run(t, repo, "release", "finish", "-n", "-b", "-k").MustSucceed(t) // no tag, no back-merge, keep branch
+	wt := worktreeDir(repo, "release/2.0.0")
+	commitFile(t, wt, "x")
+	Run(t, wt, "release", "finish", "-n", "-b", "-k").MustSucceed(t) // no tag, no back-merge, keep branch
 	if testutil.Git(t, repo, "tag", "-l") != "" {
 		t.Error("-n must not tag")
 	}
 	if !strings.Contains(branches(t, repo), "release/2.0.0") {
 		t.Error("-k must keep the branch")
 	}
-	if current(t, repo) != "develop" {
-		t.Error("main worktree should be back on develop")
+	if exists(wt) {
+		t.Error("-k keeps the branch, not the worktree")
 	}
 	if strings.Contains(testutil.Git(t, repo, "ls-tree", "--name-only", "develop"), "x") {
 		t.Error("-b must not merge into develop")
 	}
 }
 
-func TestReleaseTagGetsPrefix(t *testing.T) {
-	repo := testutil.NewRepo(t)
-	Run(t, repo, "init", "--flow", "-d", "-t", "v").MustSucceed(t)
-	Run(t, repo, "release", "start", "2.0.0").MustSucceed(t)
-	commitFile(t, repo, "x")
-	Run(t, repo, "release", "finish", "-m", "m").MustSucceed(t)
-	if !strings.Contains(testutil.Git(t, repo, "tag", "-l"), "v2.0.0") {
-		t.Error("tag should carry the version tag prefix")
+func TestReleaseTagIsTheNameAsTyped(t *testing.T) {
+	repo := flowRepo(t)
+	Run(t, repo, "release", "start", "v2.0.0").MustSucceed(t)
+	commitFile(t, worktreeDir(repo, "release/v2.0.0"), "x")
+	Run(t, repo, "release", "finish", "-m", "m", "v2.0.0").MustSucceed(t)
+	if got := strings.TrimSpace(testutil.Git(t, repo, "tag", "-l")); got != "v2.0.0" {
+		t.Errorf("tag = %q, want the release name", got)
 	}
 }
 
@@ -211,15 +214,15 @@ func TestHotfixLifecycleWithPush(t *testing.T) {
 
 func TestFinishConflictChangesNothing(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "work/a")
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	wt := worktreeDir(repo, "feature/a")
 	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "from work\n")
 	testutil.Git(t, wt, "commit", "-q", "-am", "work edit")
 	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "from develop\n")
 	testutil.Git(t, repo, "commit", "-q", "-am", "develop edit")
 	before := testutil.Git(t, repo, "rev-parse", "develop")
 
-	res := Run(t, repo, "work", "finish", "a", "--no-rebase", "--no-ff").MustFail(t)
+	res := Run(t, repo, "feature", "finish", "a").MustFail(t)
 	if !strings.Contains(res.Stderr, "Nothing was changed") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
@@ -228,217 +231,123 @@ func TestFinishConflictChangesNothing(t *testing.T) {
 	}
 }
 
-func TestWorkFinishRebaseConflictStopsBeforeMerging(t *testing.T) {
-	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "work/a")
-	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "from work\n")
-	testutil.Git(t, wt, "commit", "-q", "-am", "work edit")
-	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "from develop\n")
-	testutil.Git(t, repo, "commit", "-q", "-am", "develop edit")
-	before := testutil.Git(t, repo, "rev-parse", "develop")
-
-	res := Run(t, repo, "work", "finish", "a").MustFail(t)
-	if !strings.Contains(res.Stderr, "conflicts during rebase") {
-		t.Errorf("stderr = %q", res.Stderr)
-	}
-	if testutil.Git(t, repo, "rev-parse", "develop") != before || !exists(wt) {
-		t.Error("a failed rebase must leave develop and the worktree alone")
-	}
-}
-
-func TestWorkFinishNoRebaseKeepsTheBranchBase(t *testing.T) {
-	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	commitFile(t, worktreeDir(repo, "work/a"), "a")
-	commitFile(t, repo, "on-develop")
-	Run(t, repo, "work", "finish", "a", "--no-rebase").MustSucceed(t)
-	if out := testutil.Git(t, repo, "log", "--merges", "--oneline", "develop"); out == "" {
-		t.Error("without a rebase a diverged branch needs a merge commit")
-	}
-}
-
-func TestWorkFinishRebaseFollowsConfig(t *testing.T) {
-	for _, tc := range []struct {
-		flag  string
-		merge bool // a merge commit is expected on develop
-	}{{"", true}, {"-r", false}} {
-		repo := flowRepo(t)
-		testutil.Git(t, repo, "config", "flowtree.finishRebase", "false")
-		Run(t, repo, "work", "start", "a").MustSucceed(t)
-		commitFile(t, worktreeDir(repo, "work/a"), "a")
-		commitFile(t, repo, "on-develop")
-		args := []string{"work", "finish", "a"}
-		if tc.flag != "" {
-			args = append(args, tc.flag)
-		}
-		Run(t, repo, args...).MustSucceed(t)
-		merged := testutil.Git(t, repo, "log", "--merges", "--oneline", "develop") != ""
-		if merged != tc.merge {
-			t.Errorf("finishRebase=false, flag %q: merge commit = %v, want %v", tc.flag, merged, tc.merge)
-		}
-	}
-}
-
-func TestFinishRebaseConfigRejectsNonBool(t *testing.T) {
-	repo := flowRepo(t)
-	testutil.Git(t, repo, "config", "flowtree.finishRebase", "maybe")
-	Run(t, repo, "work", "finish", "a").MustFail(t)
-}
-
-func TestWorkFinishWarnsWhenTheRebaseRewritesPublishedCommits(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		develop  bool // develop moved on after publishing
-		wantWarn bool
-	}{{"diverged", true, true}, {"nothing to rewrite", false, false}} {
-		repo, _ := flowRepoWithRemote(t)
-		Run(t, repo, "work", "start", "a").MustSucceed(t)
-		commitFile(t, worktreeDir(repo, "work/a"), "a")
-		Run(t, repo, "work", "publish", "a").MustSucceed(t)
-		if tc.develop {
-			commitFile(t, repo, "on-develop")
-			testutil.Git(t, repo, "push", "-q", "origin", "develop")
-		}
-		res := Run(t, repo, "work", "finish", "a").MustSucceed(t)
-		if got := strings.Contains(res.Stderr, "rewrote commits"); got != tc.wantWarn {
-			t.Errorf("%s: warning = %v, want %v\n%s", tc.name, got, tc.wantWarn, res.Stderr)
-		}
-	}
-}
-
-func TestWorkFinishSquashSkipsTheRebaseUnlessAsked(t *testing.T) {
-	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	for flags, want := range map[string]bool{"": true, "-S": false, "-S -r": true} {
-		args := append([]string{"work", "finish", "a", "--dry-run"}, strings.Fields(flags)...)
-		out := Run(t, repo, args...).MustSucceed(t)
-		if got := strings.Contains(out.Stdout+out.Stderr, "rebase"); got != want {
-			t.Errorf("finish %s: plans a rebase = %v, want %v", flags, got, want)
-		}
-	}
-}
-
 func TestFinishRefusesDirtyWorktree(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "work/a")
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	wt := worktreeDir(repo, "feature/a")
 	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "dirty\n")
-	if res := Run(t, repo, "work", "finish", "a").MustFail(t); !strings.Contains(res.Stderr, "uncommitted") {
+	if res := Run(t, repo, "feature", "finish", "a").MustFail(t); !strings.Contains(res.Stderr, "uncommitted") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 }
 
 func TestDryRunChangesNothing(t *testing.T) {
 	repo := flowRepo(t)
-	res := Run(t, repo, "work", "start", "a", "--dry-run").MustSucceed(t)
-	if !strings.Contains(res.Stdout, "Dry run") || strings.Contains(branches(t, repo), "work/a") || exists(worktreeDir(repo, "work/a")) {
+	res := Run(t, repo, "feature", "start", "a", "--dry-run").MustSucceed(t)
+	if !strings.Contains(res.Stdout, "Dry run") || strings.Contains(branches(t, repo), "feature/a") || exists(worktreeDir(repo, "feature/a")) {
 		t.Errorf("start --dry-run changed things or printed nothing:\n%s", res.Stdout)
 	}
-	Run(t, repo, "work", "start", "b").MustSucceed(t)
-	commitFile(t, worktreeDir(repo, "work/b"), "b")
-	Run(t, repo, "work", "finish", "b", "--dry-run").MustSucceed(t)
-	if !exists(worktreeDir(repo, "work/b")) || exists(filepath.Join(repo, "b")) {
+	Run(t, repo, "feature", "start", "b").MustSucceed(t)
+	commitFile(t, worktreeDir(repo, "feature/b"), "b")
+	Run(t, repo, "feature", "finish", "b", "--dry-run").MustSucceed(t)
+	if !exists(worktreeDir(repo, "feature/b")) || exists(filepath.Join(repo, "b")) {
 		t.Error("finish --dry-run changed things")
 	}
-	Run(t, repo, "work", "delete", "b", "-f", "--dry-run").MustSucceed(t)
-	if !strings.Contains(branches(t, repo), "work/b") {
+	Run(t, repo, "feature", "delete", "b", "-f", "--dry-run").MustSucceed(t)
+	if !strings.Contains(branches(t, repo), "feature/b") {
 		t.Error("delete --dry-run changed things")
 	}
 }
 
 func TestDelete(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "work/a")
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	wt := worktreeDir(repo, "feature/a")
 	commitFile(t, wt, "a")
-	if res := Run(t, repo, "work", "delete", "a").MustFail(t); !strings.Contains(res.Stderr, "not been merged") {
+	if res := Run(t, repo, "feature", "delete", "a").MustFail(t); !strings.Contains(res.Stderr, "not been merged") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
-	Run(t, repo, "work", "delete", "-f", "a").MustSucceed(t)
-	if exists(wt) || strings.Contains(branches(t, repo), "work/a") {
+	Run(t, repo, "feature", "delete", "-f", "a").MustSucceed(t)
+	if exists(wt) || strings.Contains(branches(t, repo), "feature/a") {
 		t.Error("delete -f should remove worktree and branch")
 	}
 }
 
 func TestPublishTrackCheckout(t *testing.T) {
 	repo, remote := flowRepoWithRemote(t)
-	Run(t, repo, "work", "start", "feat").MustSucceed(t)
-	Run(t, repo, "work", "publish", "feat").MustSucceed(t)
-	if !strings.Contains(testutil.Git(t, remote, "branch", "--list"), "work/feat") {
+	Run(t, repo, "feature", "start", "feat").MustSucceed(t)
+	Run(t, repo, "feature", "publish", "feat").MustSucceed(t)
+	if !strings.Contains(testutil.Git(t, remote, "branch", "--list"), "feature/feat") {
 		t.Fatal("publish did not push")
 	}
-	Run(t, repo, "work", "finish", "feat", "-k", "--keepremote").MustSucceed(t) // branch kept, worktree removed
-	wt := worktreeDir(repo, "work/feat")
+	Run(t, repo, "feature", "finish", "feat", "-k", "--keepremote").MustSucceed(t) // branch kept, worktree removed
+	wt := worktreeDir(repo, "feature/feat")
 	if exists(wt) {
 		t.Fatal("finish -k should still remove the worktree")
 	}
-	res := Run(t, repo, "work", "checkout", "feat").MustSucceed(t) // recreates it
+	res := Run(t, repo, "feature", "checkout", "feat").MustSucceed(t) // recreates it
 	if strings.TrimSpace(res.Stdout) != wt || !exists(wt) {
 		t.Errorf("checkout printed %q, want %s", res.Stdout, wt)
 	}
-	Run(t, repo, "work", "finish", "feat").MustSucceed(t)
-	if strings.Contains(testutil.Git(t, remote, "branch", "--list"), "work/feat") {
+	Run(t, repo, "feature", "finish", "feat").MustSucceed(t)
+	if strings.Contains(testutil.Git(t, remote, "branch", "--list"), "feature/feat") {
 		t.Error("finish should delete the remote branch")
 	}
 
-	testutil.Git(t, repo, "push", "-q", "origin", "develop:work/other")
-	Run(t, repo, "work", "track", "other").MustSucceed(t)
-	if !exists(worktreeDir(repo, "work/other")) {
+	testutil.Git(t, repo, "push", "-q", "origin", "develop:feature/other")
+	Run(t, repo, "feature", "track", "other").MustSucceed(t)
+	if !exists(worktreeDir(repo, "feature/other")) {
 		t.Error("track should create a worktree")
 	}
 }
 
-func TestReleaseCheckoutSwitchesMain(t *testing.T) {
+func TestReleaseCheckoutRecreatesWorktree(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	testutil.Git(t, repo, "checkout", "-q", "develop")
-	res := Run(t, repo, "release", "checkout").MustFail(t) // not on a release, no name
+	wt := worktreeDir(repo, "release/1.0.0")
+	testutil.Git(t, repo, "worktree", "remove", wt)
+	res := Run(t, repo, "release", "checkout").MustFail(t) // not in a release worktree, no name
 	if res.Stderr == "" {
 		t.Error("expected an error")
 	}
 	Run(t, repo, "release", "checkout", "1.0.0").MustSucceed(t)
-	if current(t, repo) != "release/1.0.0" {
-		t.Errorf("main on %q", current(t, repo))
+	if !exists(wt) || current(t, repo) != "develop" {
+		t.Errorf("checkout should recreate the worktree; main on %q", current(t, repo))
 	}
 }
 
 func TestReleaseFinishResumesAfterBackMergeConflict(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "release", "start", "1.0.0").MustSucceed(t)
-	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "release notes\n")
-	testutil.Git(t, repo, "commit", "-q", "-am", "release edit")
-	// develop moves on with a conflicting edit while the release is open (done in a side worktree)
-	side := filepath.Join(t.TempDir(), "side")
-	testutil.Git(t, repo, "worktree", "add", "-q", side, "develop")
-	testutil.WriteFile(t, filepath.Join(side, "README.md"), "develop notes\n")
-	testutil.Git(t, side, "commit", "-q", "-am", "develop edit")
-	testutil.Git(t, repo, "worktree", "remove", "--force", side)
+	wt := worktreeDir(repo, "release/1.0.0")
+	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "release notes\n")
+	testutil.Git(t, wt, "commit", "-q", "-am", "release edit")
+	// develop (in the main worktree) moves on with a conflicting edit while the release is open
+	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "develop notes\n")
+	testutil.Git(t, repo, "commit", "-q", "-am", "develop edit")
 
-	res := Run(t, repo, "release", "finish", "-m", "1.0.0").MustFail(t)
+	res := Run(t, wt, "release", "finish", "-m", "1.0.0").MustFail(t)
 	if !strings.Contains(res.Stderr, "by hand") || !strings.Contains(testutil.Git(t, repo, "tag", "-l"), "1.0.0") {
 		t.Fatalf("expected a back-merge failure after tagging; stderr = %q", res.Stderr)
 	}
 
 	// resolve by hand, as the error says: merge the tag into develop
-	testutil.Git(t, repo, "worktree", "add", "-q", side, "develop")
-	testutil.Git(t, side, "merge", "-q", "-X", "ours", "--no-edit", "1.0.0")
-	testutil.Git(t, repo, "worktree", "remove", "--force", side)
+	testutil.Git(t, repo, "merge", "-q", "-X", "ours", "--no-edit", "1.0.0")
 
-	res = Run(t, repo, "release", "finish", "-m", "1.0.0").MustSucceed(t)
+	res = Run(t, wt, "release", "finish", "-m", "1.0.0").MustSucceed(t)
 	if !strings.Contains(res.Stdout, "Resuming") {
 		t.Errorf("stdout = %q", res.Stdout)
 	}
-	if current(t, repo) != "develop" || strings.Contains(branches(t, repo), "release/1.0.0") {
-		t.Errorf("finish should complete: main on %q\n%s", current(t, repo), branches(t, repo))
+	if exists(wt) || strings.Contains(branches(t, repo), "release/1.0.0") {
+		t.Errorf("finish should complete\n%s", branches(t, repo))
 	}
 }
 
 func TestFlowCompletion(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "login").MustSucceed(t)
-	Run(t, repo, "work", "start", "signup").MustSucceed(t)
-	out := Run(t, repo, "__complete", "work", "finish", "lo").MustSucceed(t).Stdout
+	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	Run(t, repo, "feature", "start", "signup").MustSucceed(t)
+	out := Run(t, repo, "__complete", "feature", "finish", "lo").MustSucceed(t).Stdout
 	if !strings.Contains(out, "login") || strings.Contains(out, "signup") {
 		t.Errorf("work finish completion: %q", out)
 	}

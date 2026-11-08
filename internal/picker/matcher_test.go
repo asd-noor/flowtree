@@ -15,9 +15,9 @@ func keys(rows []Row) []string {
 
 var sample = []Row{
 	{Key: "@", Alt: "develop"},
-	{Key: "work/login"},
-	{Key: "work/logout"},
-	{Key: "work/signup"},
+	{Key: "feature/login"},
+	{Key: "feature/logout"},
+	{Key: "feature/signup"},
 	{Key: "release/1.0"},
 	{Key: "hotfix/1.0.1"},
 }
@@ -26,13 +26,13 @@ func TestResolve(t *testing.T) {
 	cases := []struct {
 		name, query, want string
 	}{
-		{"exact", "work/login", "work/login"},
-		{"exact beats substring", "work/logout", "work/logout"},
-		{"case-insensitive", "WORK/SIGNUP", "work/signup"},
-		{"unique substring", "sign", "work/signup"},
+		{"exact", "feature/login", "feature/login"},
+		{"exact beats substring", "feature/logout", "feature/logout"},
+		{"case-insensitive", "FEATURE/SIGNUP", "feature/signup"},
+		{"unique substring", "sign", "feature/signup"},
 		{"ambiguous substring", "log", ""},
-		{"fuzzy unique", "wsu", "work/signup"},
-		{"fuzzy ambiguous", "wl", ""},
+		{"fuzzy unique", "fsu", "feature/signup"},
+		{"fuzzy ambiguous", "fl", ""},
 		{"alt matches", "develop", "@"},
 		{"alt substring", "devel", "@"},
 		{"no match", "zzz", ""},
@@ -48,8 +48,8 @@ func TestResolve(t *testing.T) {
 }
 
 func TestResolveExactWinsOverLongerSubstringHits(t *testing.T) {
-	rows := []Row{{Key: "work/a"}, {Key: "work/ab"}}
-	if r, ok := Resolve(rows, "work/a"); !ok || r.Key != "work/a" {
+	rows := []Row{{Key: "feature/a"}, {Key: "feature/ab"}}
+	if r, ok := Resolve(rows, "feature/a"); !ok || r.Key != "feature/a" {
 		t.Errorf("got %q %v", r.Key, ok)
 	}
 }

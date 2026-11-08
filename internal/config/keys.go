@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"flowtree/internal/gitx"
@@ -30,17 +29,6 @@ func nonEmpty(name string, set func(*Config, string)) func(*Config, string) erro
 	}
 }
 
-func boolValue(name string, set func(*Config, string)) func(*Config, string) error {
-	return func(c *Config, v string) error {
-		b, err := strconv.ParseBool(strings.TrimSpace(v))
-		if err != nil {
-			return fmt.Errorf("%s.%s must be true or false, got '%s'", section, name, v)
-		}
-		set(c, strconv.FormatBool(b))
-		return nil
-	}
-}
-
 func anyValue(set func(*Config, string)) func(*Config, string) error {
 	return func(c *Config, v string) error { set(c, v); return nil }
 }
@@ -50,11 +38,10 @@ var settings = []setting{
 	{"remote", nonEmpty("remote", func(c *Config, v string) { c.Remote = v }), func(c Config) string { return c.Remote }, DefaultRemote},
 	{"master", nonEmpty("master", func(c *Config, v string) { c.Flow.Master = v }), func(c Config) string { return c.Flow.Master }, ""},
 	{"develop", nonEmpty("develop", func(c *Config, v string) { c.Flow.Develop = v }), func(c Config) string { return c.Flow.Develop }, ""},
-	{"workPrefix", nonEmpty("workPrefix", func(c *Config, v string) { c.Flow.WorkPrefix = v }), func(c Config) string { return c.Flow.WorkPrefix }, "work/"},
+	{"featurePrefix", nonEmpty("featurePrefix", func(c *Config, v string) { c.Flow.FeaturePrefix = v }), func(c Config) string { return c.Flow.FeaturePrefix }, "feature/"},
 	{"releasePrefix", nonEmpty("releasePrefix", func(c *Config, v string) { c.Flow.RelPrefix = v }), func(c Config) string { return c.Flow.RelPrefix }, "release/"},
 	{"hotfixPrefix", nonEmpty("hotfixPrefix", func(c *Config, v string) { c.Flow.HotPrefix = v }), func(c Config) string { return c.Flow.HotPrefix }, "hotfix/"},
-	{"versionTagPrefix", anyValue(func(c *Config, v string) { c.Flow.VersionTag = v }), func(c Config) string { return c.Flow.VersionTag }, ""},
-	{"finishRebase", boolValue("finishRebase", func(c *Config, v string) { c.Flow.FinishRebase = v }), func(c Config) string { return c.Flow.FinishRebase }, "true"},
+	{"workPrefix", nonEmpty("workPrefix", func(c *Config, v string) { c.Flow.WorkPrefix = v }), func(c Config) string { return c.Flow.WorkPrefix }, "work/"},
 }
 
 // Keys lists the setting names, for completion and help.
@@ -266,8 +253,8 @@ func SetAll(g gitx.Git, scope Scope, pairs []Pair) error {
 func (f Flow) Pairs() []Pair {
 	return []Pair{
 		{"master", f.Master}, {"develop", f.Develop},
-		{"workPrefix", f.WorkPrefix}, {"releasePrefix", f.RelPrefix}, {"hotfixPrefix", f.HotPrefix},
-		{"versionTagPrefix", f.VersionTag},
+		{"featurePrefix", f.FeaturePrefix}, {"releasePrefix", f.RelPrefix}, {"hotfixPrefix", f.HotPrefix},
+		{"workPrefix", f.WorkPrefix},
 	}
 }
 

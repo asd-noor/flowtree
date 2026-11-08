@@ -12,6 +12,7 @@ type Constructor func(Deps) *cobra.Command
 // Constructors lists every top-level command; keep it sorted.
 var Constructors = []Constructor{
 	newAddCmd,
+	newBoardCmd,
 	newConfigCmd,
 	newExecCmd,
 	newInitCmd,
@@ -22,8 +23,10 @@ var Constructors = []Constructor{
 	newRemoveCmd,
 	newShellInitCmd,
 	newSwitchCmd,
+	newTaskCmd,
 	newTopicCmd(flow.Hotfix),
 	newTopicCmd(flow.Release),
+	newTopicCmd(flow.Feature),
 	newTopicCmd(flow.Work),
 }
 

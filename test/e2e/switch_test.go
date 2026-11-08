@@ -11,9 +11,9 @@ import (
 
 func TestSwitchByShortNameAndBranch(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "login").MustSucceed(t)
-	wt := worktreeDir(repo, "work/login")
-	for _, q := range []string{"login", "work/login"} {
+	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	wt := worktreeDir(repo, "feature/login")
+	for _, q := range []string{"login", "feature/login"} {
 		cdfile := filepath.Join(t.TempDir(), "cd")
 		res := RunEnv(t, repo, []string{"FLOWTREE_CDFILE=" + cdfile}, "switch", q).MustSucceed(t)
 		if strings.TrimSpace(res.Stdout) != wt {
@@ -27,24 +27,26 @@ func TestSwitchByShortNameAndBranch(t *testing.T) {
 
 func TestSwitchMovesMainAndCreatesWorktrees(t *testing.T) {
 	repo := flowRepo(t)
-	testutil.Git(t, repo, "branch", "work/later", "develop")
+	testutil.Git(t, repo, "branch", "feature/later", "develop")
 	testutil.Git(t, repo, "branch", "release/9.9", "develop")
+	commitFile(t, repo, "on-develop") // so develop and master differ
 
-	if got := strings.TrimSpace(Run(t, repo, "switch", "later").MustSucceed(t).Stdout); got != worktreeDir(repo, "work/later") || !exists(got) {
+	if got := strings.TrimSpace(Run(t, repo, "switch", "later").MustSucceed(t).Stdout); got != worktreeDir(repo, "feature/later") || !exists(got) {
 		t.Errorf("a branch without a worktree should get one, got %q", got)
 	}
-	res := Run(t, repo, "switch", "release/9.9").MustSucceed(t)
-	if strings.TrimSpace(res.Stdout) != repo || current(t, repo) != "release/9.9" {
-		t.Errorf("main should move onto the release; out=%q on %q", res.Stdout, current(t, repo))
+	if got := strings.TrimSpace(Run(t, repo, "switch", "release/9.9").MustSucceed(t).Stdout); got != worktreeDir(repo, "release/9.9") || current(t, repo) != "develop" {
+		t.Errorf("a release should get a worktree, not the main worktree; got %q, main on %q", got, current(t, repo))
 	}
-	Run(t, repo, "switch", "@").MustSucceed(t)
+	res := Run(t, repo, "switch", "main").MustSucceed(t)
+	if strings.TrimSpace(res.Stdout) != repo || current(t, repo) != "main" {
+		t.Errorf("main should move onto master; out=%q on %q", res.Stdout, current(t, repo))
+	}
 }
 
 func TestSwitchRefusesDirtyMain(t *testing.T) {
 	repo := flowRepo(t)
-	testutil.Git(t, repo, "branch", "release/9.9", "develop")
 	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "dirty\n")
-	res := Run(t, repo, "switch", "release/9.9").MustFail(t)
+	res := Run(t, repo, "switch", "main").MustFail(t)
 	if !strings.Contains(res.Stderr, "uncommitted") || current(t, repo) != "develop" {
 		t.Errorf("stderr=%q on %q", res.Stderr, current(t, repo))
 	}
@@ -52,8 +54,8 @@ func TestSwitchRefusesDirtyMain(t *testing.T) {
 
 func TestSwitchNeedsATerminalWhenAmbiguous(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "login").MustSucceed(t)
-	Run(t, repo, "work", "start", "logout").MustSucceed(t)
+	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	Run(t, repo, "feature", "start", "logout").MustSucceed(t)
 	res := Run(t, repo, "switch", "log").MustFail(t)
 	if !strings.Contains(res.Stderr, "no terminal") {
 		t.Errorf("stderr = %q", res.Stderr)

@@ -13,21 +13,21 @@ import (
 
 // flowOpts are the `init --flow` flags. Empty strings mean "ask, or use the default".
 type flowOpts struct {
-	enabled                          bool
-	master, develop                  string
-	workPrefix, relPrefix, hotPrefix string
-	versionTag                       string
-	remote                           string
+	enabled                             bool
+	master, develop                     string
+	featurePrefix, relPrefix, hotPrefix string
+	workPrefix                          string
+	remote                              string
 }
 
 func bindFlowFlags(f *pflag.FlagSet, o *flowOpts) {
 	f.BoolVar(&o.enabled, "flow", false, "also set up git-flow: master/develop branches and flow settings")
 	f.StringVar(&o.master, "master", "", "production branch name (default: existing master or main, else master)")
 	f.StringVar(&o.develop, "develop", "", "integration branch name (default develop)")
-	f.StringVarP(&o.workPrefix, "work-prefix", "p", "", "prefix of work branches (default work/)")
+	f.StringVarP(&o.featurePrefix, "feature-prefix", "p", "", "prefix of feature branches (default feature/)")
 	f.StringVarP(&o.relPrefix, "release-prefix", "r", "", "prefix of release branches (default release/)")
 	f.StringVarP(&o.hotPrefix, "hotfix-prefix", "x", "", "prefix of hotfix branches (default hotfix/)")
-	f.StringVarP(&o.versionTag, "version-tag", "t", "", "prefix of version tags, e.g. v (default none)")
+	f.StringVar(&o.workPrefix, "work-prefix", "", "prefix of work branches (default work/)")
 	f.StringVar(&o.remote, "remote", "", "remote used for fetch and push (default origin)")
 }
 
@@ -46,7 +46,7 @@ func chooseFlowSettings(_ context.Context, r *initRun) error {
 		return err
 	}
 	r.flowS = &s
-	r.pairs = append(r.pairs, nonBlank(s.ToConfig().Pairs())...)
+	r.pairs = append(r.pairs, s.ToConfig().Pairs()...)
 	if s.Remote != config.DefaultRemote {
 		r.pairs = append(r.pairs, config.Pair{Key: "remote", Value: s.Remote})
 	}
@@ -66,10 +66,10 @@ func (r *initRun) flowSettings() (flow.Settings, error) {
 	}{
 		{"Branch name for production releases", o.master, &s.Master},
 		{"Branch name for next release development", o.develop, &s.Develop},
-		{"Work branches prefix", o.workPrefix, &s.WorkPrefix},
+		{"Feature branches prefix", o.featurePrefix, &s.FeaturePrefix},
 		{"Release branches prefix", o.relPrefix, &s.ReleasePrefix},
 		{"Hotfix branches prefix", o.hotPrefix, &s.HotfixPrefix},
-		{"Version tag prefix", o.versionTag, &s.VersionTag},
+		{"Work (subtask) branches prefix", o.workPrefix, &s.WorkPrefix},
 		{"Remote", o.remote, &s.Remote},
 	}
 	for _, f := range fields {
@@ -103,15 +103,4 @@ func setupFlowBranches(ctx context.Context, r *initRun) error {
 	}
 	repo := Repo{Git: r.git, Main: r.main, Cwd: r.main, Config: r.cfg}
 	return flow.EnsureBranches(r.d.flowEnv(ctx, repo, s))
-}
-
-// nonBlank drops pairs with an empty value: an unset tag prefix needs no key (the others are never empty).
-func nonBlank(pairs []config.Pair) []config.Pair {
-	var out []config.Pair
-	for _, p := range pairs {
-		if p.Value != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }

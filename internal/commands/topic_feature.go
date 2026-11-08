@@ -22,7 +22,7 @@ func attachedGit(ctx context.Context, d Deps) flow.Attached {
 func newDiffSub(k flow.Kind, d Deps) *cobra.Command {
 	return &cobra.Command{
 		Use:               "diff [<name>]",
-		Short:             "Show the changes of a work branch since it left develop",
+		Short:             "Show the changes of a feature branch since it left develop",
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: completeTopics(k, d),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -41,7 +41,7 @@ func newRebaseSub(k flow.Kind, d Deps) *cobra.Command {
 	var o flow.RebaseOpts
 	cmd := &cobra.Command{
 		Use:               "rebase [-i] [-p] [<name>]",
-		Short:             "Rebase a work branch onto develop, in its worktree",
+		Short:             "Rebase a feature branch onto develop, in its worktree",
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: completeTopics(k, d),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -57,7 +57,7 @@ func newRebaseSub(k flow.Kind, d Deps) *cobra.Command {
 func newPullSub(k flow.Kind, d Deps) *cobra.Command {
 	return &cobra.Command{
 		Use:               "pull <remote> [<name>]",
-		Short:             "Fast-forward a work branch from a remote; create it when it does not exist locally",
+		Short:             "Fast-forward a feature branch from a remote; create it when it does not exist locally",
 		Args:              cobra.RangeArgs(1, 2),
 		ValidArgsFunction: completePull(k, d),
 		RunE: func(cmd *cobra.Command, args []string) error {

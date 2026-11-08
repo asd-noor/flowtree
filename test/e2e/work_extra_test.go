@@ -9,30 +9,30 @@ import (
 	"flowtree/internal/testutil"
 )
 
-func TestWorkDiff(t *testing.T) {
+func TestFeatureDiff(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	commitFile(t, worktreeDir(repo, "work/a"), "changed.txt")
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	commitFile(t, worktreeDir(repo, "feature/a"), "changed.txt")
 	commitFile(t, repo, "on-develop.txt") // must not show up: the diff starts at the merge base
 
-	out := Run(t, repo, "work", "diff", "a").MustSucceed(t).Stdout
+	out := Run(t, repo, "feature", "diff", "a").MustSucceed(t).Stdout
 	if !strings.Contains(out, "changed.txt") || strings.Contains(out, "on-develop.txt") {
 		t.Errorf("diff:\n%s", out)
 	}
-	inferred := Run(t, worktreeDir(repo, "work/a"), "work", "diff").MustSucceed(t).Stdout
+	inferred := Run(t, worktreeDir(repo, "feature/a"), "feature", "diff").MustSucceed(t).Stdout
 	if inferred != out {
 		t.Errorf("diff without a name should use the worktree's branch:\n%s", inferred)
 	}
 }
 
-func TestWorkRebase(t *testing.T) {
+func TestFeatureRebase(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "work/a")
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	wt := worktreeDir(repo, "feature/a")
 	commitFile(t, wt, "a.txt")
 	commitFile(t, repo, "on-develop.txt")
 
-	res := Run(t, repo, "work", "rebase", "a").MustSucceed(t)
+	res := Run(t, repo, "feature", "rebase", "a").MustSucceed(t)
 	if !strings.Contains(res.Stdout, "Will try to rebase 'a'") {
 		t.Errorf("stdout = %q", res.Stdout)
 	}
@@ -40,73 +40,73 @@ func TestWorkRebase(t *testing.T) {
 		t.Error("worktree should have both changes")
 	}
 	// linear on top of develop: develop is an ancestor and there are no merges
-	testutil.Git(t, repo, "merge-base", "--is-ancestor", "develop", "work/a")
-	if out := testutil.Git(t, repo, "rev-list", "--merges", "develop..work/a"); out != "" {
+	testutil.Git(t, repo, "merge-base", "--is-ancestor", "develop", "feature/a")
+	if out := testutil.Git(t, repo, "rev-list", "--merges", "develop..feature/a"); out != "" {
 		t.Errorf("rebased branch has merges: %q", out)
 	}
-	if got := strings.Fields(testutil.Git(t, repo, "rev-list", "--parents", "-n1", "work/a")); got[1] != strings.TrimSpace(testutil.Git(t, repo, "rev-parse", "develop")) {
-		t.Error("work/a should sit directly on develop")
+	if got := strings.Fields(testutil.Git(t, repo, "rev-list", "--parents", "-n1", "feature/a")); got[1] != strings.TrimSpace(testutil.Git(t, repo, "rev-parse", "develop")) {
+		t.Error("feature/a should sit directly on develop")
 	}
 }
 
-func TestWorkRebaseConflictReportsAndLeavesRebaseInProgress(t *testing.T) {
+func TestFeatureRebaseConflictReportsAndLeavesRebaseInProgress(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "work/a")
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	wt := worktreeDir(repo, "feature/a")
 	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "work\n")
 	testutil.Git(t, wt, "commit", "-q", "-am", "work edit")
 	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "develop\n")
 	testutil.Git(t, repo, "commit", "-q", "-am", "develop edit")
-	Run(t, repo, "work", "rebase", "a").MustFail(t)
+	Run(t, repo, "feature", "rebase", "a").MustFail(t)
 }
 
-func TestWorkPullFastForwardsAndCreates(t *testing.T) {
+func TestFeaturePullFastForwardsAndCreates(t *testing.T) {
 	repo, remote := flowRepoWithRemote(t)
-	Run(t, repo, "work", "start", "feat").MustSucceed(t)
-	wt := worktreeDir(repo, "work/feat")
-	Run(t, repo, "work", "publish", "feat").MustSucceed(t)
+	Run(t, repo, "feature", "start", "feat").MustSucceed(t)
+	wt := worktreeDir(repo, "feature/feat")
+	Run(t, repo, "feature", "publish", "feat").MustSucceed(t)
 
-	// someone else pushes a commit to work/feat
+	// someone else pushes a commit to feature/feat
 	other := filepath.Join(filepath.Dir(repo), "other")
 	testutil.Git(t, filepath.Dir(repo), "clone", "-q", remote, other)
-	testutil.Git(t, other, "checkout", "-q", "work/feat")
+	testutil.Git(t, other, "checkout", "-q", "feature/feat")
 	commitFile(t, other, "theirs.txt")
-	testutil.Git(t, other, "push", "-q", "origin", "work/feat")
+	testutil.Git(t, other, "push", "-q", "origin", "feature/feat")
 
-	Run(t, repo, "work", "pull", "origin", "feat").MustSucceed(t)
+	Run(t, repo, "feature", "pull", "origin", "feat").MustSucceed(t)
 	if !exists(filepath.Join(wt, "theirs.txt")) {
 		t.Error("pull should fast-forward the worktree")
 	}
 
 	// a branch that only exists on the remote is created, with a worktree
-	testutil.Git(t, other, "checkout", "-q", "-b", "work/new", "origin/develop")
+	testutil.Git(t, other, "checkout", "-q", "-b", "feature/new", "origin/develop")
 	commitFile(t, other, "new.txt")
-	testutil.Git(t, other, "push", "-q", "origin", "work/new")
+	testutil.Git(t, other, "push", "-q", "origin", "feature/new")
 	cdfile := filepath.Join(t.TempDir(), "cd")
-	RunEnv(t, repo, []string{"FLOWTREE_CDFILE=" + cdfile}, "work", "pull", "origin", "new").MustSucceed(t)
-	newWt := worktreeDir(repo, "work/new")
+	RunEnv(t, repo, []string{"FLOWTREE_CDFILE=" + cdfile}, "feature", "pull", "origin", "new").MustSucceed(t)
+	newWt := worktreeDir(repo, "feature/new")
 	if !exists(filepath.Join(newWt, "new.txt")) {
 		t.Fatal("pull should create the missing branch and its worktree")
 	}
 	if cd, _ := os.ReadFile(cdfile); strings.TrimSpace(string(cd)) != newWt {
 		t.Errorf("cd file = %q, want %s", cd, newWt)
 	}
-	if res := Run(t, repo, "work", "pull", "origin", "nope").MustFail(t); !strings.Contains(res.Stderr, "not found") {
+	if res := Run(t, repo, "feature", "pull", "origin", "nope").MustFail(t); !strings.Contains(res.Stderr, "not found") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 }
 
 func TestRelocate(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "work", "start", "a").MustSucceed(t)
+	Run(t, repo, "feature", "start", "a").MustSucceed(t)
 	Run(t, repo, "hotfix", "start", "1.0.1").MustSucceed(t)
-	oldA, oldH := worktreeDir(repo, "work/a"), worktreeDir(repo, "hotfix/1.0.1")
+	oldA, oldH := worktreeDir(repo, "feature/a"), worktreeDir(repo, "hotfix/1.0.1")
 
 	newBase := filepath.Join(filepath.Dir(repo), "moved")
 	Run(t, repo, "config", "baseDir", newBase).MustSucceed(t)
 
 	dry := Run(t, repo, "relocate", "-n").MustSucceed(t)
-	if !strings.Contains(dry.Stdout, filepath.Join(newBase, "work/a")) || !exists(oldA) || exists(filepath.Join(newBase, "work/a")) {
+	if !strings.Contains(dry.Stdout, filepath.Join(newBase, "feature/a")) || !exists(oldA) || exists(filepath.Join(newBase, "feature/a")) {
 		t.Errorf("dry run should only report:\n%s", dry.Stdout)
 	}
 	// refuses while standing inside a worktree that would move
@@ -115,7 +115,7 @@ func TestRelocate(t *testing.T) {
 	}
 
 	Run(t, repo, "relocate").MustSucceed(t)
-	for _, b := range []string{"work/a", "hotfix/1.0.1"} {
+	for _, b := range []string{"feature/a", "hotfix/1.0.1"} {
 		if !exists(filepath.Join(newBase, filepath.FromSlash(b), "README.md")) {
 			t.Errorf("%s was not moved under %s", b, newBase)
 		}
@@ -127,5 +127,5 @@ func TestRelocate(t *testing.T) {
 		t.Errorf("stdout = %q", res.Stdout)
 	}
 	// git still knows where they are, so commands keep working
-	Run(t, repo, "work", "checkout", "a").MustSucceed(t)
+	Run(t, repo, "feature", "checkout", "a").MustSucceed(t)
 }

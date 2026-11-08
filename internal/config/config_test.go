@@ -26,14 +26,14 @@ func TestLoadWithNothingSetGivesDefaults(t *testing.T) {
 	if err != nil || c.BaseDir != "" || c.Remote != "origin" || c.FlowEnabled() || c.HasHooks() {
 		t.Fatalf("%+v %v", c, err)
 	}
-	if got := c.WorktreePath("/code/api", "work/login"); got != "/code/worktrees/work/login" {
+	if got := c.WorktreePath("/code/api", "feature/login"); got != "/code/worktrees/feature/login" {
 		t.Error(got)
 	}
 }
 
 func TestSetAndLoad(t *testing.T) {
 	g, repo := open(t)
-	for k, v := range map[string]string{"baseDir": "/abs", "remote": "up", "master": "main", "develop": "dev", "workPrefix": "feat/", "versionTagPrefix": "v"} {
+	for k, v := range map[string]string{"baseDir": "/abs", "remote": "up", "master": "main", "develop": "dev", "featurePrefix": "feat/"} {
 		if err := config.Set(g, config.Local, k, v); err != nil {
 			t.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func TestSetAndLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := config.Flow{Master: "main", Develop: "dev", WorkPrefix: "feat/", VersionTag: "v"}
+	want := config.Flow{Master: "main", Develop: "dev", FeaturePrefix: "feat/"}
 	if c.BaseDir != "/abs" || c.Remote != "up" || c.Flow != want || !c.FlowEnabled() {
 		t.Fatalf("%+v", c)
 	}
@@ -77,8 +77,8 @@ func TestSetValidatesValues(t *testing.T) {
 	if err := config.Set(g, config.Local, "baseDir", " "); err == nil {
 		t.Error("empty baseDir must be rejected")
 	}
-	if err := config.Set(g, config.Local, "versionTagPrefix", ""); err != nil {
-		t.Errorf("an empty tag prefix is valid: %v", err)
+	if err := config.Set(g, config.Local, "versionTagPrefix", "v"); err == nil {
+		t.Error("versionTagPrefix is gone and must be rejected as unknown")
 	}
 }
 
@@ -133,11 +133,11 @@ func TestBaseDirDefaults(t *testing.T) {
 		t.Error(got)
 	}
 	c.Parent = "/wt"
-	if got := c.WorktreePath("/code/api", "work/x"); got != "/wt/api/work/x" {
+	if got := c.WorktreePath("/code/api", "feature/x"); got != "/wt/api/feature/x" {
 		t.Errorf("FLOWTREE_PARENT/<repo>/<branch>: %s", got)
 	}
 	c.BaseDir = "/explicit"
-	if got := c.WorktreePath("/code/api", "work/x"); got != "/explicit/work/x" {
+	if got := c.WorktreePath("/code/api", "feature/x"); got != "/explicit/feature/x" {
 		t.Errorf("an explicit baseDir wins over FLOWTREE_PARENT: %s", got)
 	}
 	if got := config.ExpandHome("~/x"); strings.HasPrefix(got, "~") {

@@ -4,6 +4,51 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [v0.3.0] - 2026-11-08
+
+### Added
+
+- Subtasks have a description, their brief: `work start -d`, `task edit <n>/<sub>`, shown by `task show`
+  and `board`. `flowtree task prompt <n>[/<sub>]` prints a task or subtask as a Markdown brief (descriptions,
+  branch, worktree path, how it is finished) to hand to an agent.
+- `flowtree board`: `c` writes a comment on the selected task in your editor.
+- A per-repository board: `flowtree task add|list|show|edit|comment|todo|backlog|human`, stored in
+  `<git-common-dir>/flowtree-board.json` (shared by all worktrees, never pushed). A task's column follows git:
+  todo or backlog without a branch, doing while the branch exists, review when asked at the current tip, done once
+  merged into its target, abandoned when deleted unmerged. `list` and `show` take `--json`.
+- `flowtree board`: a terminal kanban of the board for people, with a detail pane, editing in your editor and live
+  reload. Agents keep using `flowtree task`.
+- The flow keeps the board current: `feature`/`hotfix start -T <n>` links task #n to the new branch (without `-T`
+  a task is added), `work start` adds a subtask, `finish` and `delete` record the last tip. New
+  `feature`/`hotfix review [--undo]` marks a task ready for review until the next commit; `feature rebase` keeps
+  the mark. A board failure only warns.
+- `flowtree task sync [-n]` catches the board up with plain git: tasks for untracked feature/hotfix branches,
+  subtasks for unknown work branches, relinking renamed branches by tip, and recording every tip.
+- `work` branches: local subtasks of a feature or hotfix for parallel work, named `work/<parent>/<name>`.
+  `work start [-P <parent>] <name>` starts one off the parent's tip (without `-P`: the parent whose worktree you
+  are in, else a picker); `work finish` rebases it onto the parent and fast-forwards the parent. They cannot be
+  published or tracked. `feature`/`hotfix` `finish` and `delete` refuse while subtasks are open. New setting
+  `workPrefix` (default `work/`) and `init --work-prefix`.
+
+### Changed
+
+- **Breaking:** the `work` kind is now `feature` (`flowtree feature …`, branches `feature/<name>`, setting
+  `featurePrefix`, `init --feature-prefix`). Existing `work/*` branches and `flowtree.workPrefix` are not migrated.
+- `feature finish` always merges into develop with a merge commit and never rebases. It fetches first, and when
+  develop or its remote copy already contains the branch (a merged pull request) it only cleans up. Its `-F`,
+  `-r`/`--no-rebase`, `-p`, `-S` and `--no-ff` flags and the `flowtree.finishRebase` setting are gone.
+
+- Release branches get their own worktree, like work and hotfix branches; the main checkout only ever holds
+  master or develop. `release start`, `checkout` and `track` no longer switch the main checkout. A release
+  that is still checked out in the main checkout from an older version is moved into a worktree by
+  `release checkout` or `switch`, or finished in place as before.
+- Only one release or hotfix can be open at a time: `release start` refuses while a hotfix is open, and the
+  other way round.
+- **Breaking:** the version tag prefix is gone (`flowtree.versionTagPrefix`, `init -t`). A release or hotfix is
+  tagged with its version exactly as given: `release start v1.2.0` makes `release/v1.2.0` and tags `v1.2.0`.
+  A leftover `flowtree.versionTagPrefix` is now an unknown key; remove it with
+  `git config --unset flowtree.versionTagPrefix`.
+
 ## [0.2.1]
 
 ### Fixed

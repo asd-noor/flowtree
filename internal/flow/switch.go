@@ -14,7 +14,7 @@ type SwitchAction int
 const (
 	GoDir    SwitchAction = iota // the directory exists: just go there
 	MoveMain                     // check the branch out in the main worktree
-	Ensure                       // give a work or hotfix branch its own worktree (create or repair)
+	Ensure                       // give a topic branch its own worktree (create or repair)
 )
 
 // MainKey is the key of the main worktree row.
@@ -82,7 +82,7 @@ func mainRow(s Settings, main, branch string) SwitchTarget {
 }
 
 func strayRow(s Settings, mainBranch string) []SwitchTarget {
-	if _, ok := s.topicKind(mainBranch); !ok {
+	if !s.isTopic(mainBranch) {
 		return nil
 	}
 	return []SwitchTarget{{
@@ -126,21 +126,9 @@ func branchRows(s Settings, branches []string, seen map[string]bool) []SwitchTar
 }
 
 // longLived: the branches the main worktree may rest on.
-func (s Settings) longLived(b string) bool {
-	return b != "" && (b == s.Master || b == s.Develop || strings.HasPrefix(b, s.ReleasePrefix))
-}
+func (s Settings) longLived(b string) bool { return b != "" && (b == s.Master || b == s.Develop) }
 
-// topicKind reports the kind of a branch that gets its own worktree (work and hotfix).
-func (s Settings) topicKind(b string) (Kind, bool) {
-	for _, k := range []Kind{Work, Hotfix} {
-		if b != "" && strings.HasPrefix(b, s.Prefix(k)) {
-			return k, true
-		}
-	}
-	return 0, false
-}
-
-func (s Settings) isTopic(b string) bool { _, ok := s.topicKind(b); return ok }
+func (s Settings) isTopic(b string) bool { _, ok := s.KindOf(b); return ok }
 
 // Switch performs the action of t, asks the shell to cd, and returns the directory.
 func Switch(e *Env, t SwitchTarget) (string, error) {
@@ -166,7 +154,7 @@ func switchDir(e *Env, t SwitchTarget) (string, error) {
 	return t.Dir, nil
 }
 
-// shortName is a topic branch without its prefix ("work/login" -> "login"), so `switch login` is an
+// shortName is a topic branch without its prefix ("feature/login" -> "login"), so `switch login` is an
 // exact match. Other branches have none.
 func (s Settings) shortName(b string) string {
 	for _, k := range Kinds {

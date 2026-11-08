@@ -107,8 +107,8 @@ func EvacuateMain(e *Env, branch string) error {
 	return nil
 }
 
-// EnsureWorktree returns the directory of a work or hotfix branch, creating the worktree if the
-// branch has none. Such branches never live in the main worktree.
+// EnsureWorktree returns the directory of a topic branch, creating the worktree if the branch has
+// none. Topic branches never live in the main worktree.
 func EnsureWorktree(e *Env, branch string) (string, error) {
 	w, ok, err := e.WorktreeOf(branch)
 	if err != nil {
@@ -123,17 +123,4 @@ func EnsureWorktree(e *Env, branch string) (string, error) {
 		}
 	}
 	return worktreeForExisting(e, branch)
-}
-
-// TopicDir is where a branch of kind k lives: its worktree, or for releases the main worktree,
-// which is switched onto the branch if it is not there already.
-func TopicDir(e *Env, k Kind, branch string) (string, error) {
-	if !k.LivesInMain() {
-		return EnsureWorktree(e, branch)
-	}
-	w, ok, err := e.WorktreeOf(branch)
-	if err != nil || ok {
-		return w.Path, err
-	}
-	return e.Main, SwitchMain(e, branch)
 }

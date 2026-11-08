@@ -26,7 +26,7 @@ func List(e *Env, k Kind, verbose bool) ([]Entry, error) {
 	for i, b := range branches {
 		entries[i] = Entry{Name: e.S.Name(k, b), Branch: b, Current: b == current}
 		if verbose {
-			entries[i].State = stateOf(e.MainGit(), b, e.S.Base(k))
+			entries[i].State = stateOf(e.MainGit(), b, e.S.BaseOf(k, b))
 		}
 	}
 	return entries, nil
@@ -80,14 +80,14 @@ func Publish(e *Env, k Kind, name string) error {
 	return nil
 }
 
-// Checkout returns the directory of a topic branch, creating its worktree (or switching the main
-// worktree to a release) when needed, and asks the shell to cd there.
+// Checkout returns the directory of a topic branch, creating its worktree when needed, and asks the
+// shell to cd there.
 func Checkout(e *Env, k Kind, name string) (string, error) {
 	branch, err := ResolveTopic(e, k, name)
 	if err != nil {
 		return "", err
 	}
-	dir, err := TopicDir(e, k, branch)
+	dir, err := EnsureWorktree(e, branch)
 	if err == nil {
 		e.cd(dir)
 	}
@@ -111,15 +111,18 @@ func PlanDelete(e *Env, o DeleteOpts) ([]Step, error) {
 	if err != nil {
 		return nil, err
 	}
-	base := e.S.Base(o.Kind)
+	if err := checkNoChildren(e, o.Kind, branch); err != nil {
+		return nil, err
+	}
+	base := e.S.BaseOf(o.Kind, branch)
 	if !o.Force && !e.MainGit().Ok("merge-base", "--is-ancestor", branch, base) {
 		return nil, fmt.Errorf("branch '%s' has not been merged into '%s'; use -f to force the deletion", branch, base)
 	}
 	co := CleanupOpts{KeepRemote: !o.Remote, Force: o.Force}
-	return One("remove worktree and branch "+branch, func(e *Env) error {
+	return Plan(trackStep(branch), One("remove worktree and branch "+branch, func(e *Env) error {
 		e.Say("Summary of actions:")
 		return Cleanup(e, branch, co)
-	}), nil
+	})), nil
 }
 
 // Names lists topic names of kind k that start with prefix, for completion.

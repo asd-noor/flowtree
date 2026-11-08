@@ -9,24 +9,37 @@ worktrees, so you `cd` between them instead of switching branches in one checkou
 |------|--------|-------------|----------------------|----------|
 | production | `master` (or `main`) | | | the main checkout |
 | integration | `develop` | | | the main checkout |
-| `work` | `work/` | develop | develop | its own worktree |
-| `release` | `release/` | develop | master (tagged), then the tag into develop | the main checkout |
+| `feature` | `feature/` | develop | develop | its own worktree |
+| `release` | `release/` | develop | master (tagged), then the tag into develop | its own worktree |
 | `hotfix` | `hotfix/` | master | master (tagged), then the tag into develop | its own worktree |
+| `work` | `work/<parent>/` | its parent (a feature or hotfix) | the parent: rebased, then fast-forwarded | its own worktree, never pushed |
 
-Names and prefixes are settings (`flowtree init --flow`, see [configuration.md](configuration.md)). `work`
-replaces git-flow's `feature`, `bugfix` and `support`; there is no `feature` alias.
+Names and prefixes are settings (`flowtree init --flow`, see [configuration.md](configuration.md)). `feature`
+replaces git-flow's `feature`, `bugfix` and `support`.
 
 ## The main-checkout rule
 
-The main checkout (the directory you cloned into) rests on `develop`. It only ever holds `master`, `develop`
-or a `release/*` branch. `work/*` and `hotfix/*` branches each get a worktree at `<baseDir>/<branch>`.
+The main checkout (the directory you cloned into) rests on `develop`. It only ever holds `master` or
+`develop`. `feature/*`, `release/*`, `hotfix/*` and `work/*` branches each get a worktree at `<baseDir>/<branch>`.
 
-Releases are the exception because they only touch a changelog and a version string: `release start` switches
-the main checkout onto the release branch, and `release finish` switches it back to develop. This needs a clean
-main checkout, and develop must not be checked out in another worktree at that point.
+## Work branches
 
-If you check a work or hotfix branch out in the main checkout by hand, the commands that need its worktree
-(`checkout`, `switch`, `rebase`, `pull`) move the main checkout back (develop for work, master for hotfix; it
+A feature or hotfix is a task; a work branch is a subtask of one, so several people or agents can work on a task
+in parallel. Its name carries its parent: `work/feature/login/api` belongs to `feature/login`.
+
+- `work start [-P <parent>] <name>`: the parent is `-P` (a full branch name), else the feature or hotfix whose
+  worktree you are in (or the parent of the work branch you are in), else, on a terminal, a picker. The branch
+  starts from the parent's tip. Names must not contain `/`.
+- `work finish`: rebases the work branch onto its parent inside its worktree (a conflict aborts the rebase and
+  changes nothing), fast-forwards the parent (in the parent's worktree, which must have no uncommitted changes,
+  or in a throwaway worktree), then removes the work worktree and branch.
+- Work branches are local: there is no `work publish`, `track` or `pull`.
+- A bare name (`api`) means the subtask of the parent you are in; elsewhere it must be unique, or give
+  `feature/login/api`.
+- `feature finish`, `hotfix finish` and their `delete` refuse while the branch has open work branches.
+
+If you check a topic branch out in the main checkout by hand, the commands that need its worktree
+(`checkout`, `switch`, `rebase`, `pull`) move the main checkout back (master for hotfix, else develop; it
 must be clean), give the branch a worktree and say so on stderr.
 
 ## Lifecycle
@@ -34,10 +47,10 @@ must be clean), give the branch a worktree and say so on stderr.
 ```
 flowtree init --flow                 # once per clone: settings, master + develop
 
-flowtree work start login            # work/login from develop, in <baseDir>/work/login
-flowtree work finish                 # merge into develop, remove worktree and branch
+flowtree feature start login         # feature/login from develop, in <baseDir>/feature/login
+flowtree feature finish              # merge commit into develop, remove worktree and branch
 
-flowtree release start 1.2.0         # release/1.2.0 from develop; main checkout switches to it
+flowtree release start 1.2.0         # release/1.2.0 from develop, in its own worktree
 flowtree release finish -m "1.2.0"   # merge to master, tag, merge the tag into develop
 
 flowtree hotfix start 1.2.1          # hotfix/1.2.1 from master, in its own worktree
@@ -46,13 +59,14 @@ flowtree hotfix finish -p            # like release finish, then push develop, m
 
 ## `finish`
 
-**Work**
+**Feature**
 
-1. optional `-F` fetch, then refuse if develop is behind or has diverged from the remote;
-2. rebase of the branch onto develop (skipped with `-S`, which discards the commits anyway; `-r` forces it) (`-p` keeps merges; `--no-rebase` skips it; set `flowtree.finishRebase false` to make that the default, and `-r` forces it per run), inside its worktree. A conflict aborts the rebase and finish stops before merging;
-3. merge into develop: fast-forward when possible, `--no-ff` for a merge commit, `-S` to squash;
-4. clean up (below);
-5. optional `--push` of develop.
+1. fetch, when the remote exists;
+2. if develop or its remote copy already contains the branch (a pull request merged on the forge), skip the
+   merge; otherwise refuse if develop is behind or has diverged from the remote, then merge into develop with
+   `--no-ff` (always a merge commit; the branch is never rebased);
+3. clean up (below);
+4. optional `--push` of develop.
 
 **Release and hotfix**
 
@@ -65,16 +79,16 @@ flowtree hotfix finish -p            # like release finish, then push develop, m
 
 **Clean up** removes the worktree, the local branch and the branch on the remote. `-k` keeps both branches
 (the worktree is still removed and `checkout` recreates it); `--keeplocal` and `--keepremote` keep one;
-`-D` removes a worktree that has untracked files. A release in the main checkout is not removed: the main
-checkout goes back to develop.
+`-D` removes a worktree that has untracked files. A topic branch checked out by hand in the main checkout is not
+removed: the main checkout goes back to develop.
 
 ### Safety properties
 
 - `finish` merges inside the worktree that already has the target branch checked out, or in a throwaway
   worktree that is always removed afterwards. That worktree is often the main checkout (it rests on develop): it
   must have no uncommitted changes to tracked files, and the merge does update its files. What `finish` does not
-  do is switch the branch of the directory you ran it from: the exceptions are that finishing a release (or a
-  topic branch that was checked out by hand in the main checkout) returns the main checkout to develop, and that
+  do is switch the branch of the directory you ran it from: the exceptions are that finishing a topic branch
+  that was checked out by hand in the main checkout returns the main checkout to develop, and that
   finishing from inside a topic worktree removes that worktree (your shell is sent to the main checkout).
 - A conflicting merge is aborted and nothing changes, instead of being left half done. Resolve it on the topic
   branch (`git merge develop`) and run `finish` again.
@@ -82,24 +96,25 @@ checkout goes back to develop.
   the tag into develop by hand, then run `finish` again: it sees that the branch is already merged and tagged
   (master is exactly the tagged commit), prints "Resuming...", skips the merge, the tag and an already-done
   back-merge, and finishes the cleanup.
-- `start` refuses if a release or hotfix is already open, if the tag exists, if the branch exists locally, or if
+- `start` refuses if a release or hotfix is already open (only one of the two at a time: a hotfix fixes a shipped
+  release, so they never overlap), if the tag exists, if the branch exists locally, or if
   it exists on the remote (use `track`).
 - Finishing and starting refuse when master or develop is behind or has diverged from the remote.
 
 ## Names
 
 `finish`, `publish`, `checkout`, `rebase` and the other per-branch commands take the name without its prefix
-(`login`, not `work/login`; the prefix is accepted too). Work names also accept a unique prefix of the name.
+(`login`, not `feature/login`; the prefix is accepted too). Work names also accept a unique prefix of the name.
 With no name they use the branch of the worktree you are in. Outside such a worktree, on a terminal, `finish`
 and `checkout` open a picker over the open branches of that kind.
 
 ## Differences from git-flow
 
-- `work` and `hotfix` `start`, `track` and `checkout` create a worktree instead of switching your checkout.
-- Releases switch the main checkout (see above).
-- `bugfix` and `support` are folded into `work`, so support-style branches start from develop, not master.
+- `start`, `track` and `checkout` create a worktree instead of switching your checkout.
+- A release and a hotfix cannot be open at the same time.
+- `bugfix` and `support` are folded into `feature`, so support-style branches start from develop, not master.
 - A conflicting merge is aborted rather than left in progress.
-- While a release is open, `work finish` and `hotfix finish` still merge into develop, through a throwaway
+- While a release is open, `feature finish` and `hotfix finish` still merge into develop, through a throwaway
   worktree. `hotfix finish` back-merges into develop only, as AVH does.
 - Settings live in the `flowtree` section of git config (`flowtree config`), hooks in a file inside `.git/`.
 

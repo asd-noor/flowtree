@@ -38,7 +38,7 @@ The production branch may be called `main`; the branch names and prefixes are in
 3. **Stay non-interactive.** There is no terminal, so the picker is unavailable: `switch`, `print-dir` and
    `remove` need a name that matches exactly one worktree, and `finish`/`checkout` need a name unless you run
    them inside the topic worktree. Use `flowtree init --flow -d`. Always pass `-m "<message>"` to
-   `release finish` and `hotfix finish`.
+   `release finish` and `hotfix finish`, in the tag message format below.
 4. **Do not push** (`-p`, `--push`, `publish`) or delete remote branches unless the user asked. `finish`
    deletes the remote copy of the topic branch if one exists; use `--keepremote` when that is not wanted.
 5. **Finish with flowtree, not by hand.** Do not `git merge`/`git branch -d`/`git worktree remove` a topic
@@ -77,18 +77,34 @@ Finish or delete every subtask before `feature finish` / `hotfix finish`: they r
 ```sh
 flowtree release start 1.4.0      # only one release or hotfix may be open
 # version bump, changelog, fixes; commit in the release worktree
-flowtree release finish -m "Release 1.4.0" 1.4.0
+flowtree release finish 1.4.0 -m "1.4.0
+
+- <important point on the release, in short>
+- <another one>"
 ```
 
 **Hotfix**
 ```sh
 flowtree hotfix start 1.4.1
 # fix + commit in the worktree
-flowtree hotfix finish -m "Hotfix 1.4.1" 1.4.1
+flowtree hotfix finish 1.4.1 -m "1.4.1
+
+- <what the hotfix fixes, in short>"
 ```
 
 `finish` merges into `master` with `--no-ff`, creates an annotated tag (name = version, plus the configured tag
 prefix), merges the tag into `develop`, then removes the worktree and branch.
+
+**Tag message format.** The first line is the tag name (with its prefix, e.g. `v1.4.0` when the tag prefix is
+`v`), then a blank line, then one short bullet per important point of the release:
+
+```
+<tag>
+
+- <important point on release in short>
+- <important point on release in short>
+- ...
+```
 
 Preview any `start`, `finish` or `delete` with `--dry-run`: it prints the steps and changes nothing.
 

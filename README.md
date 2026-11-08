@@ -132,6 +132,7 @@ Each repository has a kanban of its own, stored in the git directory (shared by 
 flowtree task add -t ui "Login page"   # -> #1, in todo
 flowtree task list                     # #1    todo      Login page  [ui]
 flowtree task show 1 | edit 1 | comment 1 "..." | backlog 1 | human 1
+flowtree task sync                     # after branches were made or renamed with plain git
 ```
 
 Columns follow git rather than manual moves: a task without a branch is in todo (or the backlog), with a branch it

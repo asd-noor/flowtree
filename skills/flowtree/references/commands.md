@@ -83,6 +83,7 @@ refuse while subtasks are open.
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
+| `task sync [-n]` | Catch up with plain git: add tasks for feature/hotfix branches without one and subtasks for unknown work branches, relink a task whose branch was renamed (same tip), record every tip. `-n` only prints the changes. |
 | `board` | Interactive terminal kanban, for humans only. Agents must not run it (it needs a terminal and blocks); use `task list` / `task show`. |
 
 The flow commands keep the board up to date (a board failure only prints a warning; git is never rolled back):

@@ -229,6 +229,7 @@ Releases have no task. `--dry-run` shows the board steps as `board: ...`.
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
+| `task sync [-n]` | Catch up with plain git: add tasks for feature/hotfix branches without one and subtasks for unknown work branches, relink a task whose branch was renamed (same tip), record every tip. `-n` only prints the changes. |
 | `board` | Terminal kanban for people; needs a terminal (without one, use `task list`). |
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,

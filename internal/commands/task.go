@@ -30,7 +30,7 @@ func newTaskCmd(d Deps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(newTaskAddCmd(d), newTaskListCmd(d), newTaskShowCmd(d), newTaskEditCmd(d),
-		newTaskCommentCmd(d), newTaskFlagCmd(d, "todo"), newTaskFlagCmd(d, "backlog"), newTaskHumanCmd(d))
+		newTaskCommentCmd(d), newTaskFlagCmd(d, "todo"), newTaskFlagCmd(d, "backlog"), newTaskHumanCmd(d), newTaskSyncCmd(d))
 	return cmd
 }
 
@@ -417,5 +417,36 @@ func newTaskHumanCmd(d Deps) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&off, "off", false, "clear the mark")
+	return cmd
+}
+
+func newTaskSyncCmd(d Deps) *cobra.Command {
+	var dry bool
+	cmd := &cobra.Command{
+		Use:   "sync [-n]",
+		Short: "Bring the board in line with branches made or renamed with plain git",
+		Long: "Adds tasks for feature and hotfix branches that have none, subtasks for unknown work branches,\n" +
+			"relinks a task whose branch was renamed (same tip), and records every branch's tip so a later\n" +
+			"merge-and-delete still reads as done. -n prints the changes without writing them.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return withFlow(cmd.Context(), d, func(e *flow.Env) error {
+				changes, err := flow.Sync(e, dry)
+				if err != nil {
+					return err
+				}
+				switch {
+				case len(changes) == 0:
+					d.Printf("The board is in line with the branches.\n")
+				case dry:
+					d.Printf("Dry run; would have:\n- %s\n", strings.Join(changes, "\n- "))
+				default:
+					d.Printf("- %s\n", strings.Join(changes, "\n- "))
+				}
+				return nil
+			})
+		},
+	}
+	cmd.Flags().BoolVarP(&dry, "dry-run", "n", false, "print the changes without writing them")
 	return cmd
 }

@@ -3,9 +3,11 @@ package flow
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"flowtree/internal/board"
+	"flowtree/internal/gitx"
 )
 
 // BoardPath is the board file of the repository, in the git directory every worktree shares.
@@ -168,4 +170,54 @@ func carriedReview(b board.Board, branch, oldTip, newTip string) board.Board {
 		return b.Track(branch, newTip)
 	}
 	return b.Track(branch, newTip).SetReview(branch, newTip)
+}
+
+// syncRefs lists the feature, hotfix and work branches as Reconcile wants them.
+func syncRefs(e *Env) ([]board.Ref, error) {
+	var refs []board.Ref
+	for _, k := range []Kind{Feature, Hotfix, Work} {
+		branches, err := gitx.LocalBranches(e.MainGit(), e.S.Prefix(k))
+		if err != nil {
+			return nil, err
+		}
+		for _, br := range branches {
+			refs = append(refs, refOf(e, k, br))
+		}
+	}
+	return refs, nil
+}
+
+func refOf(e *Env, k Kind, branch string) board.Ref {
+	start, _ := e.MainGit()("merge-base", branch, e.S.Target(branch))
+	r := board.Ref{Branch: branch, Tip: tipOf(e, branch), Start: start, Title: e.S.Name(k, branch)}
+	if k == Work {
+		r.Parent = e.S.ParentOf(branch)
+		r.Title = strings.TrimPrefix(branch, e.S.WorkPrefix+r.Parent+"/")
+	}
+	return r
+}
+
+// Sync reconciles the board with the branches as they are, for changes made with plain git. With dry
+// it only reports what it would change.
+func Sync(e *Env, dry bool) ([]string, error) {
+	refs, err := syncRefs(e)
+	if err != nil {
+		return nil, err
+	}
+	path, err := BoardPath(e)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	if dry {
+		b, err := board.Load(path)
+		_, changes := board.Reconcile(b, refs, now)
+		return changes, err
+	}
+	var changes []string
+	err = board.Update(path, func(b board.Board) (board.Board, error) {
+		b, changes = board.Reconcile(b, refs, now)
+		return b, nil
+	})
+	return changes, err
 }

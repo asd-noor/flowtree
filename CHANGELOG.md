@@ -4,6 +4,14 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [v0.4.3] - 2026-11-09
+
+### Changed
+
+- `flowtree board`: the detail pane scrolls. `J`/`K` move it a line, `ctrl+d`/`ctrl+u` or `pgdn`/`pgup` half a pane,
+  and a `lines a-b/n` counter shows in the help bar when the card doesn't fit. Long lines wrap to the pane width, and
+  comments get a bullet.
+
 ## [v0.4.2] - 2026-11-08
 
 ### Changed

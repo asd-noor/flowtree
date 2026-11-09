@@ -234,6 +234,8 @@ Releases have no task. `--dry-run` shows the board steps as `board: ...`.
 | `board` | Terminal kanban for people; needs a terminal (without one, use `task list`). |
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,
-`enter`/`tab` toggles the detail pane (branch, tags, description, subtasks, comments), `e` edits the card in your
+`enter`/`tab` toggles the detail pane (branch, tags, description, subtasks, comments; long lines wrap), `J`/`K`
+scroll it a line and `ctrl+d`/`ctrl+u` or `pgdn`/`pgup` half a pane, with a `lines a-b/n` counter in the help bar
+when the card doesn't fit; selecting another card starts again from its top. `e` edits the card in your
 git editor (title line, blank line, description), `c` writes a new comment in it (empty adds nothing), `q`/`esc`/`ctrl+c` quit. The board is reloaded every second, statuses
 included, so changes from other commands and plain git commits show up, with the selection kept on the same card.

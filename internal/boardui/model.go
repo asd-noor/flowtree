@@ -40,6 +40,7 @@ type model struct {
 	cards         []Card
 	col, row      int
 	detail        bool
+	scroll        int // first shown line of the detail pane
 	width, height int
 	notice        string // last error, shown until the next key
 }
@@ -92,6 +93,14 @@ func (m model) onKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.moveRow(1), nil
 	case "enter", "tab":
 		m.detail = !m.detail
+	case "J":
+		return m.scrollBy(1), nil
+	case "K":
+		return m.scrollBy(-1), nil
+	case "ctrl+d", "pgdown":
+		return m.scrollBy(max(detailRows(m)/2, 1)), nil
+	case "ctrl+u", "pgup":
+		return m.scrollBy(-max(detailRows(m)/2, 1)), nil
 	case "e":
 		return m.external(m.src.Edit)
 	case "c":
@@ -116,14 +125,23 @@ func (m model) selected() (Card, bool) {
 	return cs[m.row], true
 }
 
+// moveCol and moveRow select another card, so the detail pane starts again from its top.
 func (m model) moveCol(d int) model {
-	m.col = max(0, min(len(board.Columns)-1, m.col+d))
+	m.col, m.scroll = max(0, min(len(board.Columns)-1, m.col+d)), 0
 	return m.clamped()
 }
 
 func (m model) moveRow(d int) model {
-	m.row += d
+	m.row, m.scroll = m.row+d, 0
 	return m.clamped()
+}
+
+// scrollBy moves the open detail pane d lines, kept within the selected card's text.
+func (m model) scrollBy(d int) model {
+	if m.detail {
+		m.scroll = max(0, min(maxScroll(m), m.scroll+d))
+	}
+	return m
 }
 
 // clamped keeps the cursor on a card of its column.

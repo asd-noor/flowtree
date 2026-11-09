@@ -200,3 +200,43 @@ func TestRenderFitsSmallTerminals(t *testing.T) {
 		}
 	}
 }
+
+func longCard() Card {
+	c := card(1, "a", board.Todo)
+	lines := make([]string, 40)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("line%02d", i)
+	}
+	c.Description = strings.Join(lines, "\n")
+	return c
+}
+
+func TestDetailScrollsWithinTheCard(t *testing.T) {
+	m := key(key(newModel(Source{}, []Card{longCard(), card(2, "b", board.Todo)}), "l"), "enter")
+	if m = key(m, "K"); m.scroll != 0 {
+		t.Fatalf("scrolled above the top: %d", m.scroll)
+	}
+	m = key(m, "J")
+	out := ansi.Strip(render(m))
+	if strings.Contains(out, "│ #1 a") || !strings.Contains(out, "lines 2-") {
+		t.Errorf("one line down should hide the title and show the counter:\n%s", out)
+	}
+	for range 100 {
+		m = key(m, "J")
+	}
+	if m.scroll != maxScroll(m) || !strings.Contains(ansi.Strip(render(m)), "line39") {
+		t.Errorf("scroll %d, want the last line at %d", m.scroll, maxScroll(m))
+	}
+	if m = key(m, "j"); m.scroll != 0 {
+		t.Errorf("selecting another card should reset the scroll, got %d", m.scroll)
+	}
+}
+
+func TestDetailWrapsLongLines(t *testing.T) {
+	c := card(1, "a", board.Todo)
+	c.Description = strings.Repeat("word ", 30) + "end"
+	m := key(key(newModel(Source{}, []Card{c}), "l"), "enter")
+	if out := ansi.Strip(render(m)); !strings.Contains(out, "end") || strings.Contains(out, "lines ") {
+		t.Errorf("long line should wrap and still fit:\n%s", out)
+	}
+}

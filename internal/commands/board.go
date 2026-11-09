@@ -21,8 +21,8 @@ func newBoardCmd(d Deps) *cobra.Command {
 		Use:   "board",
 		Short: "Browse the task board in a terminal (for people; agents use `task`)",
 		Long: "A read-mostly kanban of the repository's tasks, one column per status. Move with the arrow keys\n" +
-			"or h j k l, enter shows the card's details, e edits it in your editor, c adds a\n" +
-			"comment, q quits. Changes made by other\n" +
+			"or h j k l, enter shows the card's details (J/K, ctrl+d/ctrl+u or pgdn/pgup scroll them),\n" +
+			"e edits it in your editor, c adds a comment, q quits. Changes made by other\n" +
 			"flowtree commands show up within a second.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

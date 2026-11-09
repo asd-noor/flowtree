@@ -22,19 +22,22 @@ func (m model) View() tea.View {
 
 // render draws the columns, the detail pane when open, and a footer.
 func render(m model) string {
-	colH := m.height - 2
+	parts := []string{columns(m, colHeight(m))}
 	if m.detail {
-		colH = (m.height - 2) / 2
-	}
-	cols := columns(m, max(colH, 4))
-	parts := []string{cols}
-	if m.detail {
-		parts = append(parts, detailBox(m, m.height-2-lipgloss.Height(cols)))
+		parts = append(parts, detailBox(m, m.height-2-colHeight(m)))
 	}
 	return strings.Join(append(fit(strings.Split(strings.Join(parts, "\n"), "\n"), m.width), footer(m)), "\n")
 }
 
-var helpKeys = [][2]string{{"h/l", "columns"}, {"j/k", "cards"}, {"enter", "detail"}, {"e", "edit"}, {"c", "comment"}, {"q", "quit"}}
+// colHeight is the rows of the columns: all but the footer, or half of that when the detail pane is open.
+func colHeight(m model) int {
+	if m.detail {
+		return max((m.height-2)/2, 4)
+	}
+	return max(m.height-2, 4)
+}
+
+var helpKeys = [][2]string{{"h/l", "columns"}, {"j/k", "cards"}, {"enter", "detail"}, {"J/K", "scroll"}, {"e", "edit"}, {"c", "comment"}, {"q", "quit"}}
 
 func footer(m model) string {
 	if m.notice != "" {
@@ -43,6 +46,9 @@ func footer(m model) string {
 	items := make([]string, len(helpKeys))
 	for i, k := range helpKeys {
 		items[i] = bold.Render(k[0]) + " " + faint.Render(k[1])
+	}
+	if lines, off, total := detailView(m); m.detail && total > len(lines) {
+		items = append([]string{faint.Render(fmt.Sprintf("lines %d-%d/%d", off+1, off+len(lines), total))}, items...)
 	}
 	return " " + strings.Join(items, faint.Render("  ·  "))
 }
@@ -135,20 +141,34 @@ func detailBox(m model, height int) string {
 	if height < 3 {
 		return ""
 	}
-	inner := max(m.width-4, 0)
-	lines := padLines(detailLines(m, height-2), height-2, inner)
+	lines, _, _ := detailView(m)
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(frameColor).Padding(0, 1).
-		Render(strings.Join(lines, "\n"))
+		Render(strings.Join(padLines(lines, height-2, detailWidth(m)), "\n"))
 }
 
-// detailLines describes the selected card, cut to height lines.
-func detailLines(m model, height int) []string {
+// detailRows is the text rows inside the detail pane's border.
+func detailRows(m model) int { return max(m.height-2-colHeight(m)-2, 0) }
+
+func detailWidth(m model) int { return max(m.width-4, 0) }
+
+// detailView is the part of the detail lines the pane shows from the scroll offset, the offset used, and
+// how many lines there are in all. The offset is clamped here too, as a reload can shorten the card.
+func detailView(m model) (lines []string, off, total int) {
+	all := detailLines(m)
+	off = min(m.scroll, maxScroll(m))
+	return all[off:min(len(all), off+detailRows(m))], off, len(all)
+}
+
+// maxScroll is the largest scroll offset that still fills the pane.
+func maxScroll(m model) int { return max(len(detailLines(m))-detailRows(m), 0) }
+
+// detailLines describes the selected card, wrapped to the pane's width.
+func detailLines(m model) []string {
 	c, ok := m.selected()
 	if !ok {
 		return []string{faint.Render("(no card selected)")}
 	}
-	lines := strings.Split(strings.TrimRight(detailText(c), "\n"), "\n")
-	return lines[:max(0, min(len(lines), height))]
+	return strings.Split(ansi.Wrap(strings.TrimRight(detailText(c), "\n"), detailWidth(m), ""), "\n")
 }
 
 func detailText(c Card) string {
@@ -209,7 +229,7 @@ func commentText(c Card) string {
 	var b strings.Builder
 	b.WriteString("\n" + bold.Render("Comments") + "\n")
 	for _, n := range c.Comments {
-		fmt.Fprintf(&b, "  %s %s\n", faint.Render(n.Author+", "+n.At.Format("2006-01-02 15:04")+":"), strings.ReplaceAll(n.Body, "\n", " "))
+		fmt.Fprintf(&b, "  • %s %s\n", faint.Render(n.Author+", "+n.At.Format("2006-01-02 15:04")+":"), strings.ReplaceAll(n.Body, "\n", " "))
 	}
 	return b.String()
 }

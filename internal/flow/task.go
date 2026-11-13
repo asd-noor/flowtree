@@ -122,5 +122,5 @@ func finishHint(e *Env, k Kind, ver string) string {
 			return fmt.Sprintf("flowtree task finish %d", c.ID)
 		}
 	}
-	return "flowtree task finish"
+	return "flowtree task finish <n>"
 }

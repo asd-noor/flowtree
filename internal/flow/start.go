@@ -152,7 +152,7 @@ func checkNoneOpen(e *Env) error {
 
 func checkStartRemote(e *Env, o StartOpts, branch, base string) error {
 	if e.HasRemote() && gitx.RemoteBranchExists(e.MainGit(), e.S.Remote, branch) {
-		return fmt.Errorf("branch '%s' already exists on %s; %s", branch, e.S.Remote, trackHint(o, branch))
+		return fmt.Errorf("branch '%s' already exists on %s; %s", branch, e.S.Remote, trackHint(e, o, branch))
 	}
 	if o.Base == "" {
 		return CheckSync(e, base)
@@ -172,9 +172,9 @@ func createTopic(e *Env, branch, base string) (string, error) {
 	return path, err
 }
 
-func trackHint(o StartOpts, branch string) string {
+func trackHint(e *Env, o StartOpts, branch string) string {
 	if o.Kind == Release {
-		return "use 'flowtree release track " + strings.TrimPrefix(branch, "release/") + "'"
+		return "use 'flowtree release track " + e.S.Name(Release, branch) + "'"
 	}
 	return fmt.Sprintf("use 'flowtree task track %d %s'", o.Task, branch)
 }

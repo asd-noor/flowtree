@@ -89,7 +89,7 @@ func TestRenderPrompt(t *testing.T) {
 	got := renderPrompt(prompt{ID: 3, Title: "Login", Desc: "Email and password.", Sub: &sub,
 		Branch: "work/regular/login/api", Kind: flow.Work, Name: "api"})
 	for _, want := range []string{"# Task #3: Login", "Email and password.", "## Subtask: api", "POST /login",
-		"`work/regular/login/api`", "none yet; create it with `flowtree work checkout api`", "`flowtree work finish api`"} {
+		"`work/regular/login/api`", "none yet; create it with `flowtree work checkout 3/api`", "`flowtree work finish 3/api`"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("prompt lacks %q:\n%s", want, got)
 		}

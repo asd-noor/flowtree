@@ -188,7 +188,7 @@ func finishCmd(e *Env, k Kind, task int, name, branch string) string {
 
 func printStartSummary(e *Env, k Kind, task int, name, branch, base, path string) {
 	e.Say("\nSummary of actions:\n- A new branch '%s' was created, based on '%s'\n- %s\n", branch, base, whereIs(path))
-	e.Say("Now, start committing on your %s. When done, use:\n\n     %s\n", k, finishCmd(e, k, task, name, branch))
+	e.Say("Now, start committing on your %s branch. When done, use:\n\n     %s\n", k, finishCmd(e, k, task, name, branch))
 }
 
 // PlanTrack returns the steps that check out a branch that exists on the remote.

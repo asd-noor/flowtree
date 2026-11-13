@@ -296,8 +296,8 @@ func makeTag(e *Env, o FinishOpts, tag, ver string) error {
 	}
 	if err != nil {
 		return fmt.Errorf("the %s '%s' is already merged into '%s' but tagging '%s' failed: %w\n"+
-			"Fix the cause (for example the tag message or the signing key), then re-run 'flowtree %s finish %s': it resumes from here",
-			o.Kind, ver, e.S.Master, tag, err, o.Kind, ver)
+			"Fix the cause (for example the tag message or the signing key), then re-run '%s': it resumes from here",
+			o.Kind, ver, e.S.Master, tag, err, finishHint(e, o.Kind, ver))
 	}
 	return nil
 }

@@ -31,6 +31,7 @@ func newTaskCmd(d Deps) *cobra.Command {
 	}
 	cmd.AddCommand(newTaskAddCmd(d), newTaskListCmd(d), newTaskShowCmd(d), newTaskEditCmd(d),
 		newTaskCommentCmd(d), newTaskFlagCmd(d, "todo"), newTaskFlagCmd(d, "backlog"), newTaskHumanCmd(d), newTaskSyncCmd(d), newTaskPromptCmd(d))
+	cmd.AddCommand(taskBranchCmds(d)...)
 	return cmd
 }
 
@@ -633,7 +634,7 @@ func whereText(p prompt) string {
 	}
 	dir := fmt.Sprintf("`%s`", p.Dir)
 	if p.Dir == "" {
-		dir = fmt.Sprintf("none yet; create it with `flowtree %s checkout %s`", p.Kind, ref)
+		dir = fmt.Sprintf("none yet; create it with `flowtree %s`", checkoutCmd(p, ref))
 	}
 	lines := []string{
 		fmt.Sprintf("- Branch: `%s`", p.Branch),
@@ -644,7 +645,15 @@ func whereText(p prompt) string {
 		lines = append(lines, "- Do not merge, rebase or push. When it is done, it is finished into its parent with "+
 			fmt.Sprintf("`flowtree work finish %s`.", ref))
 	} else {
-		lines = append(lines, fmt.Sprintf("- When it is ready, mark it with `flowtree %s review %s`; it is finished with `flowtree %s finish %s`.", p.Kind, p.Name, p.Kind, p.Name))
+		lines = append(lines, fmt.Sprintf("- When it is ready, mark it with `flowtree task review %d`; it is finished with `flowtree task finish %d`.", p.ID, p.ID))
 	}
 	return strings.Join(lines, "\n") + "\n"
+}
+
+// checkoutCmd is the command that creates the worktree: tasks by number, work branches by "<n>/<sub>".
+func checkoutCmd(p prompt, ref string) string {
+	if p.Kind == flow.Work {
+		return "work checkout " + ref
+	}
+	return fmt.Sprintf("task checkout %d", p.ID)
 }

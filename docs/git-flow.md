@@ -37,7 +37,7 @@ in parallel. Its name carries its parent: `work/regular/login/api` belongs to `r
 - Work branches are local: there is no `work publish`, `track` or `pull`.
 - `work finish`, `checkout` and `delete` take `<n>/<sub>`: task number and subtask name (`12/api`), resolved to
   `work/<task 12's branch>/api`.
-- `feature finish`, `hotfix finish` and their `delete` refuse while the branch has open work branches.
+- `task finish` and `task delete` (and the legacy `feature`/`hotfix` ones) refuse while the branch has open work branches.
 
 If you check a topic branch out in the main checkout by hand, the commands that need its worktree
 (`checkout`, `switch`, `rebase`, `pull`) move the main checkout back (master for hotfix, else develop; it

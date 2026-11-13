@@ -11,7 +11,7 @@ import (
 
 func TestSwitchByShortNameAndBranch(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	wt := worktreeDir(repo, "regular/login")
 	for _, q := range []string{"login", "regular/login"} {
 		cdfile := filepath.Join(t.TempDir(), "cd")
@@ -54,8 +54,8 @@ func TestSwitchRefusesDirtyMain(t *testing.T) {
 
 func TestSwitchNeedsATerminalWhenAmbiguous(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
-	Run(t, repo, "feature", "start", "logout").MustSucceed(t)
+	startRegular(t, repo, "login")
+	startRegular(t, repo, "logout")
 	res := Run(t, repo, "switch", "log").MustFail(t)
 	if !strings.Contains(res.Stderr, "no terminal") {
 		t.Errorf("stderr = %q", res.Stderr)

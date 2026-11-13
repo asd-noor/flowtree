@@ -10,12 +10,12 @@ import (
 
 func TestWorkSubtaskLifecycle(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	fwt := worktreeDir(repo, "regular/login")
 	commitFile(t, fwt, "base.txt")
 
 	Run(t, repo, "work", "start", "-P", "1", "api").MustSucceed(t)
-	Run(t, fwt, "work", "start", "ui").MustSucceed(t) // parent inferred from the feature worktree
+	Run(t, fwt, "work", "start", "ui").MustSucceed(t) // parent inferred from the task worktree
 	api, ui := worktreeDir(repo, "work/regular/login/api"), worktreeDir(repo, "work/regular/login/ui")
 	if !exists(api) || !exists(ui) {
 		t.Fatalf("work worktrees missing:\n%s", branches(t, repo))
@@ -23,8 +23,8 @@ func TestWorkSubtaskLifecycle(t *testing.T) {
 	commitFile(t, api, "api.txt")
 	commitFile(t, fwt, "on-feature.txt") // the parent moves on: finish must rebase
 
-	if res := Run(t, repo, "feature", "finish", "login").MustFail(t); !strings.Contains(res.Stderr, "open work branches") {
-		t.Errorf("feature finish with open subtasks: stderr = %q", res.Stderr)
+	if res := Run(t, repo, "task", "finish", "1").MustFail(t); !strings.Contains(res.Stderr, "open work branches") {
+		t.Errorf("task finish with open subtasks: stderr = %q", res.Stderr)
 	}
 
 	Run(t, api, "work", "finish", "#1/api").MustSucceed(t)
@@ -36,9 +36,9 @@ func TestWorkSubtaskLifecycle(t *testing.T) {
 	}
 
 	Run(t, repo, "work", "delete", "-f", "1/ui").MustSucceed(t)
-	Run(t, repo, "feature", "finish", "login").MustSucceed(t)
+	Run(t, repo, "task", "finish", "1").MustSucceed(t)
 	if !exists(repo + "/api.txt") {
-		t.Error("the feature, with its subtask, should be on develop")
+		t.Error("the task, with its subtask, should be on develop")
 	}
 }
 
@@ -47,7 +47,7 @@ func TestWorkStartNeedsAParent(t *testing.T) {
 	if res := Run(t, repo, "work", "start", "x").MustFail(t); !strings.Contains(res.Stderr, "no parent given") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
-	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	startRegular(t, repo, "a")
 	Run(t, repo, "task", "add", "Later").MustSucceed(t) // task 2, no branch
 	for arg, want := range map[string]string{
 		"regular/a": "not a task number",
@@ -79,8 +79,8 @@ func TestWorkStartRefusesParentWithoutTask(t *testing.T) {
 
 func TestWorkByTaskAndSubtask(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "hotfix", "start", "1.0.1").MustSucceed(t) // task 1
-	Run(t, repo, "feature", "start", "a").MustSucceed(t)    // task 2
+	startTask(t, repo, "hotfix", "1.0.1") // task 1
+	startRegular(t, repo, "a")            // task 2
 	Run(t, repo, "work", "start", "-P", "#1", "fix").MustSucceed(t)
 	Run(t, repo, "work", "start", "-P", "2", "fix").MustSucceed(t)
 	hwt := worktreeDir(repo, "hotfix/1.0.1")

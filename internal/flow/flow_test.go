@@ -227,3 +227,13 @@ func TestSettings(t *testing.T) {
 		t.Error("config without a flow section must be rejected")
 	}
 }
+
+func TestPlanStartNeedsATaskForRegularAndHotfix(t *testing.T) {
+	e, _ := setup(t)
+	for _, k := range []flow.Kind{flow.Regular, flow.Hotfix} {
+		_, err := flow.PlanStart(e, flow.StartOpts{Kind: k, Name: "x"})
+		if err == nil || !strings.Contains(err.Error(), "task start") {
+			t.Errorf("%s: err = %v", k, err)
+		}
+	}
+}

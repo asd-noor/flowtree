@@ -16,20 +16,17 @@ import (
 	"flowtree/internal/picker"
 )
 
-// newTopicCmd builds `flowtree feature|release|hotfix` with its subcommands.
+// newTopicCmd builds `flowtree release|work` with its subcommands.
 func newTopicCmd(k flow.Kind) Constructor {
 	return func(d Deps) *cobra.Command {
 		cmd := &cobra.Command{
-			Use:   topicName(k),
+			Use:   k.String(),
 			Short: topicShort(k),
 			Args:  cobra.NoArgs,
 			RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 		}
 		for _, sub := range topicSubs(k) {
 			cmd.AddCommand(sub(k, d))
-		}
-		if k == flow.Regular {
-			cmd.AddCommand(newDiffSub(k, d), newRebaseSub(k, d), newPullSub(k, d))
 		}
 		return cmd
 	}
@@ -39,32 +36,21 @@ func newTopicCmd(k flow.Kind) Constructor {
 // published or tracked.
 func topicSubs(k flow.Kind) []func(flow.Kind, Deps) *cobra.Command {
 	subs := []func(flow.Kind, Deps) *cobra.Command{newListSub, newStartSub, newFinishSub, newCheckoutSub, newDeleteSub}
-	switch k {
-	case flow.Work:
+	if k == flow.Work {
 		return subs
-	case flow.Regular, flow.Hotfix:
-		subs = append(subs, newReviewSub)
 	}
 	return append(subs, newPublishSub, newTrackSub)
 }
 
 func topicShort(k flow.Kind) string {
-	switch k {
-	case flow.Work:
+	if k == flow.Work {
 		return "Work branches: local subtasks of a regular or hotfix branch, rebased onto it when finished"
-	case flow.Regular:
-		return "Regular branches: start from develop, merge back into develop with a merge commit"
-	case flow.Release:
-		return "Release branches: start from develop, merge into master (tagged) and back into develop"
 	}
-	return "Hotfix branches: start from master, merge into master (tagged) and back into develop"
+	return "Release branches: start from develop, merge into master (tagged) and back into develop"
 }
 
 func nameArg(k flow.Kind) string {
-	switch k {
-	case flow.Regular:
-		return "<name>"
-	case flow.Work:
+	if k == flow.Work {
 		return "<n>/<subtask>"
 	}
 	return "<version>"
@@ -174,10 +160,11 @@ func printList(d Deps, e *flow.Env, k flow.Kind, verbose bool) error {
 }
 
 func noBranches(k flow.Kind) string {
-	if k == flow.Regular || k == flow.Hotfix {
-		return fmt.Sprintf("No %s branches exist.\n\nYou can add a task and start its branch:\n\n    flowtree task add <title>\n    flowtree task start <n> %s\n\n", k, nameArg(k))
+	arg := nameArg(k)
+	if k == flow.Work {
+		arg = "-P <n> <subtask>"
 	}
-	return fmt.Sprintf("No %s branches exist.\n\nYou can start a new %s branch:\n\n    flowtree %s start %s\n\n", k, k, k, nameArg(k))
+	return fmt.Sprintf("No %s branches exist.\n\nYou can start a new %s branch:\n\n    flowtree %s start %s\n\n", k, k, k, arg)
 }
 
 // renderEntries formats list entries; the current branch is starred.
@@ -212,9 +199,8 @@ func newStartSub(k flow.Kind, d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start [-F] [--dry-run] " + nameArg(k) + " [<base>]",
 		Short: fmt.Sprintf("Start a new %s branch", k),
-		Long: fmt.Sprintf("Create a %s branch from <base> (default %s) and give it its own worktree.",
-			k, map[bool]string{true: "master", false: "develop"}[k == flow.Hotfix]),
-		Args: cobra.RangeArgs(1, 2),
+		Long:  fmt.Sprintf("Create a %s branch from <base> (default develop) and give it its own worktree.", k),
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			o.Name, o.Base = args[0], optArg(args, 1)
 			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) { return flow.PlanStart(e, o) })
@@ -222,9 +208,6 @@ func newStartSub(k flow.Kind, d Deps) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&o.Fetch, "fetch", "F", false, "fetch the remote first")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
-	if k != flow.Release {
-		cmd.Flags().IntVarP(&o.Task, "task", "T", 0, "the board task this branch is for (default: a new task named after it)")
-	}
 	return cmd
 }
 
@@ -337,31 +320,6 @@ func newPublishSub(k flow.Kind, d Deps) *cobra.Command {
 	}
 }
 
-func newReviewSub(k flow.Kind, d Deps) *cobra.Command {
-	var undo bool
-	cmd := &cobra.Command{
-		Use:   "review [--undo] [" + nameArg(k) + "]",
-		Short: fmt.Sprintf("Mark the %s's task as ready for review; new commits move it back to doing", k),
-		Long: "Records the branch's current tip on its board task, which then shows in review. A new commit moves\n" +
-			"the task back to doing by itself; run review again when it is ready. --undo clears the mark.",
-		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: completeTopics(k, d),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return withFlow(cmd.Context(), d, func(e *flow.Env) error {
-				branch, err := flow.Review(e, k, optArg(args, 0), undo)
-				if err == nil && undo {
-					d.Printf("The review mark of '%s' was cleared\n", branch)
-				} else if err == nil {
-					d.Printf("'%s' is ready for review\n", branch)
-				}
-				return err
-			})
-		},
-	}
-	cmd.Flags().BoolVar(&undo, "undo", false, "clear the review mark")
-	return cmd
-}
-
 // ---- delete
 
 func newDeleteSub(k flow.Kind, d Deps) *cobra.Command {
@@ -418,10 +376,7 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 		},
 	}
 	bindCommonFinish(cmd.Flags(), &o, &keep, &dry)
-	switch k {
-	case flow.Regular:
-		cmd.Flags().BoolVar(&o.Push, "push", false, "push develop afterwards")
-	case flow.Release, flow.Hotfix:
+	if k == flow.Release {
 		bindReleaseFinish(cmd.Flags(), &o, k)
 	}
 	return cmd
@@ -431,10 +386,7 @@ func finishShort(k flow.Kind) string {
 	if k == flow.Work {
 		return "Rebase a work branch onto its parent, fast-forward the parent and clean up"
 	}
-	if k == flow.Regular {
-		return "Merge a regular branch into develop and clean up"
-	}
-	return fmt.Sprintf("Merge a %s into master, tag it, merge the tag into develop and clean up", k)
+	return "Merge a release into master, tag it, merge the tag into develop and clean up"
 }
 
 func bindCommonFinish(f *pflag.FlagSet, o *flow.FinishOpts, keep, dry *bool) {
@@ -499,13 +451,4 @@ func chooseTopic(ctx context.Context, d Deps, e *flow.Env, k flow.Kind, name str
 	}
 	row, err := d.pick(ctx, mapSlice(open, func(n string) picker.Row { return picker.Row{Key: n, Label: n} }), "")
 	return row.Key, err
-}
-
-// topicName is the command group of a kind. Regular branches keep the legacy `feature` group until
-// it is removed.
-func topicName(k flow.Kind) string {
-	if k == flow.Regular {
-		return "feature"
-	}
-	return k.String()
 }

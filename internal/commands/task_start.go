@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -10,14 +9,6 @@ import (
 	"flowtree/internal/board"
 	"flowtree/internal/flow"
 )
-
-// kindOfType is the branch kind a task of type t starts.
-func kindOfType(t board.Type) flow.Kind {
-	if t == board.Hotfix {
-		return flow.Hotfix
-	}
-	return flow.Regular
-}
 
 func startArg(t board.Type) string {
 	if t == board.Hotfix {
@@ -41,7 +32,7 @@ func newTaskStartCmd(d Deps) *cobra.Command {
 				return err
 			}
 			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) {
-				kind, err := taskKind(e, id)
+				kind, err := flow.KindOfTask(e, id)
 				if err != nil {
 					return nil, err
 				}
@@ -53,23 +44,6 @@ func newTaskStartCmd(d Deps) *cobra.Command {
 	cmd.Flags().BoolVarP(&fetch, "fetch", "F", false, "fetch the remote first")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
 	return cmd
-}
-
-// taskKind is the branch kind for task id, so a missing task is reported before anything else.
-func taskKind(e *flow.Env, id int) (flow.Kind, error) {
-	path, err := flow.BoardPath(e)
-	if err != nil {
-		return flow.Regular, err
-	}
-	b, err := board.Load(path)
-	if err != nil {
-		return flow.Regular, err
-	}
-	c, ok := b.Card(id)
-	if !ok {
-		return flow.Regular, fmt.Errorf("no task #%d", id)
-	}
-	return kindOfType(flow.TypeOf(e.S, c)), nil
 }
 
 // completeStartTasks suggests the ids of tasks without a branch, for the first argument.

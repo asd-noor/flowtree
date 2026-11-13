@@ -4,6 +4,38 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** the `feature` and `hotfix` command groups are gone. Regular and hotfix branches are now the
+  branches of board tasks and are driven by `flowtree task`; `flowtree release` and `flowtree work` stay.
+- **Breaking:** a task has a type, `regular` (the default) or `hotfix` (`task add --type`, `task edit --type` while
+  it has no branch). `task start <n> <name|version> [<base>]` starts the branch of the task's type: `regular/<name>`
+  from develop, or `hotfix/<version>` from master, with its own worktree.
+- **Breaking:** the lifecycle verbs moved under `task`: `review`, `diff`, `publish`, `rebase`, `pull` (the task
+  number is optional inside the task's worktree), `checkout`, `finish`, `delete` (the number is required) and
+  `track <n> <remote branch>`, which links an existing remote branch to a task. `rebase` and `pull` are for regular
+  tasks; `finish` rejects flags the task's type does not take. `pull` no longer creates a branch that only exists on
+  the remote; use `task track`.
+- **Breaking:** `work start -P <n>` takes the task number, and `work checkout|finish|delete` take `<n>/<sub>`.
+- **Breaking:** the `feature` branch kind is renamed `regular`: its prefix is `regular/` and its setting is
+  `flowtree.regularprefix`. The old `flowtree.featureprefix` key is no longer read.
+- **Breaking:** starting, reviewing and working no longer create tasks; a branch needs a task made with
+  `task add`. `task sync` still adds tasks, typed by the branch prefix, for branches made with plain git.
+- `flowtree board` cards show their type.
+
+### Added
+
+- `task start`, `task track` and the other `task` lifecycle verbs, with shell completion of the tasks that have no
+  branch for `task start`.
+- `--type regular|hotfix` on `task add` and `task edit`; `task list --json` and `task show` report the type.
+
+### Migration
+
+Finish open `feature/*` branches before upgrading, or tell flowtree to keep the old prefix with
+`git config flowtree.regularprefix feature/`. Re-run `flowtree init --flow` to write the new key.
+
 ## [v0.4.3] - 2026-11-09
 
 ### Changed

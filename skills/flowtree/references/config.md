@@ -17,14 +17,14 @@ flowtree config hooks                 # path and contents of the hooks file
 | `baseDir` | `$FLOWTREE_WORKDIR/<repo name>` if that variable is defined, else `../worktrees` | Where worktrees go: `<baseDir>/<branch>`. Relative to the main worktree; `~` is expanded. |
 | `remote` | `origin` | Remote for fetch, push, track, delete and sync checks. |
 | `master`, `develop` | none (set by `init --flow`) | Production and integration branches. Flow is set up when both are set. |
-| `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix` | `feature/`, `release/`, `hotfix/`, `work/` | Branch prefixes; they must differ. |
+| `regularPrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix` | `regular/`, `release/`, `hotfix/`, `work/` | Branch prefixes; they must differ. |
 
 Key names are case-insensitive and may start with `flowtree.`. An unknown `flowtree.*` key is an error. Local
 settings win over global ones, global over system, then the default.
 
 ## Worktree directory
 
-A branch `feature/login` lives at `<baseDir>/feature/login`. `FLOWTREE_WORKDIR=~/worktrees` is the default when `baseDir`
+A branch `regular/login` lives at `<baseDir>/regular/login`. `FLOWTREE_WORKDIR=~/worktrees` is the default when `baseDir`
 is not set (`~/worktrees/<repo directory name>`); an explicit `baseDir` wins. Changing `baseDir` does not move
 existing worktrees: run `flowtree relocate -n`, then `flowtree relocate`.
 

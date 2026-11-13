@@ -76,9 +76,9 @@ func TestBoardNeedsTerminal(t *testing.T) {
 func TestRenderPrompt(t *testing.T) {
 	sub := board.Subtask{Name: "api", Description: "POST /login"}
 	got := renderPrompt(prompt{ID: 3, Title: "Login", Desc: "Email and password.", Sub: &sub,
-		Branch: "work/feature/login/api", Kind: flow.Work, Name: "api"})
+		Branch: "work/regular/login/api", Kind: flow.Work, Name: "api"})
 	for _, want := range []string{"# Task #3: Login", "Email and password.", "## Subtask: api", "POST /login",
-		"`work/feature/login/api`", "none yet; create it with `flowtree work checkout api`", "`flowtree work finish api`"} {
+		"`work/regular/login/api`", "none yet; create it with `flowtree work checkout api`", "`flowtree work finish api`"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("prompt lacks %q:\n%s", want, got)
 		}

@@ -22,7 +22,7 @@ func BoardPath(e *Env) (string, error) {
 	return board.Path(dir), nil
 }
 
-// Target is the branch a topic branch is finished into: develop for a feature, master for a hotfix,
+// Target is the branch a topic branch is finished into: develop for a regular branch, master for a hotfix,
 // the parent for a work branch. Other branches have none.
 func (s Settings) Target(branch string) string {
 	k, ok := s.KindOf(branch)
@@ -84,7 +84,7 @@ func tipOf(e *Env, branch string) string {
 	return tip
 }
 
-// linkStep ties a new feature or hotfix branch to task id, or to a new task named after it.
+// linkStep ties a new regular or hotfix branch to task id, or to a new task named after it.
 func linkStep(task int, branch, title string) []Step {
 	desc := "add a task for " + branch
 	if task > 0 {
@@ -144,7 +144,7 @@ func checkTask(e *Env, task int) error {
 	return nil
 }
 
-// Review marks the task of a feature or hotfix as waiting for review at the branch's current tip, or
+// Review marks the task of a regular or hotfix as waiting for review at the branch's current tip, or
 // with undo clears the mark. New commits move the task back to doing on their own.
 func Review(e *Env, k Kind, name string, undo bool) (string, error) {
 	branch, err := ResolveTopic(e, k, name)
@@ -172,10 +172,10 @@ func carriedReview(b board.Board, branch, oldTip, newTip string) board.Board {
 	return b.Track(branch, newTip).SetReview(branch, newTip)
 }
 
-// syncRefs lists the feature, hotfix and work branches as Reconcile wants them.
+// syncRefs lists the regular, hotfix and work branches as Reconcile wants them.
 func syncRefs(e *Env) ([]board.Ref, error) {
 	var refs []board.Ref
-	for _, k := range []Kind{Feature, Hotfix, Work} {
+	for _, k := range []Kind{Regular, Hotfix, Work} {
 		branches, err := gitx.LocalBranches(e.MainGit(), e.S.Prefix(k))
 		if err != nil {
 			return nil, err

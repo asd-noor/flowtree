@@ -26,7 +26,7 @@ var Constructors = []Constructor{
 	newTaskCmd,
 	newTopicCmd(flow.Hotfix),
 	newTopicCmd(flow.Release),
-	newTopicCmd(flow.Feature),
+	newTopicCmd(flow.Regular),
 	newTopicCmd(flow.Work),
 }
 

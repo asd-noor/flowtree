@@ -38,11 +38,11 @@ one that exists only on a remote is tracked. With -b a new branch is created,
 from the optional commitish.
 
 Examples:
-  flowtree add feature/auth                  existing (local or remote) branch
-  flowtree add -b feature/new                new branch from HEAD
+  flowtree add regular/auth                  existing (local or remote) branch
+  flowtree add -b regular/new                new branch from HEAD
   flowtree add -b hotfix/urgent main         new branch from main
-  flowtree add -b feature/x --exec "npm test"  run a command in the new worktree
-  flowtree add -b feature/x --quiet          print only the new path`,
+  flowtree add -b regular/x --exec "npm test"  run a command in the new worktree
+  flowtree add -b regular/x --quiet          print only the new path`,
 		Args:              cobra.MaximumNArgs(2),
 		ValidArgsFunction: completeBranches(d),
 		RunE: func(cmd *cobra.Command, args []string) error {

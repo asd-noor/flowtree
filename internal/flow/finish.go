@@ -47,15 +47,15 @@ func PlanFinish(e *Env, o FinishOpts) ([]Step, error) {
 		return nil, err
 	}
 	switch o.Kind {
-	case Feature:
-		return planFinishFeature(e, o, branch)
+	case Regular:
+		return planFinishRegular(e, o, branch)
 	case Work:
 		return planFinishWork(e, o, branch)
 	}
 	return planFinishRelease(e, o, branch)
 }
 
-func planFinishFeature(e *Env, o FinishOpts, branch string) ([]Step, error) {
+func planFinishRegular(e *Env, o FinishOpts, branch string) ([]Step, error) {
 	var merged bool
 	return Plan(
 		If(e.HasRemote(), One("fetch "+e.S.Remote, Fetch)),
@@ -74,7 +74,7 @@ func planFinishFeature(e *Env, o FinishOpts, branch string) ([]Step, error) {
 			if err := MergeInto(e, e.S.Develop, branch, NoFF, ""); err != nil {
 				return err
 			}
-			e.Say("\nSummary of actions:\n- The feature branch '%s' was merged into '%s'", branch, e.S.Develop)
+			e.Say("\nSummary of actions:\n- The regular branch '%s' was merged into '%s'", branch, e.S.Develop)
 			return nil
 		}),
 		trackStep(branch),

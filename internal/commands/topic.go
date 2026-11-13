@@ -18,7 +18,7 @@ import (
 func newTopicCmd(k flow.Kind) Constructor {
 	return func(d Deps) *cobra.Command {
 		cmd := &cobra.Command{
-			Use:   k.String(),
+			Use:   topicName(k),
 			Short: topicShort(k),
 			Args:  cobra.NoArgs,
 			RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
@@ -26,7 +26,7 @@ func newTopicCmd(k flow.Kind) Constructor {
 		for _, sub := range topicSubs(k) {
 			cmd.AddCommand(sub(k, d))
 		}
-		if k == flow.Feature {
+		if k == flow.Regular {
 			cmd.AddCommand(newDiffSub(k, d), newRebaseSub(k, d), newPullSub(k, d))
 		}
 		return cmd
@@ -40,7 +40,7 @@ func topicSubs(k flow.Kind) []func(flow.Kind, Deps) *cobra.Command {
 	switch k {
 	case flow.Work:
 		return subs
-	case flow.Feature, flow.Hotfix:
+	case flow.Regular, flow.Hotfix:
 		subs = append(subs, newReviewSub)
 	}
 	return append(subs, newPublishSub, newTrackSub)
@@ -49,9 +49,9 @@ func topicSubs(k flow.Kind) []func(flow.Kind, Deps) *cobra.Command {
 func topicShort(k flow.Kind) string {
 	switch k {
 	case flow.Work:
-		return "Work branches: local subtasks of a feature or hotfix, rebased onto it when finished"
-	case flow.Feature:
-		return "Feature branches: start from develop, merge back into develop with a merge commit"
+		return "Work branches: local subtasks of a regular or hotfix branch, rebased onto it when finished"
+	case flow.Regular:
+		return "Regular branches: start from develop, merge back into develop with a merge commit"
 	case flow.Release:
 		return "Release branches: start from develop, merge into master (tagged) and back into develop"
 	}
@@ -59,7 +59,7 @@ func topicShort(k flow.Kind) string {
 }
 
 func nameArg(k flow.Kind) string {
-	if k == flow.Feature || k == flow.Work {
+	if k == flow.Regular || k == flow.Work {
 		return "<name>"
 	}
 	return "<version>"
@@ -218,10 +218,10 @@ func newWorkStartSub(d Deps) *cobra.Command {
 	var dry bool
 	cmd := &cobra.Command{
 		Use:   "start [-P <parent>] [-d <brief>] [--dry-run] <name>",
-		Short: "Start a work branch: a local subtask of a feature or hotfix",
+		Short: "Start a work branch: a local subtask of a regular or hotfix",
 		Long: "Create work/<parent>/<name> from the tip of <parent> and give it its own worktree.\n" +
-			"Without -P the parent is the feature or hotfix whose worktree you are in; elsewhere, on a\n" +
-			"terminal, a picker offers the open features and hotfixes.",
+			"Without -P the parent is the regular or hotfix branch whose worktree you are in; elsewhere, on a\n" +
+			"terminal, a picker offers the open regular and hotfix branches.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			o.Name = args[0]
@@ -235,14 +235,14 @@ func newWorkStartSub(d Deps) *cobra.Command {
 			})
 		},
 	}
-	cmd.Flags().StringVarP(&o.Parent, "parent", "P", "", "the feature or hotfix branch it belongs to (e.g. feature/login)")
+	cmd.Flags().StringVarP(&o.Parent, "parent", "P", "", "the regular or hotfix branch branch it belongs to (e.g. regular/login)")
 	cmd.Flags().StringVarP(&o.Desc, "description", "d", "", "the subtask's brief on the board (Markdown)")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
 	return cmd
 }
 
 // chooseParent is the parent given or inferred from the working directory, or, on a terminal when
-// neither works, a feature or hotfix picked from a list.
+// neither works, a regular or hotfix branch picked from a list.
 func chooseParent(ctx context.Context, d Deps, e *flow.Env, given string) (string, error) {
 	parent, err := flow.ResolveParent(e, given)
 	if !errors.Is(err, flow.ErrNoParent) || !d.IsTTY() {
@@ -378,7 +378,7 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 	}
 	bindCommonFinish(cmd.Flags(), &o, &keep, &dry)
 	switch k {
-	case flow.Feature:
+	case flow.Regular:
 		cmd.Flags().BoolVar(&o.Push, "push", false, "push develop afterwards")
 	case flow.Release, flow.Hotfix:
 		bindReleaseFinish(cmd.Flags(), &o, k)
@@ -390,8 +390,8 @@ func finishShort(k flow.Kind) string {
 	if k == flow.Work {
 		return "Rebase a work branch onto its parent, fast-forward the parent and clean up"
 	}
-	if k == flow.Feature {
-		return "Merge a feature branch into develop and clean up"
+	if k == flow.Regular {
+		return "Merge a regular branch into develop and clean up"
 	}
 	return fmt.Sprintf("Merge a %s into master, tag it, merge the tag into develop and clean up", k)
 }
@@ -435,4 +435,13 @@ func chooseTopic(ctx context.Context, d Deps, e *flow.Env, k flow.Kind, name str
 	}
 	row, err := d.pick(ctx, mapSlice(open, func(n string) picker.Row { return picker.Row{Key: n, Label: n} }), "")
 	return row.Key, err
+}
+
+// topicName is the command group of a kind. Regular branches keep the legacy `feature` group until
+// it is removed.
+func topicName(k flow.Kind) string {
+	if k == flow.Regular {
+		return "feature"
+	}
+	return k.String()
 }

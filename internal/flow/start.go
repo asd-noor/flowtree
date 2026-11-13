@@ -13,17 +13,17 @@ type StartOpts struct {
 	Kind   Kind
 	Name   string
 	Base   string // defaults to the kind's base branch
-	Parent string // work only: the feature or hotfix the subtask belongs to
-	Task   int    // feature and hotfix only: the board task the branch is for (0: a new task)
+	Parent string // work only: the regular or hotfix the subtask belongs to
+	Task   int    // regular and hotfix only: the board task the branch is for (0: a new task)
 	Desc   string // work only: the subtask's description on the board
 	Fetch  bool
 }
 
 // ErrNoParent is returned by ResolveParent when no parent was given and none follows from the working
 // directory; a caller on a terminal may then offer a choice.
-var ErrNoParent = errors.New("no parent given (-P <feature/x|hotfix/x>) and the working directory is not in a feature or hotfix worktree")
+var ErrNoParent = errors.New("no parent given (-P <regular/x|hotfix/x>) and the working directory is not in a regular or hotfix worktree")
 
-// ResolveParent is the parent a new work branch belongs to: the one given, else the feature or hotfix
+// ResolveParent is the parent a new work branch belongs to: the one given, else the regular or hotfix
 // the working directory belongs to.
 func ResolveParent(e *Env, given string) (string, error) {
 	if given == "" {
@@ -33,7 +33,7 @@ func ResolveParent(e *Env, given string) (string, error) {
 		return "", ErrNoParent
 	}
 	if !e.S.IsParent(given) {
-		return "", fmt.Errorf("parent '%s' must be a feature or hotfix branch (%s..., %s...)", given, e.S.FeaturePrefix, e.S.HotfixPrefix)
+		return "", fmt.Errorf("parent '%s' must be a regular or hotfix branch (%s..., %s...)", given, e.S.RegularPrefix, e.S.HotfixPrefix)
 	}
 	if !gitx.BranchExists(e.MainGit(), given) {
 		return "", fmt.Errorf("parent '%s' does not exist", given)
@@ -41,10 +41,10 @@ func ResolveParent(e *Env, given string) (string, error) {
 	return given, nil
 }
 
-// Parents lists the open features and hotfixes, the branches a work branch can belong to.
+// Parents lists the open regular and hotfix branches, the branches a work branch can belong to.
 func Parents(e *Env) ([]string, error) {
 	var out []string
-	for _, k := range []Kind{Feature, Hotfix} {
+	for _, k := range []Kind{Regular, Hotfix} {
 		bs, err := gitx.LocalBranches(e.MainGit(), e.S.Prefix(k))
 		if err != nil {
 			return nil, err
@@ -55,7 +55,7 @@ func Parents(e *Env) ([]string, error) {
 }
 
 func missingName(k Kind) error {
-	if k == Feature || k == Work {
+	if k == Regular || k == Work {
 		return fmt.Errorf("missing argument <name>")
 	}
 	return fmt.Errorf("missing argument <version>")
@@ -76,7 +76,7 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 		return nil, err
 	}
 	if o.Task > 0 && o.Kind == Release {
-		return nil, fmt.Errorf("releases have no task; -T is for features and hotfixes")
+		return nil, fmt.Errorf("releases have no task; -T is for regular and hotfix branches")
 	}
 	if err := checkTask(e, o.Task); err != nil {
 		return nil, err

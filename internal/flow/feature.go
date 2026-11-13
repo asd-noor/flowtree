@@ -11,9 +11,9 @@ import (
 // Attached runs git in dir with the user's terminal attached; interactive rebases need it.
 type Attached func(dir string, args ...string) error
 
-// Diff returns the changes a feature branch made since it left develop.
+// Diff returns the changes a regular branch made since it left develop.
 func Diff(e *Env, name string) (string, error) {
-	branch, err := ResolveTopic(e, Feature, name)
+	branch, err := ResolveTopic(e, Regular, name)
 	if err != nil {
 		return "", err
 	}
@@ -44,12 +44,12 @@ func (o RebaseOpts) args(onto string) []string {
 	return append(args, onto)
 }
 
-// PlanRebase returns the steps that rebase a feature branch onto develop inside its worktree.
+// PlanRebase returns the steps that rebase a regular branch onto develop inside its worktree.
 func PlanRebase(e *Env, o RebaseOpts) ([]Step, error) {
 	if o.Interactive && o.Attach == nil {
 		return nil, fmt.Errorf("an interactive rebase needs a terminal")
 	}
-	branch, err := ResolveTopic(e, Feature, o.Name)
+	branch, err := ResolveTopic(e, Regular, o.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func PlanRebase(e *Env, o RebaseOpts) ([]Step, error) {
 			return err
 		}),
 		One(fmt.Sprintf("rebase %s onto %s", branch, e.S.Develop), func(e *Env) error {
-			e.Say("Will try to rebase '%s'...", e.S.Name(Feature, branch))
+			e.Say("Will try to rebase '%s'...", e.S.Name(Regular, branch))
 			before = tipOf(e, branch)
 			return runRebase(e, o, dir)
 		}),
@@ -82,7 +82,7 @@ func runRebase(e *Env, o RebaseOpts, dir string) error {
 	return err
 }
 
-// PlanPull returns the steps that fast-forward a feature branch from a remote, or create it
+// PlanPull returns the steps that fast-forward a regular branch from a remote, or create it
 // (tracking the remote branch, with a worktree) when it does not exist locally.
 func PlanPull(e *Env, remote, name string) ([]Step, error) {
 	if remote == "" {
@@ -104,12 +104,12 @@ func PlanPull(e *Env, remote, name string) ([]Step, error) {
 // pullBranch is the existing branch the name resolves to, else the full name as typed (it may exist
 // only on the remote). Only "no such local branch" falls back; ambiguity and git failures are reported.
 func pullBranch(e *Env, name string) (string, error) {
-	branch, err := ResolveTopic(e, Feature, name)
+	branch, err := ResolveTopic(e, Regular, name)
 	switch {
 	case err == nil:
 		return branch, nil
 	case name != "" && errors.Is(err, ErrNoSuchBranch):
-		return e.S.Branch(Feature, name), nil
+		return e.S.Branch(Regular, name), nil
 	}
 	return "", err
 }

@@ -37,13 +37,13 @@ func TestBoardFollowsTheFlow(t *testing.T) {
 		t.Errorf("dry run should show the board step:\n%s", dry)
 	}
 	Run(t, repo, "feature", "start", "-T", "1", "login").MustSucceed(t)
-	if v := tasks(t, repo)[1]; v.Status != "doing" || v.Branch != "feature/login" {
+	if v := tasks(t, repo)[1]; v.Status != "doing" || v.Branch != "regular/login" {
 		t.Fatalf("after start: %+v", v)
 	}
-	fwt := worktreeDir(repo, "feature/login")
+	fwt := worktreeDir(repo, "regular/login")
 
 	Run(t, fwt, "work", "start", "api").MustSucceed(t)
-	api := worktreeDir(repo, "work/feature/login/api")
+	api := worktreeDir(repo, "work/regular/login/api")
 	commitFile(t, api, "api.txt")
 	if v := tasks(t, repo)[1]; len(v.Subtasks) != 1 || v.Subtasks[0].Status != "doing" {
 		t.Fatalf("subtask after work start: %+v", v)
@@ -86,7 +86,7 @@ func TestBoardCreatesTasksAndRefusesBadLinks(t *testing.T) {
 
 	for _, args := range [][]string{{"-T", "9", "x"}, {"-T", "1", "y"}} {
 		res := Run(t, repo, append([]string{"feature", "start"}, args...)...).MustFail(t)
-		if !strings.Contains(res.Stderr, "task #") || strings.Contains(branches(t, repo), "feature/"+args[2]) {
+		if !strings.Contains(res.Stderr, "task #") || strings.Contains(branches(t, repo), "regular/"+args[2]) {
 			t.Errorf("%v: stderr = %q; no branch may be created", args, res.Stderr)
 		}
 	}
@@ -102,7 +102,7 @@ func TestBoardCreatesTasksAndRefusesBadLinks(t *testing.T) {
 func TestReviewMarkSurvivesARebase(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "feature/a")
+	wt := worktreeDir(repo, "regular/a")
 	commitFile(t, wt, "a.txt")
 	Run(t, wt, "feature", "review").MustSucceed(t)
 	commitFile(t, repo, "on-develop.txt")
@@ -116,7 +116,7 @@ func TestSubtaskBriefAndPrompt(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "task", "add", "-d", "Email and password.", "Login").MustSucceed(t)
 	Run(t, repo, "feature", "start", "-T", "1", "login").MustSucceed(t)
-	Run(t, repo, "work", "start", "-P", "feature/login", "-d", "POST /login", "api").MustSucceed(t)
+	Run(t, repo, "work", "start", "-P", "regular/login", "-d", "POST /login", "api").MustSucceed(t)
 	Run(t, repo, "task", "edit", "1/api", "-d", "POST /login, returns a JWT").MustSucceed(t)
 	if res := Run(t, repo, "task", "edit", "1/api", "--title", "x").MustFail(t); !strings.Contains(res.Stderr, "only a description") {
 		t.Errorf("stderr = %q", res.Stderr)
@@ -125,7 +125,7 @@ func TestSubtaskBriefAndPrompt(t *testing.T) {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 	out := Run(t, repo, "task", "prompt", "1/api").MustSucceed(t).Stdout
-	for _, want := range []string{"Email and password.", "## Subtask: api", "returns a JWT", worktreeDir(repo, "work/feature/login/api")} {
+	for _, want := range []string{"Email and password.", "## Subtask: api", "returns a JWT", worktreeDir(repo, "work/regular/login/api")} {
 		if !strings.Contains(out, want) {
 			t.Errorf("prompt lacks %q:\n%s", want, out)
 		}

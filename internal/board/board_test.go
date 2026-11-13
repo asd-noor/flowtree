@@ -8,7 +8,7 @@ import (
 )
 
 func TestStatusOf(t *testing.T) {
-	linked := Card{Branch: "feature/a"}
+	linked := Card{Branch: "regular/a"}
 	for _, c := range []struct {
 		name string
 		card Card
@@ -18,9 +18,9 @@ func TestStatusOf(t *testing.T) {
 		{"no branch", Card{}, Facts{}, Todo},
 		{"parked", Card{Backlog: true}, Facts{}, Backlog},
 		{"branch exists", linked, Facts{Exists: true, Tip: "t1"}, Doing},
-		{"review asked at this tip", Card{Branch: "feature/a", ReviewTip: "t1"}, Facts{Exists: true, Tip: "t1"}, Review},
-		{"new commits after review", Card{Branch: "feature/a", ReviewTip: "t1"}, Facts{Exists: true, Tip: "t2"}, Doing},
-		{"merged wins over review", Card{Branch: "feature/a", ReviewTip: "t1"}, Facts{Exists: true, Tip: "t1", Merged: true}, Done},
+		{"review asked at this tip", Card{Branch: "regular/a", ReviewTip: "t1"}, Facts{Exists: true, Tip: "t1"}, Review},
+		{"new commits after review", Card{Branch: "regular/a", ReviewTip: "t1"}, Facts{Exists: true, Tip: "t2"}, Doing},
+		{"merged wins over review", Card{Branch: "regular/a", ReviewTip: "t1"}, Facts{Exists: true, Tip: "t1", Merged: true}, Done},
 		{"merged and deleted", linked, Facts{Merged: true}, Done},
 		{"deleted unmerged", linked, Facts{}, Abandoned},
 	} {
@@ -72,19 +72,19 @@ func TestUpdateUnderParallelWriters(t *testing.T) {
 
 func TestLifecycleOperations(t *testing.T) {
 	b, _ := Empty().Add(Card{Title: "t", Backlog: true})
-	b, err := b.Link(1, "feature/a", "s0")
-	if c, _ := b.Card(1); err != nil || c.Branch != "feature/a" || c.Start != "s0" || c.Backlog {
+	b, err := b.Link(1, "regular/a", "s0")
+	if c, _ := b.Card(1); err != nil || c.Branch != "regular/a" || c.Start != "s0" || c.Backlog {
 		t.Fatalf("link: %+v %v", c, err)
 	}
-	if _, err := b.Link(1, "feature/b", "s"); err == nil {
+	if _, err := b.Link(1, "regular/b", "s"); err == nil {
 		t.Error("a linked task cannot take another branch")
 	}
-	if b2 := b.Ensure("feature/a", "dup", "s", time.Time{}); len(b2.Cards) != 1 {
+	if b2 := b.Ensure("regular/a", "dup", "s", time.Time{}); len(b2.Cards) != 1 {
 		t.Error("Ensure must reuse the linked card")
 	}
-	b = b.AddSubtask("feature/a", Subtask{Name: "x", Branch: "work/feature/a/x"})
-	b = b.AddSubtask("feature/a", Subtask{Name: "x", Branch: "work/feature/a/x"})
-	b = b.Track("work/feature/a/x", "w1").Track("feature/a", "t1").SetReview("feature/a", "t1")
+	b = b.AddSubtask("regular/a", Subtask{Name: "x", Branch: "work/regular/a/x"})
+	b = b.AddSubtask("regular/a", Subtask{Name: "x", Branch: "work/regular/a/x"})
+	b = b.Track("work/regular/a/x", "w1").Track("regular/a", "t1").SetReview("regular/a", "t1")
 	c, _ := b.Card(1)
 	if len(c.Subtasks) != 1 || c.Subtasks[0].Tip != "w1" || c.Tip != "t1" || c.ReviewTip != "t1" {
 		t.Fatalf("%+v", c)

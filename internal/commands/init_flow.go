@@ -15,7 +15,7 @@ import (
 type flowOpts struct {
 	enabled                             bool
 	master, develop                     string
-	featurePrefix, relPrefix, hotPrefix string
+	regularPrefix, relPrefix, hotPrefix string
 	workPrefix                          string
 	remote                              string
 }
@@ -24,7 +24,7 @@ func bindFlowFlags(f *pflag.FlagSet, o *flowOpts) {
 	f.BoolVar(&o.enabled, "flow", false, "also set up git-flow: master/develop branches and flow settings")
 	f.StringVar(&o.master, "master", "", "production branch name (default: existing master or main, else master)")
 	f.StringVar(&o.develop, "develop", "", "integration branch name (default develop)")
-	f.StringVarP(&o.featurePrefix, "feature-prefix", "p", "", "prefix of feature branches (default feature/)")
+	f.StringVarP(&o.regularPrefix, "regular-prefix", "p", "", "prefix of regular branches (default regular/)")
 	f.StringVarP(&o.relPrefix, "release-prefix", "r", "", "prefix of release branches (default release/)")
 	f.StringVarP(&o.hotPrefix, "hotfix-prefix", "x", "", "prefix of hotfix branches (default hotfix/)")
 	f.StringVar(&o.workPrefix, "work-prefix", "", "prefix of work branches (default work/)")
@@ -66,7 +66,7 @@ func (r *initRun) flowSettings() (flow.Settings, error) {
 	}{
 		{"Branch name for production releases", o.master, &s.Master},
 		{"Branch name for next release development", o.develop, &s.Develop},
-		{"Feature branches prefix", o.featurePrefix, &s.FeaturePrefix},
+		{"Regular branches prefix", o.regularPrefix, &s.RegularPrefix},
 		{"Release branches prefix", o.relPrefix, &s.ReleasePrefix},
 		{"Hotfix branches prefix", o.hotPrefix, &s.HotfixPrefix},
 		{"Work (subtask) branches prefix", o.workPrefix, &s.WorkPrefix},

@@ -19,7 +19,7 @@ func newPrintDirCmd(d Deps) *cobra.Command {
 		Long: "Prints the absolute path of an existing worktree. With no argument, or \"@\", " +
 			"prints the main worktree; on a terminal, with no argument, a picker over the existing worktrees\n" +
 			"opens instead. Use `flowtree switch` to actually move there.",
-		Example: "  cd \"$(flowtree print-dir feature/auth)\"",
+		Example: "  cd \"$(flowtree print-dir regular/auth)\"",
 		Args:    cobra.MaximumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, prefix string) ([]string, cobra.ShellCompDirective) {
 			if len(args) > 0 {

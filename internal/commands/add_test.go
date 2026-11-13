@@ -53,16 +53,16 @@ func (e addEnv) branches(t *testing.T) string {
 
 func TestAddNewBranch(t *testing.T) {
 	e := newAddEnv(t, testutil.NewRepo(t), nil)
-	if err := e.add(t, "-b", "feature/x"); err != nil {
+	if err := e.add(t, "-b", "regular/x"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(e.wtPath("feature/x")); err != nil {
+	if _, err := os.Stat(e.wtPath("regular/x")); err != nil {
 		t.Fatalf("worktree missing: %v", err)
 	}
-	if !strings.Contains(e.branches(t), "feature/x") {
+	if !strings.Contains(e.branches(t), "regular/x") {
 		t.Error("branch not created")
 	}
-	for _, want := range []string{"Worktree created", e.wtPath("feature/x"), "feature/x"} {
+	for _, want := range []string{"Worktree created", e.wtPath("regular/x"), "regular/x"} {
 		if !strings.Contains(e.out.String(), want) {
 			t.Errorf("stdout missing %q:\n%s", want, e.out)
 		}

@@ -10,13 +10,13 @@ Git worktrees plus an opinionated git-flow. One binary:
 
 | flowtree | git-flow | branches from | merges into | lives in |
 |----------|----------|---------------|-------------|----------|
-| `feature` | feature/bugfix/support | develop | develop (merge commit) | its own worktree |
+| `regular` | feature/bugfix/support | develop | develop (merge commit) | its own worktree |
 | `release` | release | develop | master (tagged), the tag back into develop | its own worktree |
 | `hotfix`  | hotfix  | master  | master (tagged), the tag back into develop | its own worktree |
-| `work`    | (none) | its parent feature or hotfix | the parent (rebased, fast-forward) | its own worktree, local only |
+| `work`    | (none) | its parent regular or hotfix | the parent (rebased, fast-forward) | its own worktree, local only |
 
-Features and hotfixes are tasks; `work` branches are their subtasks, for parallel work on one task. A work branch
-is named `work/<parent>/<name>` (`work/feature/login/api`); `work start -P feature/login api` creates it, or
+Regular and hotfix branches are tasks; `work` branches are their subtasks, for parallel work on one task. A work branch
+is named `work/<parent>/<name>` (`work/regular/login/api`); `work start -P regular/login api` creates it, or
 `work start api` from inside the parent's worktree. A feature or hotfix cannot finish while subtasks are open.
 
 The main checkout rests on `develop` and only ever holds `master` or `develop`. Every topic branch gets its own
@@ -67,7 +67,7 @@ Settings are read without `git config --show-scope` (2.26), so they work on the 
 ```sh
 flowtree init --flow               # store settings in git config, create master + develop; prompts (-d for defaults)
 
-flowtree feature start login       # feature/login off develop, in ../worktrees/feature/login
+flowtree feature start login       # regular/login off develop, in ../worktrees/regular/login
 # ...commit...
 flowtree feature finish            # merge commit into develop, remove worktree + branch (name inferred from cwd)
 
@@ -86,7 +86,7 @@ flowtree switch                    # pick where to go (built-in picker); `flowtr
 
 ```
 flowtree init [--flow] [-w DIR] [-f] [-d]
-              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [--remote R]
+              [--master B] [--develop B] [-p regular/] [-r release/] [-x hotfix/] [--remote R]
 flowtree add [-b NEW] [--exec CMD] [-q] <branch> [<commitish>]
 flowtree config [<key> [<value>]] [--global] [--unset] | config hooks
 flowtree list | remove [-f] [--with-branch] [--force-branch] <worktree>... | exec <worktree> -- CMD...
@@ -105,7 +105,7 @@ flowtree hotfix  …same as release; branches from master
 ```
 
 Run `flowtree <command> --help` for every flag. `finish` with no name uses the branch of the worktree you are in
-(or, on a terminal, offers a picker). Feature names also accept a unique prefix; work names may be the bare
+(or, on a terminal, offers a picker). Regular names also accept a unique prefix; work names may be the bare
 subtask name.
 
 - `feature finish` merges `--no-ff` into develop and never rebases; if a pull request already merged the branch,
@@ -153,7 +153,7 @@ flowtree config baseDir ~/worktrees/api  # or: git config flowtree.baseDir ~/wor
 flowtree config --global remote upstream
 ```
 
-Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix`.
+Keys: `baseDir`, `remote`, `master`, `develop`, `regularPrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix`.
 An unknown `flowtree.*` key is an error, so typos do not go unnoticed.
 
 - `baseDir`: where worktrees go, `<baseDir>/<branch>`; relative to the main worktree, `~` is expanded. When it is

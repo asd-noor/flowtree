@@ -50,7 +50,7 @@ func current(t *testing.T, dir string) string {
 func TestFeatureLifecycle(t *testing.T) {
 	repo := flowRepo(t)
 	res := Run(t, repo, "feature", "start", "login").MustSucceed(t)
-	wt := worktreeDir(repo, "feature/login")
+	wt := worktreeDir(repo, "regular/login")
 	if !exists(wt) || !strings.Contains(res.Stdout, wt) {
 		t.Fatalf("worktree not created at %s:\n%s", wt, res.Stdout)
 	}
@@ -61,7 +61,7 @@ func TestFeatureLifecycle(t *testing.T) {
 
 	cdfile := filepath.Join(t.TempDir(), "cd")
 	res = RunEnv(t, wt, []string{"FLOWTREE_CDFILE=" + cdfile}, "feature", "finish").MustSucceed(t) // name inferred from cwd
-	if exists(wt) || strings.Contains(branches(t, repo), "feature/login") {
+	if exists(wt) || strings.Contains(branches(t, repo), "regular/login") {
 		t.Errorf("worktree or branch left behind:\n%s\n%s", res.Stdout, branches(t, repo))
 	}
 	if !exists(filepath.Join(repo, "login.txt")) || current(t, repo) != "develop" {
@@ -75,7 +75,7 @@ func TestFeatureLifecycle(t *testing.T) {
 func TestFeatureFinishAlwaysCreatesAMergeCommit(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
-	commitFile(t, worktreeDir(repo, "feature/a"), "a1") // develop did not move: a fast-forward would be possible
+	commitFile(t, worktreeDir(repo, "regular/a"), "a1") // develop did not move: a fast-forward would be possible
 	Run(t, repo, "feature", "finish", "a").MustSucceed(t)
 	if got := len(strings.Fields(testutil.Git(t, repo, "rev-list", "--parents", "-n1", "develop"))) - 1; got != 2 {
 		t.Errorf("develop head has %d parents, want a merge commit", got)
@@ -90,9 +90,9 @@ func TestFeatureFinishAlwaysCreatesAMergeCommit(t *testing.T) {
 func TestFeatureFinishAfterPullRequestOnlyCleansUp(t *testing.T) {
 	repo, _ := flowRepoWithRemote(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
-	commitFile(t, worktreeDir(repo, "feature/a"), "a")
+	commitFile(t, worktreeDir(repo, "regular/a"), "a")
 	Run(t, repo, "feature", "publish", "a").MustSucceed(t)
-	testutil.Git(t, repo, "push", "-q", "origin", "feature/a:develop") // the forge merged the pull request
+	testutil.Git(t, repo, "push", "-q", "origin", "regular/a:develop") // the forge merged the pull request
 	before := testutil.Git(t, repo, "rev-parse", "develop")
 
 	res := Run(t, repo, "feature", "finish", "a").MustSucceed(t)
@@ -102,7 +102,7 @@ func TestFeatureFinishAfterPullRequestOnlyCleansUp(t *testing.T) {
 	if testutil.Git(t, repo, "rev-parse", "develop") != before {
 		t.Error("finish must not merge again when the pull request already did")
 	}
-	if strings.Contains(branches(t, repo), "feature/a") || exists(worktreeDir(repo, "feature/a")) {
+	if strings.Contains(branches(t, repo), "regular/a") || exists(worktreeDir(repo, "regular/a")) {
 		t.Error("the branch and its worktree should be gone")
 	}
 }
@@ -215,7 +215,7 @@ func TestHotfixLifecycleWithPush(t *testing.T) {
 func TestFinishConflictChangesNothing(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "feature/a")
+	wt := worktreeDir(repo, "regular/a")
 	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "from work\n")
 	testutil.Git(t, wt, "commit", "-q", "-am", "work edit")
 	testutil.WriteFile(t, filepath.Join(repo, "README.md"), "from develop\n")
@@ -234,7 +234,7 @@ func TestFinishConflictChangesNothing(t *testing.T) {
 func TestFinishRefusesDirtyWorktree(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "feature/a")
+	wt := worktreeDir(repo, "regular/a")
 	testutil.WriteFile(t, filepath.Join(wt, "README.md"), "dirty\n")
 	if res := Run(t, repo, "feature", "finish", "a").MustFail(t); !strings.Contains(res.Stderr, "uncommitted") {
 		t.Errorf("stderr = %q", res.Stderr)
@@ -244,17 +244,17 @@ func TestFinishRefusesDirtyWorktree(t *testing.T) {
 func TestDryRunChangesNothing(t *testing.T) {
 	repo := flowRepo(t)
 	res := Run(t, repo, "feature", "start", "a", "--dry-run").MustSucceed(t)
-	if !strings.Contains(res.Stdout, "Dry run") || strings.Contains(branches(t, repo), "feature/a") || exists(worktreeDir(repo, "feature/a")) {
+	if !strings.Contains(res.Stdout, "Dry run") || strings.Contains(branches(t, repo), "regular/a") || exists(worktreeDir(repo, "regular/a")) {
 		t.Errorf("start --dry-run changed things or printed nothing:\n%s", res.Stdout)
 	}
 	Run(t, repo, "feature", "start", "b").MustSucceed(t)
-	commitFile(t, worktreeDir(repo, "feature/b"), "b")
+	commitFile(t, worktreeDir(repo, "regular/b"), "b")
 	Run(t, repo, "feature", "finish", "b", "--dry-run").MustSucceed(t)
-	if !exists(worktreeDir(repo, "feature/b")) || exists(filepath.Join(repo, "b")) {
+	if !exists(worktreeDir(repo, "regular/b")) || exists(filepath.Join(repo, "b")) {
 		t.Error("finish --dry-run changed things")
 	}
 	Run(t, repo, "feature", "delete", "b", "-f", "--dry-run").MustSucceed(t)
-	if !strings.Contains(branches(t, repo), "feature/b") {
+	if !strings.Contains(branches(t, repo), "regular/b") {
 		t.Error("delete --dry-run changed things")
 	}
 }
@@ -262,13 +262,13 @@ func TestDryRunChangesNothing(t *testing.T) {
 func TestDelete(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
-	wt := worktreeDir(repo, "feature/a")
+	wt := worktreeDir(repo, "regular/a")
 	commitFile(t, wt, "a")
 	if res := Run(t, repo, "feature", "delete", "a").MustFail(t); !strings.Contains(res.Stderr, "not been merged") {
 		t.Errorf("stderr = %q", res.Stderr)
 	}
 	Run(t, repo, "feature", "delete", "-f", "a").MustSucceed(t)
-	if exists(wt) || strings.Contains(branches(t, repo), "feature/a") {
+	if exists(wt) || strings.Contains(branches(t, repo), "regular/a") {
 		t.Error("delete -f should remove worktree and branch")
 	}
 }
@@ -277,11 +277,11 @@ func TestPublishTrackCheckout(t *testing.T) {
 	repo, remote := flowRepoWithRemote(t)
 	Run(t, repo, "feature", "start", "feat").MustSucceed(t)
 	Run(t, repo, "feature", "publish", "feat").MustSucceed(t)
-	if !strings.Contains(testutil.Git(t, remote, "branch", "--list"), "feature/feat") {
+	if !strings.Contains(testutil.Git(t, remote, "branch", "--list"), "regular/feat") {
 		t.Fatal("publish did not push")
 	}
 	Run(t, repo, "feature", "finish", "feat", "-k", "--keepremote").MustSucceed(t) // branch kept, worktree removed
-	wt := worktreeDir(repo, "feature/feat")
+	wt := worktreeDir(repo, "regular/feat")
 	if exists(wt) {
 		t.Fatal("finish -k should still remove the worktree")
 	}
@@ -290,13 +290,13 @@ func TestPublishTrackCheckout(t *testing.T) {
 		t.Errorf("checkout printed %q, want %s", res.Stdout, wt)
 	}
 	Run(t, repo, "feature", "finish", "feat").MustSucceed(t)
-	if strings.Contains(testutil.Git(t, remote, "branch", "--list"), "feature/feat") {
+	if strings.Contains(testutil.Git(t, remote, "branch", "--list"), "regular/feat") {
 		t.Error("finish should delete the remote branch")
 	}
 
-	testutil.Git(t, repo, "push", "-q", "origin", "develop:feature/other")
+	testutil.Git(t, repo, "push", "-q", "origin", "develop:regular/other")
 	Run(t, repo, "feature", "track", "other").MustSucceed(t)
-	if !exists(worktreeDir(repo, "feature/other")) {
+	if !exists(worktreeDir(repo, "regular/other")) {
 		t.Error("track should create a worktree")
 	}
 }

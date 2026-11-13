@@ -1,4 +1,4 @@
-// Package board is the per-repository kanban: cards for features and hotfixes, subtasks for their work
+// Package board is the per-repository kanban: cards for regular and hotfix branches, subtasks for their work
 // branches, and comments. It knows branch names but never runs git; status comes from facts the caller
 // gathers (see Status).
 package board
@@ -15,7 +15,7 @@ type Board struct {
 	Cards  []Card `json:"cards"`
 }
 
-// Card is a task: a feature or hotfix, before or after it has a branch.
+// Card is a task: regular or hotfix, before or after it has a branch.
 type Card struct {
 	ID          int       `json:"id"`
 	Title       string    `json:"title"`

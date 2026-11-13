@@ -7,26 +7,26 @@ type Kind int
 
 // The topic branch kinds.
 const (
-	Feature Kind = iota
+	Regular Kind = iota
 	Release
 	Hotfix
-	Work // a local subtask of a feature or hotfix: work/<parent branch>/<name>
+	Work // a local subtask of a regular or hotfix: work/<parent branch>/<name>
 )
 
 // Kinds lists every kind.
-var Kinds = []Kind{Feature, Release, Hotfix, Work}
+var Kinds = []Kind{Regular, Release, Hotfix, Work}
 
-func (k Kind) String() string { return [...]string{"feature", "release", "hotfix", "work"}[k] }
+func (k Kind) String() string { return [...]string{"regular", "release", "hotfix", "work"}[k] }
 
 // Noun is how messages refer to a kind ("The release was tagged").
 func (k Kind) Noun() string { return k.String() }
 
 // Prefix is the branch prefix of a kind.
 func (s Settings) Prefix(k Kind) string {
-	return [...]string{s.FeaturePrefix, s.ReleasePrefix, s.HotfixPrefix, s.WorkPrefix}[k]
+	return [...]string{s.RegularPrefix, s.ReleasePrefix, s.HotfixPrefix, s.WorkPrefix}[k]
 }
 
-// Base is the branch a kind starts from (and, for features, merges into). Work branches have none of
+// Base is the branch a kind starts from (and, for regular branches, merges into). Work branches have none of
 // their own: see BaseOf.
 func (s Settings) Base(k Kind) string {
 	if k == Hotfix {
@@ -69,7 +69,7 @@ func (s Settings) BaseOf(k Kind, branch string) string {
 // WorkBranch is the work branch name for a subtask of parent: work/<parent>/<name>.
 func (s Settings) WorkBranch(parent, name string) string { return s.WorkPrefix + parent + "/" + name }
 
-// ParentOf is the parent of a work branch: work/feature/login/api -> feature/login.
+// ParentOf is the parent of a work branch: work/regular/login/api -> regular/login.
 func (s Settings) ParentOf(branch string) string {
 	rest := strings.TrimPrefix(branch, s.WorkPrefix)
 	if i := strings.LastIndex(rest, "/"); i >= 0 {
@@ -78,8 +78,8 @@ func (s Settings) ParentOf(branch string) string {
 	return ""
 }
 
-// IsParent reports whether a branch can have work branches: a feature or a hotfix.
+// IsParent reports whether a branch can have work branches: a regular or a hotfix.
 func (s Settings) IsParent(branch string) bool {
 	k, ok := s.KindOf(branch)
-	return ok && (k == Feature || k == Hotfix)
+	return ok && (k == Regular || k == Hotfix)
 }

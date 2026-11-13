@@ -28,7 +28,7 @@ func newExecCmd(d Deps) *cobra.Command {
 	return &cobra.Command{
 		Use:     "exec <worktree> -- <command> [args...]",
 		Short:   "Run a command in a worktree",
-		Example: "  flowtree exec feature/auth -- go test ./...\n  flowtree exec @ -- pwd",
+		Example: "  flowtree exec regular/auth -- go test ./...\n  flowtree exec @ -- pwd",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if cmd.ArgsLenAtDash() != 1 || len(args) < 2 {
 				return errors.New("usage: flowtree exec <worktree> -- <command> [args...]")

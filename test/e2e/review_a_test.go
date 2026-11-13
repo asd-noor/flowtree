@@ -20,7 +20,7 @@ func checkedOutByHand(t *testing.T, repo, branch, base string) string {
 
 func TestFinishRefusesWhenMainCannotReturnToDevelop(t *testing.T) {
 	for _, tc := range []struct{ kind, name, branch, base string }{
-		{"feature", "x", "feature/x", "develop"},
+		{"feature", "x", "regular/x", "develop"},
 		{"hotfix", "1.0.1", "hotfix/1.0.1", "main"},
 	} {
 		repo := flowRepo(t)

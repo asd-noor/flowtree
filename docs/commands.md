@@ -10,7 +10,7 @@ shown by `list`, or an absolute path.
 
 ```
 flowtree init [--flow] [-w DIR] [-f] [-d]
-              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [--remote R]
+              [--master B] [--develop B] [-p regular/] [-r release/] [-x hotfix/] [--remote R]
 ```
 
 Stores flowtree's settings in the repository's git config (`.git/config`, section `flowtree`; see
@@ -40,7 +40,7 @@ flowtree config --unset <key> [--global]
 flowtree config hooks                    # path and contents of the post-create hooks file
 ```
 
-Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`,
+Keys: `baseDir`, `remote`, `master`, `develop`, `regularPrefix`, `releasePrefix`, `hotfixPrefix`,
 `workPrefix` (any case, optional `flowtree.` prefix). The listing marks each value `(local)`, `(global)`,
 `(system)` or `(default)`. Values are validated before they are written and unknown keys are rejected. Keys
 complete with Tab. `config hooks` prints where `flowtree-hooks.json` lives, and an example when the file does not
@@ -102,7 +102,7 @@ regardless. On a terminal with no name, a picker offers the removable worktrees 
 
 Prints the absolute path of an existing worktree. It is read-only and never changes anything. With no name or
 `@` it prints the main worktree; on a terminal with no name it opens a picker over the existing worktrees.
-`cd "$(flowtree print-dir feature/auth)"` works without shell integration.
+`cd "$(flowtree print-dir regular/auth)"` works without shell integration.
 
 ### `exec <worktree> -- <command> [args...]`
 
@@ -113,25 +113,25 @@ Runs a command in the worktree with your terminal attached and exits with the co
 Takes you where a branch lives; with shell integration your shell `cd`s there. Rows:
 
 - `@`: the main worktree (also matched by the branch it is on, so `switch develop` finds it while it is on develop);
-- every `feature/*`, `release/*` and `hotfix/*` worktree;
+- every `regular/*`, `release/*` and `hotfix/*` worktree;
 - `master` and `develop` when the main worktree is not on them: selecting one **moves the main
   worktree onto it** (it must be clean);
-- `feature/*`, `release/*` and `hotfix/*` branches with no worktree: selecting one creates it.
+- `regular/*`, `release/*` and `hotfix/*` branches with no worktree: selecting one creates it.
 
 A query is case-insensitive and tiered: exact, then substring, then fuzzy (letters in order). Topic branches
-also match without their prefix (`login` for `feature/login`). If exactly one row matches it is used at once;
+also match without their prefix (`login` for `regular/login`). If exactly one row matches it is used at once;
 otherwise the picker opens with the query prefilled. Without a terminal an ambiguous query is an error.
 Unlike `print-dir`, `switch` can change state, and says so on stderr when it does.
 
 ### `relocate [-n]`
 
-Moves topic (feature, release and hotfix) worktrees to `<baseDir>/<branch>` after `baseDir` changed (`-n` shows the plan). Locked
+Moves topic (regular, release and hotfix) worktrees to `<baseDir>/<branch>` after `baseDir` changed (`-n` shows the plan). Locked
 worktrees, missing directories and occupied targets are skipped with a reason; it refuses to run while you are
 inside a worktree it would move; the main worktree is never moved.
 
 ## Flow commands
 
-`<kind>` is `feature`, `release`, `hotfix` or `work`. `<name>` is the name without its prefix (a version for
+`<kind>` is `regular`, `release`, `hotfix` or `work` (the `regular` kind is still driven by the `feature` command group). `<name>` is the name without its prefix (a version for
 release and hotfix). `work` has no `publish` or `track`; its `start` is described below. The behaviour behind these is described in [git-flow.md](git-flow.md).
 
 | Command | Effect |
@@ -176,12 +176,12 @@ flowtree work finish [-k] [--keeplocal] [-D] [--dry-run] [<name>]
 ```
 
 `start` creates `work/<parent>/<name>` from the parent's tip, in its own worktree. `-P` names the parent
-(`feature/login`, `hotfix/1.2.1`); without it the parent is the feature or hotfix whose worktree you are in, else
+(`regular/login`, `hotfix/1.2.1`); without it the parent is the regular or hotfix branch whose worktree you are in, else
 a picker on a terminal, else an error. `finish` rebases the branch onto its parent, fast-forwards the parent and
 removes the work worktree and branch. `-d` sets the subtask's description on the board: its brief. A `<name>` may be bare (`api`, the subtask of the parent you are in, or the
-only one of that name) or carry the parent (`feature/login/api`).
+only one of that name) or carry the parent (`regular/login/api`).
 
-### Feature-only commands
+### Regular-only commands
 
 | Command | Effect |
 |---------|--------|
@@ -193,7 +193,7 @@ only one of that name) or carry the parent (`feature/login/api`).
 
 The repository's kanban lives in `<git-common-dir>/flowtree-board.json`: one file for every worktree of the clone,
 never committed or pushed. Writes take a lock and replace the file atomically, so parallel commands in different
-worktrees are safe. A task is a feature or hotfix (before or after it has a branch); its subtasks are the work
+worktrees are safe. A task is a regular or hotfix task (before or after it has a branch); its subtasks are the work
 branches of that branch.
 
 A task's column is never set by hand; it follows from git:
@@ -204,7 +204,7 @@ A task's column is never set by hand; it follows from git:
 | todo | no branch yet |
 | doing | the branch exists |
 | review | review was asked for at the branch's current tip |
-| done | the branch (or its last known tip, once deleted) has commits of its own and is merged into its target: develop for a feature, master for a hotfix, the parent for a subtask |
+| done | the branch (or its last known tip, once deleted) has commits of its own and is merged into its target: develop for a regular branch, master for a hotfix, the parent for a subtask |
 | abandoned | the branch is gone and was not merged |
 
 The flow commands keep the board up to date (a board failure only prints a warning; git is never rolled back):
@@ -230,7 +230,7 @@ Releases have no task. `--dry-run` shows the board steps as `board: ...`.
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
-| `task sync [-n]` | Catch up with plain git: add tasks for feature/hotfix branches without one and subtasks for unknown work branches, relink a task whose branch was renamed (same tip), record every tip. `-n` only prints the changes. |
+| `task sync [-n]` | Catch up with plain git: add tasks for regular/hotfix branches without one and subtasks for unknown work branches, relink a task whose branch was renamed (same tip), record every tip. `-n` only prints the changes. |
 | `board` | Terminal kanban for people; needs a terminal (without one, use `task list`). |
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,

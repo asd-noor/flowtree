@@ -22,7 +22,7 @@ import (
 func newTaskCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "task",
-		Short: "The repository's kanban: tasks for features and hotfixes, subtasks for their work branches",
+		Short: "The repository's kanban: tasks for regular and hotfix branches, subtasks for their work branches",
 		Long: "Tasks live in the git directory (shared by every worktree, never pushed). A task's column\n" +
 			"follows from git: no branch (todo, or backlog), branch exists (doing), review asked at the\n" +
 			"current tip (review), merged into its target (done), deleted unmerged (abandoned).",
@@ -485,7 +485,7 @@ func newTaskSyncCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync [-n]",
 		Short: "Bring the board in line with branches made or renamed with plain git",
-		Long: "Adds tasks for feature and hotfix branches that have none, subtasks for unknown work branches,\n" +
+		Long: "Adds tasks for regular and hotfix branches that have none, subtasks for unknown work branches,\n" +
 			"relinks a task whose branch was renamed (same tip), and records every branch's tip so a later\n" +
 			"merge-and-delete still reads as done. -n prints the changes without writing them.",
 		Args: cobra.NoArgs,

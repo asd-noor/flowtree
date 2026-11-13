@@ -79,7 +79,7 @@ func TestHooksFileInGitDirIsUsed(t *testing.T) {
 	testutil.WriteFile(t, filepath.Join(repo, ".git", "flowtree-hooks.json"),
 		`{"post_create":[{"type":"copy","from":".env"}]}`)
 	Run(t, repo, "feature", "start", "a").MustSucceed(t)
-	if got, _ := os.ReadFile(filepath.Join(worktreeDir(repo, "feature/a"), ".env")); string(got) != "K=1\n" {
+	if got, _ := os.ReadFile(filepath.Join(worktreeDir(repo, "regular/a"), ".env")); string(got) != "K=1\n" {
 		t.Errorf("hook did not copy .env: %q", got)
 	}
 	out := Run(t, repo, "config", "hooks").MustSucceed(t).Stdout

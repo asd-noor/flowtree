@@ -11,8 +11,8 @@ import (
 
 func TestFeaturePullAmbiguousNameIsNotMisreportedAsMissing(t *testing.T) {
 	repo, _ := flowRepoWithRemote(t)
-	testutil.Git(t, repo, "branch", "feature/login", "develop")
-	testutil.Git(t, repo, "branch", "feature/logout", "develop")
+	testutil.Git(t, repo, "branch", "regular/login", "develop")
+	testutil.Git(t, repo, "branch", "regular/logout", "develop")
 	res := Run(t, repo, "feature", "pull", "origin", "log").MustFail(t)
 	if !strings.Contains(res.Stderr, "multiple branches match") || strings.Contains(res.Stderr, "not found on") {
 		t.Errorf("stderr = %q", res.Stderr)
@@ -21,9 +21,9 @@ func TestFeaturePullAmbiguousNameIsNotMisreportedAsMissing(t *testing.T) {
 
 func TestFeaturePullCreatesAWorktreeForARemoteOnlyBranch(t *testing.T) {
 	repo, _ := flowRepoWithRemote(t)
-	testutil.Git(t, repo, "push", "-q", "origin", "develop:feature/remote-only")
+	testutil.Git(t, repo, "push", "-q", "origin", "develop:regular/remote-only")
 	Run(t, repo, "feature", "pull", "origin", "remote-only").MustSucceed(t)
-	if !exists(worktreeDir(repo, "feature/remote-only")) {
+	if !exists(worktreeDir(repo, "regular/remote-only")) {
 		t.Error("pull should create the missing local branch with a worktree")
 	}
 	res := Run(t, repo, "feature", "pull", "origin", "nope").MustFail(t)

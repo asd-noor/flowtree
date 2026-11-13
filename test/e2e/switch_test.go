@@ -12,8 +12,8 @@ import (
 func TestSwitchByShortNameAndBranch(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "feature", "start", "login").MustSucceed(t)
-	wt := worktreeDir(repo, "feature/login")
-	for _, q := range []string{"login", "feature/login"} {
+	wt := worktreeDir(repo, "regular/login")
+	for _, q := range []string{"login", "regular/login"} {
 		cdfile := filepath.Join(t.TempDir(), "cd")
 		res := RunEnv(t, repo, []string{"FLOWTREE_CDFILE=" + cdfile}, "switch", q).MustSucceed(t)
 		if strings.TrimSpace(res.Stdout) != wt {
@@ -27,11 +27,11 @@ func TestSwitchByShortNameAndBranch(t *testing.T) {
 
 func TestSwitchMovesMainAndCreatesWorktrees(t *testing.T) {
 	repo := flowRepo(t)
-	testutil.Git(t, repo, "branch", "feature/later", "develop")
+	testutil.Git(t, repo, "branch", "regular/later", "develop")
 	testutil.Git(t, repo, "branch", "release/9.9", "develop")
 	commitFile(t, repo, "on-develop") // so develop and master differ
 
-	if got := strings.TrimSpace(Run(t, repo, "switch", "later").MustSucceed(t).Stdout); got != worktreeDir(repo, "feature/later") || !exists(got) {
+	if got := strings.TrimSpace(Run(t, repo, "switch", "later").MustSucceed(t).Stdout); got != worktreeDir(repo, "regular/later") || !exists(got) {
 		t.Errorf("a branch without a worktree should get one, got %q", got)
 	}
 	if got := strings.TrimSpace(Run(t, repo, "switch", "release/9.9").MustSucceed(t).Stdout); got != worktreeDir(repo, "release/9.9") || current(t, repo) != "develop" {

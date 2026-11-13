@@ -23,7 +23,7 @@ func (e noSuchBranchError) Error() string {
 func (e noSuchBranchError) Is(target error) bool { return target == ErrNoSuchBranch }
 
 // ResolveTopic turns what the user typed (or nothing) into a full branch name of kind k.
-// A name may omit the prefix; feature names may also be a unique prefix of the name, and work names
+// A name may omit the prefix; regular names may also be a unique prefix of the name, and work names
 // may be the bare subtask name (see resolveWork). With no name, the branch of the worktree the command
 // runs in is used.
 func ResolveTopic(e *Env, k Kind, name string) (string, error) {
@@ -36,7 +36,7 @@ func ResolveTopic(e *Env, k Kind, name string) (string, error) {
 		return branch, nil
 	}
 	switch k {
-	case Feature:
+	case Regular:
 		return uniquePrefixMatch(g, branch)
 	case Work:
 		return resolveWork(e, name)
@@ -64,7 +64,7 @@ func resolveWork(e *Env, name string) (string, error) {
 	return "", fmt.Errorf("multiple work branches are named '%s'; give the parent too:\n  %s", name, strings.Join(matches, "\n  "))
 }
 
-// CurrentParent is the feature or hotfix the working directory belongs to: the branch of its worktree,
+// CurrentParent is the regular or hotfix branch the working directory belongs to: the branch of its worktree,
 // or the parent of the work branch checked out there.
 func CurrentParent(e *Env) (string, bool) {
 	b := currentBranch(e)
@@ -74,14 +74,14 @@ func CurrentParent(e *Env) (string, bool) {
 	return b, e.S.IsParent(b)
 }
 
-// Children lists the open work branches of a feature or hotfix.
+// Children lists the open work branches of a regular or hotfix branch.
 func Children(e *Env, parent string) ([]string, error) {
 	return gitx.LocalBranches(e.MainGit(), e.S.WorkPrefix+parent+"/")
 }
 
 // checkNoChildren refuses to finish or delete a parent while work branches of it are open.
 func checkNoChildren(e *Env, k Kind, branch string) error {
-	if k != Feature && k != Hotfix {
+	if k != Regular && k != Hotfix {
 		return nil
 	}
 	kids, err := Children(e, branch)

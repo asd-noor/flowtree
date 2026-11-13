@@ -18,8 +18,8 @@ func newSwitchCmd(d Deps) *cobra.Command {
 		Use:   "switch [QUERY]",
 		Short: "Go to where a branch lives",
 		Long: "Prints the directory of a branch and, with shell integration, cd's there.\n\n" +
-			"Rows: '@' (the main worktree), every feature/release/hotfix worktree, master/develop\n" +
-			"(selecting one moves the main worktree onto it; it must be clean) and feature/release/hotfix\n" +
+			"Rows: '@' (the main worktree), every regular/release/hotfix worktree, master/develop\n" +
+			"(selecting one moves the main worktree onto it; it must be clean) and regular/release/hotfix\n" +
 			"branches without a worktree (selecting one creates it).\n\n" +
 			"A query matches case-insensitively: exact name first, then substring, then fuzzy. When exactly\n" +
 			"one row matches it is used at once; otherwise a picker opens with the query prefilled.",

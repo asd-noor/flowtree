@@ -30,7 +30,8 @@ func newTaskCmd(d Deps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(newTaskAddCmd(d), newTaskListCmd(d), newTaskShowCmd(d), newTaskEditCmd(d),
-		newTaskCommentCmd(d), newTaskFlagCmd(d, "todo"), newTaskFlagCmd(d, "backlog"), newTaskHumanCmd(d), newTaskSyncCmd(d), newTaskPromptCmd(d))
+		newTaskCommentCmd(d), newTaskFlagCmd(d, "todo"), newTaskFlagCmd(d, "backlog"), newTaskHumanCmd(d), newTaskSyncCmd(d), newTaskPromptCmd(d),
+		newTaskStartCmd(d))
 	return cmd
 }
 
@@ -579,10 +580,11 @@ type prompt struct {
 	Branch, Dir string // Dir is empty when the branch has no worktree
 	Kind        flow.Kind
 	Name        string // the branch's name for flowtree commands
+	Arg         string // what `task start` takes: <name> or, for a hotfix, <version>
 }
 
 func promptOf(e *flow.Env, c board.Card, sub string) (prompt, error) {
-	p := prompt{ID: c.ID, Title: c.Title, Desc: c.Description, Branch: c.Branch}
+	p := prompt{ID: c.ID, Title: c.Title, Desc: c.Description, Branch: c.Branch, Arg: startArg(flow.TypeOf(e.S, c))}
 	if sub != "" {
 		i := slices.IndexFunc(c.Subtasks, func(s board.Subtask) bool { return s.Name == sub })
 		if i < 0 {
@@ -625,7 +627,7 @@ func renderPrompt(p prompt) string {
 
 func whereText(p prompt) string {
 	if p.Branch == "" {
-		return fmt.Sprintf("- No branch yet. Start one with `flowtree feature start -T %d <name>` (or `hotfix start`).\n", p.ID)
+		return fmt.Sprintf("- No branch yet. Start one with `flowtree task start %d %s`.\n", p.ID, p.Arg)
 	}
 	ref := p.Name
 	if p.Kind == flow.Work {

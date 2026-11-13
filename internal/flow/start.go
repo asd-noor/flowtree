@@ -65,8 +65,8 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 	}
 	return Plan(
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
-		One("check "+e.S.Remote+" state", func(e *Env) error { return checkStartRemote(e, o.Kind, branch, base, o.Base == "") }),
-		createSteps(o.Kind, name, branch, base),
+		One("check "+e.S.Remote+" state", func(e *Env) error { return checkStartRemote(e, o, branch, base) }),
+		createSteps(o.Kind, o.Task, name, branch, base),
 		If(o.Kind != Release, linkStep(o.Task, branch, name)),
 	), nil
 }
@@ -84,18 +84,18 @@ func planStartWork(e *Env, o StartOpts) ([]Step, error) {
 	if err := checkStartable(e, Work, o.Name, branch, parent); err != nil {
 		return nil, err
 	}
-	return Plan(createSteps(Work, o.Name, branch, parent), subtaskStep(o.Name, branch, parent, o.Desc)), nil
+	return Plan(createSteps(Work, 0, o.Name, branch, parent), subtaskStep(o.Name, branch, parent, o.Desc)), nil
 }
 
 // createSteps create the branch and its worktree, then print a summary.
-func createSteps(k Kind, name, branch, base string) []Step {
+func createSteps(k Kind, task int, name, branch, base string) []Step {
 	var path string
 	return Plan(
 		One(createDesc(branch, base), func(e *Env) (err error) {
 			path, err = createTopic(e, branch, base)
 			return err
 		}),
-		One("print summary", func(e *Env) error { printStartSummary(e, k, name, branch, base, path); return nil }),
+		One("print summary", func(e *Env) error { printStartSummary(e, k, task, name, branch, base, path); return nil }),
 	)
 }
 
@@ -142,11 +142,11 @@ func checkNoneOpen(e *Env) error {
 	return nil
 }
 
-func checkStartRemote(e *Env, k Kind, branch, base string, defaultBase bool) error {
+func checkStartRemote(e *Env, o StartOpts, branch, base string) error {
 	if e.HasRemote() && gitx.RemoteBranchExists(e.MainGit(), e.S.Remote, branch) {
-		return fmt.Errorf("branch '%s' already exists on %s; use 'flowtree %s track %s'", branch, e.S.Remote, k, e.S.Name(k, branch))
+		return fmt.Errorf("branch '%s' already exists on %s; use 'flowtree task track %s %s'", branch, e.S.Remote, taskArg(o.Task), branch)
 	}
-	if defaultBase {
+	if o.Base == "" {
 		return CheckSync(e, base)
 	}
 	return nil
@@ -164,9 +164,24 @@ func createTopic(e *Env, branch, base string) (string, error) {
 	return path, err
 }
 
-func printStartSummary(e *Env, k Kind, name, branch, base, path string) {
+// taskArg is the task number for a hint, or a placeholder when the branch has no task yet.
+func taskArg(task int) string {
+	if task > 0 {
+		return fmt.Sprint(task)
+	}
+	return "<n>"
+}
+
+func finishCmd(e *Env, k Kind, task int, name, branch string) string {
+	if k == Regular || k == Hotfix {
+		return "flowtree task finish " + taskArg(task)
+	}
+	return fmt.Sprintf("flowtree %s finish %s", k, finishArg(e, k, name, branch))
+}
+
+func printStartSummary(e *Env, k Kind, task int, name, branch, base, path string) {
 	e.Say("\nSummary of actions:\n- A new branch '%s' was created, based on '%s'\n- %s\n", branch, base, whereIs(path))
-	e.Say("Now, start committing on your %s. When done, use:\n\n     flowtree %s finish %s\n", k, k, finishArg(e, k, name, branch))
+	e.Say("Now, start committing on your %s. When done, use:\n\n     %s\n", k, finishCmd(e, k, task, name, branch))
 }
 
 // PlanTrack returns the steps that check out a branch that exists on the remote.

@@ -77,6 +77,8 @@ flowtree release finish -m "1.2.0" # merge to master, tag, merge the tag into de
 flowtree hotfix start 1.2.1        # hotfix/1.2.1 off master
 flowtree hotfix finish -p          # as release finish, then push develop, master and the tag
 
+flowtree task start 3 login        # start the branch of existing task #3 by its type (hotfix task: `task start 3 1.2.1`)
+
 flowtree switch                    # pick where to go (built-in picker); `flowtree switch login` goes straight there
 ```
 
@@ -135,8 +137,8 @@ flowtree task sync                     # after branches were made or renamed wit
 ```
 
 Columns follow git rather than manual moves: a task without a branch is in todo (or the backlog), with a branch it
-is doing, and once its branch is merged into its target it is done. `feature start -T 1 login` links task #1 to the
-new branch (without `-T` a task is added), `work start` adds subtasks, and `feature review` moves the task to
+is doing, and once its branch is merged into its target it is done. `task start 1 login` starts the branch of task #1 and links it
+(`feature start -T 1 login` does the same; without `-T` a task is added), `work start` adds subtasks, and `feature review` moves the task to
 review until the next commit. `flowtree board` shows the columns side by side in the terminal (enter for details,
 `e` to edit, `c` to comment, live reload). See [docs/commands.md](docs/commands.md#board).
 

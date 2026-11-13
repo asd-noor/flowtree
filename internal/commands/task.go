@@ -627,9 +627,13 @@ func whereText(p prompt) string {
 	if p.Branch == "" {
 		return fmt.Sprintf("- No branch yet. Start one with `flowtree feature start -T %d <name>` (or `hotfix start`).\n", p.ID)
 	}
+	ref := p.Name
+	if p.Kind == flow.Work {
+		ref = fmt.Sprintf("%d/%s", p.ID, p.Name)
+	}
 	dir := fmt.Sprintf("`%s`", p.Dir)
 	if p.Dir == "" {
-		dir = fmt.Sprintf("none yet; create it with `flowtree %s checkout %s`", p.Kind, p.Name)
+		dir = fmt.Sprintf("none yet; create it with `flowtree %s checkout %s`", p.Kind, ref)
 	}
 	lines := []string{
 		fmt.Sprintf("- Branch: `%s`", p.Branch),
@@ -638,7 +642,7 @@ func whereText(p prompt) string {
 	}
 	if p.Kind == flow.Work {
 		lines = append(lines, "- Do not merge, rebase or push. When it is done, it is finished into its parent with "+
-			fmt.Sprintf("`flowtree work finish %s`.", p.Name))
+			fmt.Sprintf("`flowtree work finish %s`.", ref))
 	} else {
 		lines = append(lines, fmt.Sprintf("- When it is ready, mark it with `flowtree %s review %s`; it is finished with `flowtree %s finish %s`.", p.Kind, p.Name, p.Kind, p.Name))
 	}

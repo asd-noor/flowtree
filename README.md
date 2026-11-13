@@ -16,8 +16,8 @@ Git worktrees plus an opinionated git-flow. One binary:
 | `work`    | (none) | its parent regular or hotfix | the parent (rebased, fast-forward) | its own worktree, local only |
 
 Regular and hotfix branches are tasks; `work` branches are their subtasks, for parallel work on one task. A work branch
-is named `work/<parent>/<name>` (`work/regular/login/api`); `work start -P regular/login api` creates it, or
-`work start api` from inside the parent's worktree. A feature or hotfix cannot finish while subtasks are open.
+is named `work/<parent>/<name>` (`work/regular/login/api`); `work start -P 12 api` creates it under task #12, or
+`work start api` from inside the parent's worktree. Work commands name a subtask as `<n>/<sub>` (`work finish 12/api`). A feature or hotfix cannot finish while subtasks are open.
 
 The main checkout rests on `develop` and only ever holds `master` or `develop`. Every topic branch gets its own
 worktree.
@@ -99,14 +99,13 @@ flowtree install-skill <dir>       # install the embedded agent skill into a ski
 
 flowtree feature list [-v] | start [-F] <name> [<base>] | finish [flags] [<name>] | checkout|publish [<name>]
                  track <name> | delete [-f] [-r] <name> | diff [<name>] | rebase [-i] [-p] [<name>] | pull <remote> [<name>]
-flowtree work    list [-v] | start [-P <parent>] <name> | finish [flags] [<name>] | checkout [<name>] | delete [-f] <name>
+flowtree work    list [-v] | start [-P <n>] <sub> | finish [flags] <n>/<sub> | checkout <n>/<sub> | delete [-f] <n>/<sub>
 flowtree release list [-v] | start [-F] <version> [<base>] | finish [flags] [<version>] | checkout|publish|track|delete
 flowtree hotfix  …same as release; branches from master
 ```
 
 Run `flowtree <command> --help` for every flag. `finish` with no name uses the branch of the worktree you are in
-(or, on a terminal, offers a picker). Regular names also accept a unique prefix; work names may be the bare
-subtask name.
+(or, on a terminal, offers a picker). Regular names also accept a unique prefix; `work` commands take `<n>/<sub>`, task number and subtask name.
 
 - `feature finish` merges `--no-ff` into develop and never rebases; if a pull request already merged the branch,
   it only cleans up.

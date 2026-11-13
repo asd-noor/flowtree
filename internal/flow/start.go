@@ -13,7 +13,7 @@ type StartOpts struct {
 	Kind   Kind
 	Name   string
 	Base   string // defaults to the kind's base branch
-	Parent string // work only: the regular or hotfix the subtask belongs to
+	Parent int    // work only: the task whose branch the subtask belongs to (0: from the working directory)
 	Task   int    // regular and hotfix only: the board task the branch is for (0: a new task)
 	Desc   string // work only: the subtask's description on the board
 	Fetch  bool
@@ -21,37 +21,19 @@ type StartOpts struct {
 
 // ErrNoParent is returned by ResolveParent when no parent was given and none follows from the working
 // directory; a caller on a terminal may then offer a choice.
-var ErrNoParent = errors.New("no parent given (-P <regular/x|hotfix/x>) and the working directory is not in a regular or hotfix worktree")
+var ErrNoParent = errors.New("no parent given (-P <task number>) and the working directory is not in a regular or hotfix worktree")
 
-// ResolveParent is the parent a new work branch belongs to: the one given, else the regular or hotfix
-// the working directory belongs to.
-func ResolveParent(e *Env, given string) (string, error) {
-	if given == "" {
-		if p, ok := CurrentParent(e); ok {
-			return p, nil
-		}
+// ResolveParent is the parent a new work branch belongs to: the branch of task id, else the regular or
+// hotfix the working directory belongs to, which must have a task.
+func ResolveParent(e *Env, task int) (string, error) {
+	if task > 0 {
+		return TaskBranch(e, task)
+	}
+	p, ok := CurrentParent(e)
+	if !ok {
 		return "", ErrNoParent
 	}
-	if !e.S.IsParent(given) {
-		return "", fmt.Errorf("parent '%s' must be a regular or hotfix branch (%s..., %s...)", given, e.S.RegularPrefix, e.S.HotfixPrefix)
-	}
-	if !gitx.BranchExists(e.MainGit(), given) {
-		return "", fmt.Errorf("parent '%s' does not exist", given)
-	}
-	return given, nil
-}
-
-// Parents lists the open regular and hotfix branches, the branches a work branch can belong to.
-func Parents(e *Env) ([]string, error) {
-	var out []string
-	for _, k := range []Kind{Regular, Hotfix} {
-		bs, err := gitx.LocalBranches(e.MainGit(), e.S.Prefix(k))
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, bs...)
-	}
-	return out, nil
+	return p, checkParentHasTask(e, p)
 }
 
 func missingName(k Kind) error {
@@ -92,7 +74,7 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 // planStartWork starts a local subtask off the tip of its parent; it never touches the remote.
 func planStartWork(e *Env, o StartOpts) ([]Step, error) {
 	if strings.Contains(o.Name, "/") {
-		return nil, fmt.Errorf("a work name must not contain '/' (got '%s'); the parent goes in -P", o.Name)
+		return nil, fmt.Errorf("a work name must not contain '/' (got '%s'); the task goes in -P", o.Name)
 	}
 	parent, err := ResolveParent(e, o.Parent)
 	if err != nil {
@@ -184,7 +166,7 @@ func createTopic(e *Env, branch, base string) (string, error) {
 
 func printStartSummary(e *Env, k Kind, name, branch, base, path string) {
 	e.Say("\nSummary of actions:\n- A new branch '%s' was created, based on '%s'\n- %s\n", branch, base, whereIs(path))
-	e.Say("Now, start committing on your %s. When done, use:\n\n     flowtree %s finish %s\n", k, k, name)
+	e.Say("Now, start committing on your %s. When done, use:\n\n     flowtree %s finish %s\n", k, k, finishArg(e, k, name, branch))
 }
 
 // PlanTrack returns the steps that check out a branch that exists on the remote.
@@ -223,6 +205,13 @@ func trackBranch(e *Env, branch string) (string, error) {
 		e.cd(path)
 	}
 	return path, err
+}
+
+func finishArg(e *Env, k Kind, name, branch string) string {
+	if k == Work {
+		return WorkArg(e, branch)
+	}
+	return name
 }
 
 func whereIs(path string) string {

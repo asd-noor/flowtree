@@ -27,15 +27,16 @@ The main checkout (the directory you cloned into) rests on `develop`. It only ev
 A feature or hotfix is a task; a work branch is a subtask of one, so several people or agents can work on a task
 in parallel. Its name carries its parent: `work/regular/login/api` belongs to `regular/login`.
 
-- `work start [-P <parent>] <name>`: the parent is `-P` (a full branch name), else the regular or hotfix branch whose
-  worktree you are in (or the parent of the work branch you are in), else, on a terminal, a picker. The branch
-  starts from the parent's tip. Names must not contain `/`.
-- `work finish`: rebases the work branch onto its parent inside its worktree (a conflict aborts the rebase and
+- `work start [-P <n>] <sub>`: the parent is the branch of task `-P` (`12` or `#12`), else the regular or hotfix
+  branch whose worktree you are in (or the parent of the work branch you are in), else, on a terminal, a picker of
+  tasks with an open branch. The parent must have a task (`flowtree task sync` adds one). The branch starts from the
+  parent's tip. Names must not contain `/`.
+- `work finish <n>/<sub>`: rebases the work branch onto its parent inside its worktree (a conflict aborts the rebase and
   changes nothing), fast-forwards the parent (in the parent's worktree, which must have no uncommitted changes,
   or in a throwaway worktree), then removes the work worktree and branch.
 - Work branches are local: there is no `work publish`, `track` or `pull`.
-- A bare name (`api`) means the subtask of the parent you are in; elsewhere it must be unique, or give
-  `regular/login/api`.
+- `work finish`, `checkout` and `delete` take `<n>/<sub>`: task number and subtask name (`12/api`), resolved to
+  `work/<task 12's branch>/api`.
 - `feature finish`, `hotfix finish` and their `delete` refuse while the branch has open work branches.
 
 If you check a topic branch out in the main checkout by hand, the commands that need its worktree
@@ -104,7 +105,7 @@ removed: the main checkout goes back to develop.
 ## Names
 
 `finish`, `publish`, `checkout`, `rebase` and the other per-branch commands take the name without its prefix
-(`login`, not `regular/login`; the prefix is accepted too). Work names also accept a unique prefix of the name.
+(`login`, not `regular/login`; the prefix is accepted too). Regular names also accept a unique prefix of the name. `work` commands take `<n>/<sub>` instead.
 With no name they use the branch of the worktree you are in. Outside such a worktree, on a terminal, `finish`
 and `checkout` open a picker over the open branches of that kind.
 

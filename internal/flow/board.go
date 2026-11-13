@@ -84,6 +84,26 @@ func tipOf(e *Env, branch string) string {
 	return tip
 }
 
+// TypeOf is the type of a card: the stored one, else read from its branch prefix (a hotfix branch is a
+// hotfix, anything else, including no branch and old feature/ branches, is regular).
+func TypeOf(s Settings, c board.Card) board.Type {
+	switch {
+	case c.Type != "":
+		return c.Type
+	case kindOf(s, c.Branch) == Hotfix:
+		return board.Hotfix
+	}
+	return board.Regular
+}
+
+// typeOfKind is the task type of a branch kind.
+func typeOfKind(k Kind) board.Type {
+	if k == Hotfix {
+		return board.Hotfix
+	}
+	return board.Regular
+}
+
 // linkStep ties a new regular or hotfix branch to task id, or to a new task named after it.
 func linkStep(task int, branch, title string) []Step {
 	desc := "add a task for " + branch
@@ -91,11 +111,11 @@ func linkStep(task int, branch, title string) []Step {
 		desc = fmt.Sprintf("link task #%d to %s", task, branch)
 	}
 	return boardStep(desc, func(e *Env, b board.Board) (board.Board, error) {
-		start := tipOf(e, branch)
+		start, typ := tipOf(e, branch), typeOfKind(kindOf(e.S, branch))
 		if task > 0 {
-			return b.Link(task, branch, start)
+			return b.Link(task, branch, start, typ)
 		}
-		return b.Ensure(branch, title, start, time.Now().UTC()), nil
+		return b.Ensure(branch, title, start, typ, time.Now().UTC()), nil
 	})
 }
 
@@ -104,7 +124,7 @@ func subtaskStep(name, branch, parent, desc string) []Step {
 	return boardStep("add subtask "+name+" to the task of "+parent, func(e *Env, b board.Board) (board.Board, error) {
 		start := tipOf(e, branch)
 		pstart, _ := e.MainGit()("merge-base", parent, e.S.Target(parent))
-		b = b.Ensure(parent, e.S.Name(kindOf(e.S, parent), parent), pstart, time.Now().UTC())
+		b = b.Ensure(parent, e.S.Name(kindOf(e.S, parent), parent), pstart, typeOfKind(kindOf(e.S, parent)), time.Now().UTC())
 		return b.AddSubtask(parent, board.Subtask{Name: name, Branch: branch, Description: desc, Start: start, Tip: start}), nil
 	})
 }
@@ -121,8 +141,9 @@ func kindOf(s Settings, branch string) Kind {
 	return k
 }
 
-// checkTask refuses -T for a task that does not exist or already has a branch, before anything is created.
-func checkTask(e *Env, task int) error {
+// checkTask refuses -T for a task that does not exist, already has a branch or is of the other type than
+// the branch kind k, before anything is created.
+func checkTask(e *Env, task int, k Kind) error {
 	if task == 0 {
 		return nil
 	}
@@ -140,6 +161,8 @@ func checkTask(e *Env, task int) error {
 		return fmt.Errorf("no task #%d", task)
 	case c.Branch != "":
 		return fmt.Errorf("task #%d already belongs to '%s'", task, c.Branch)
+	case TypeOf(e.S, c) != typeOfKind(k):
+		return fmt.Errorf("task #%d is a %s task, not a %s", task, TypeOf(e.S, c), typeOfKind(k))
 	}
 	return nil
 }
@@ -157,7 +180,7 @@ func Review(e *Env, k Kind, name string, undo bool) (string, error) {
 	}
 	return branch, updateBoard(e, func(b board.Board) (board.Board, error) {
 		start, _ := e.MainGit()("merge-base", branch, e.S.Target(branch))
-		b = b.Ensure(branch, e.S.Name(k, branch), start, time.Now().UTC())
+		b = b.Ensure(branch, e.S.Name(k, branch), start, typeOfKind(k), time.Now().UTC())
 		return b.Track(branch, tipOf(e, branch)).SetReview(branch, tip), nil
 	})
 }
@@ -190,7 +213,9 @@ func syncRefs(e *Env) ([]board.Ref, error) {
 func refOf(e *Env, k Kind, branch string) board.Ref {
 	start, _ := e.MainGit()("merge-base", branch, e.S.Target(branch))
 	r := board.Ref{Branch: branch, Tip: tipOf(e, branch), Start: start, Title: e.S.Name(k, branch)}
-	if k == Work {
+	if k != Work {
+		r.Type = typeOfKind(k)
+	} else {
 		r.Parent = e.S.ParentOf(branch)
 		r.Title = strings.TrimPrefix(branch, e.S.WorkPrefix+r.Parent+"/")
 	}

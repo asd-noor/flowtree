@@ -218,20 +218,21 @@ The flow commands keep the board up to date (a board failure only prints a warni
 | `feature rebase` | moves a review mark that was at the old tip to the new one |
 | `finish`, `delete` | record the branch's last tip, so the task reads as done (merged) or abandoned (not) once the branch is gone |
 
-Releases have no task. `--dry-run` shows the board steps as `board: ...`.
+Releases have no task. A task is regular or hotfix; `start -T` refuses a task of the other type before
+creating anything, and tasks from before types read their type from the branch prefix. `--dry-run` shows the board steps as `board: ...`.
 
 | Command | Effect |
 |---------|--------|
-| `task add [-d <text>] [-t <tags>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. |
-| `task list [-s <status>] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned. |
-| `task show [--json] <n>` | Description, subtasks and comments of a task. |
-| `task edit [--title <t>] [-d <text>] [-t <tags>] <n>[/<sub>]` | Change fields; with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
+| `task add [-d <text>] [-t <tags>] [--type regular|hotfix] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. `--type` defaults to regular. |
+| `task list [-s <status>] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned, and their type (`[regular]`, `[hotfix]`). `--json` always has `"type"`. |
+| `task show [--json] <n>` | Type, description, subtasks and comments of a task. |
+| `task edit [--title <t>] [-d <text>] [-t <tags>] [--type regular|hotfix] <n>[/<sub>]` | Change fields (`--type` only while the task has no branch; after that it follows the branch); with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
 | `task prompt <n>[/<sub>]` | Print the task (or subtask) as a Markdown brief: descriptions, branch, absolute worktree path, how it is finished. Hand it to whoever works on it. |
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
-| `task sync [-n]` | Catch up with plain git: add tasks for regular/hotfix branches without one and subtasks for unknown work branches, relink a task whose branch was renamed (same tip), record every tip. `-n` only prints the changes. |
-| `board` | Terminal kanban for people; needs a terminal (without one, use `task list`). |
+| `task sync [-n]` | Catch up with plain git: add tasks (typed by the branch prefix) for regular/hotfix branches without one and subtasks for unknown work branches, relink a task whose branch was renamed (same tip), record every tip. `-n` only prints the changes. |
+| `board` | Terminal kanban for people (cards show a `regular`/`hotfix` badge); needs a terminal (without one, use `task list`). |
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,
 `enter`/`tab` toggles the detail pane (branch, tags, description, subtasks, comments; long lines wrap), `J`/`K`

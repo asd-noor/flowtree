@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"flowtree/internal/testutil"
 )
 
 type taskView struct {
 	ID       int    `json:"id"`
 	Title    string `json:"title"`
+	Type     string `json:"type"`
 	Branch   string `json:"branch"`
 	Status   string `json:"status"`
 	Subtasks []struct {
@@ -132,5 +135,37 @@ func TestSubtaskBriefAndPrompt(t *testing.T) {
 	}
 	if show := Run(t, repo, "task", "show", "1").MustSucceed(t).Stdout; !strings.Contains(show, "returns a JWT") {
 		t.Errorf("show should list the subtask's description:\n%s", show)
+	}
+}
+
+func TestTaskType(t *testing.T) {
+	repo := flowRepo(t)
+	Run(t, repo, "task", "add", "Login").MustSucceed(t)
+	Run(t, repo, "task", "add", "--type", "hotfix", "Crash").MustSucceed(t)
+	if got := tasks(t, repo); got[1].Type != "regular" || got[2].Type != "hotfix" {
+		t.Fatalf("types after add: %+v", got)
+	}
+
+	res := Run(t, repo, "hotfix", "start", "-T", "1", "1.0.1").MustFail(t)
+	if !strings.Contains(res.Stderr, "task #1 is a regular task, not a hotfix") || strings.Contains(branches(t, repo), "hotfix/") {
+		t.Errorf("mismatch must be refused before git changes: %q", res.Stderr)
+	}
+	Run(t, repo, "hotfix", "start", "-T", "2", "1.0.1").MustSucceed(t)
+	if res := Run(t, repo, "task", "edit", "2", "--type", "regular").MustFail(t); !strings.Contains(res.Stderr, "already has a branch") {
+		t.Errorf("edit --type with a branch: %q", res.Stderr)
+	}
+
+	// a branch made with plain git: sync types it by prefix
+	Run(t, repo, "feature", "start", "auto").MustSucceed(t)
+	testutil.Git(t, repo, "branch", "hotfix/9.9.9", "main")
+	Run(t, repo, "task", "sync").MustSucceed(t)
+	byBranch := map[string]string{}
+	for _, v := range tasks(t, repo) {
+		byBranch[v.Branch] = v.Type
+	}
+	for branch, want := range map[string]string{"regular/auto": "regular", "hotfix/9.9.9": "hotfix"} {
+		if byBranch[branch] != want {
+			t.Errorf("%s typed %q, want %q", branch, byBranch[branch], want)
+		}
 	}
 }

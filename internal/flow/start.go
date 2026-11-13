@@ -78,7 +78,7 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 	if o.Task > 0 && o.Kind == Release {
 		return nil, fmt.Errorf("releases have no task; -T is for regular and hotfix branches")
 	}
-	if err := checkTask(e, o.Task); err != nil {
+	if err := checkTask(e, o.Task, o.Kind); err != nil {
 		return nil, err
 	}
 	return Plan(

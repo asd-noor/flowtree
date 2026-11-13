@@ -35,3 +35,13 @@ func TestReconcile(t *testing.T) {
 		t.Errorf("a second run must change nothing: %v", more)
 	}
 }
+
+func TestReconcileTypesNewCards(t *testing.T) {
+	got, _ := Reconcile(Empty(), []Ref{{Branch: "hotfix/1", Type: Hotfix}, {Branch: "regular/a", Type: Regular}}, time.Time{})
+	if a, _ := got.Card(1); a.Type != Hotfix {
+		t.Errorf("hotfix card: %+v", a)
+	}
+	if b, _ := got.Card(2); b.Type != Regular {
+		t.Errorf("regular card: %+v", b)
+	}
+}

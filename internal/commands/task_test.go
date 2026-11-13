@@ -26,7 +26,7 @@ func TestTaskCommands(t *testing.T) {
 	must("task", "edit", "1", "-d", "Body")
 	must("task", "comment", "--author", "me", "#1", "first", "note")
 
-	if got := must("task", "list"); !strings.Contains(got, "#1    todo      Login page  [ui,auth]") || !strings.Contains(got, "#2    backlog   Later  [human]") {
+	if got := must("task", "list"); !strings.Contains(got, "#1    todo      Login page  [regular] [ui,auth]") || !strings.Contains(got, "#2    backlog   Later  [regular] [human]") {
 		t.Errorf("list:\n%s", got)
 	}
 	if got := must("task", "list", "-s", "backlog"); strings.Contains(got, "#1") {
@@ -37,11 +37,22 @@ func TestTaskCommands(t *testing.T) {
 	}
 	must("task", "todo", "2")
 	must("task", "human", "--off", "2")
-	if got := must("task", "show", "--json", "2"); !strings.Contains(got, `"status": "todo"`) || strings.Contains(got, `"human"`) {
+	if got := must("task", "show", "--json", "2"); !strings.Contains(got, `"status": "todo"`) || !strings.Contains(got, `"type": "regular"`) || strings.Contains(got, `"human"`) {
 		t.Errorf("json:\n%s", got)
 	}
 
+	must("task", "add", "--type", "hotfix", "Urgent")
+	must("task", "edit", "3", "--type", "regular")
+	must("task", "edit", "3", "--type", "hotfix")
+	if got := must("task", "show", "--json", "3"); !strings.Contains(got, `"type": "hotfix"`) {
+		t.Errorf("json:\n%s", got)
+	}
+	if got := must("task", "show", "3"); !strings.Contains(got, "[hotfix]") {
+		t.Errorf("show:\n%s", got)
+	}
+
 	for _, args := range [][]string{
+		{"task", "add", "--type", "chore", "x"}, {"task", "edit", "1", "--type", "nope"},
 		{"task", "show", "9"}, {"task", "show", "x"}, {"task", "list", "-s", "nope"},
 		{"task", "edit", "1"}, // no flags and no terminal
 		{"task", "edit", "1", "--title", ""},

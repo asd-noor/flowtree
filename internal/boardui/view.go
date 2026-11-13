@@ -98,16 +98,13 @@ func columnTop(name string, n int, active bool, a accent, edge lipgloss.Style, w
 
 // cardLines is a card as cardRows lines of width w: a marker and its title, its branch and tags, a gap.
 func cardLines(c Card, on bool, a accent, w int) []string {
-	badge := ""
-	if c.Human {
-		badge = " human"
-	}
-	title := ansi.Truncate(fmt.Sprintf("#%d %s", c.ID, c.Title), max(w-1-len(badge), 0), "…")
+	badges := ansi.StringWidth(typeMark(c) + humanMark(c))
+	title := ansi.Truncate(fmt.Sprintf("#%d %s", c.ID, c.Title), max(w-1-badges, 0), "…")
 	mark, text := " ", lipgloss.NewStyle()
 	if on {
 		mark, text = lipgloss.NewStyle().Foreground(a.bright).Render("▌"), text.Foreground(a.bright).Bold(true)
 	}
-	first := mark + text.Render(title) + humanBadge.Render(badge)
+	first := mark + text.Render(title) + typeBadge(c).Render(typeMark(c)) + humanBadge.Render(humanMark(c))
 	second := "  " + faint.Render(ansi.Truncate(cardSub(c), max(w-2, 0), "…"))
 	return padLines([]string{first, second}, cardRows, w)
 }
@@ -173,7 +170,7 @@ func detailLines(m model) []string {
 
 func detailText(c Card) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s%s\n", bold.Render(fmt.Sprintf("#%d %s", c.ID, c.Title)), humanBadge.Render(humanMark(c)))
+	fmt.Fprintf(&b, "%s%s%s\n", bold.Render(fmt.Sprintf("#%d %s", c.ID, c.Title)), typeBadge(c).Render(typeMark(c)), humanBadge.Render(humanMark(c)))
 	fmt.Fprintf(&b, "%s %s\n", label("status"), statusText(c.Status, string(c.Status)))
 	if c.Branch != "" {
 		fmt.Fprintf(&b, "%s %s\n", label("branch"), c.Branch)
@@ -187,6 +184,21 @@ func detailText(c Card) string {
 	b.WriteString(subtaskText(c))
 	b.WriteString(commentText(c))
 	return b.String()
+}
+
+// typeMark is the card's type as a title suffix; regular is drawn faint, hotfix stands out.
+func typeMark(c Card) string {
+	if c.Type == "" {
+		return ""
+	}
+	return " " + string(c.Type)
+}
+
+func typeBadge(c Card) lipgloss.Style {
+	if c.Type == board.Hotfix {
+		return hotfixBadge
+	}
+	return faint
 }
 
 func humanMark(c Card) string {

@@ -71,3 +71,21 @@ func TestCarriedReviewMovesOnlyAMarkAtTheOldTip(t *testing.T) {
 		t.Errorf("a mark at another tip stays: %+v", c)
 	}
 }
+
+func TestTypeOf(t *testing.T) {
+	s := flow.DefaultSettings()
+	for name, tc := range map[string]struct {
+		card board.Card
+		want board.Type
+	}{
+		"stored wins":    {board.Card{Type: board.Hotfix, Branch: "regular/a"}, board.Hotfix},
+		"hotfix prefix":  {board.Card{Branch: "hotfix/1.0.1"}, board.Hotfix},
+		"regular prefix": {board.Card{Branch: "regular/a"}, board.Regular},
+		"old feature":    {board.Card{Branch: "feature/a"}, board.Regular},
+		"no branch":      {board.Card{}, board.Regular},
+	} {
+		if got := flow.TypeOf(s, tc.card); got != tc.want {
+			t.Errorf("%s: %s, want %s", name, got, tc.want)
+		}
+	}
+}

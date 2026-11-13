@@ -75,6 +75,13 @@ func parseID(s string) (int, error) {
 	return id, nil
 }
 
+func parseType(s string) (board.Type, error) {
+	if t := board.Type(s); t == board.Regular || t == board.Hotfix {
+		return t, nil
+	}
+	return "", fmt.Errorf("unknown type '%s'; one of regular, hotfix", s)
+}
+
 func splitTags(s string) []string {
 	return slices.DeleteFunc(mapSlice(strings.Split(s, ","), strings.TrimSpace), func(t string) bool { return t == "" })
 }
@@ -82,17 +89,21 @@ func splitTags(s string) []string {
 // ---- add
 
 func newTaskAddCmd(d Deps) *cobra.Command {
-	var desc, tags string
+	var desc, tags, typ string
 	var backlog, human bool
 	cmd := &cobra.Command{
-		Use:   "add [-d <description>] [-t <tags>] [--backlog] [--human] <title>...",
+		Use:   "add [-d <description>] [-t <tags>] [--type regular|hotfix] [--backlog] [--human] <title>...",
 		Short: "Add a task to todo (or the backlog)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(strings.Join(args, "")) == "" {
 				return errors.New("a task needs a title")
 			}
-			c := board.Card{Title: strings.Join(args, " "), Description: desc, Tags: splitTags(tags),
+			t, err := parseType(typ)
+			if err != nil {
+				return err
+			}
+			c := board.Card{Title: strings.Join(args, " "), Type: t, Description: desc, Tags: splitTags(tags),
 				Backlog: backlog, Human: human, Created: time.Now().UTC()}
 			return withBoard(cmd.Context(), d, func(_ *flow.Env, path string) error {
 				var added board.Card
@@ -109,6 +120,7 @@ func newTaskAddCmd(d Deps) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&desc, "description", "d", "", "description (Markdown)")
 	cmd.Flags().StringVarP(&tags, "tags", "t", "", "comma-separated tags")
+	cmd.Flags().StringVar(&typ, "type", string(board.Regular), "task type: regular or hotfix")
 	cmd.Flags().BoolVar(&backlog, "backlog", false, "park it in the backlog; agents leave it alone")
 	cmd.Flags().BoolVar(&human, "human", false, "a task for a person; agents leave it alone")
 	return cmd
@@ -119,6 +131,7 @@ func newTaskAddCmd(d Deps) *cobra.Command {
 // view is a card with its derived status, as printed by list and show.
 type view struct {
 	board.Card
+	Type     board.Type    `json:"type"` // the effective type; shadows the stored one, which may be empty
 	Status   board.Status  `json:"status"`
 	Subtasks []subtaskView `json:"subtasks,omitempty"`
 }
@@ -129,7 +142,7 @@ type subtaskView struct {
 }
 
 func viewOf(e *flow.Env, c board.Card) view {
-	return view{Card: c, Status: flow.CardStatus(e, c), Subtasks: mapSlice(c.Subtasks, func(s board.Subtask) subtaskView {
+	return view{Card: c, Type: flow.TypeOf(e.S, c), Status: flow.CardStatus(e, c), Subtasks: mapSlice(c.Subtasks, func(s board.Subtask) subtaskView {
 		return subtaskView{Subtask: s, Status: flow.SubtaskStatus(e, s)}
 	})}
 }
@@ -176,7 +189,7 @@ func renderTasks(views []view) string {
 }
 
 func markers(v view) string {
-	var m []string
+	m := []string{"[" + string(v.Type) + "]"}
 	if v.Branch != "" {
 		m = append(m, "("+v.Branch+")")
 	}
@@ -185,9 +198,6 @@ func markers(v view) string {
 	}
 	if len(v.Tags) > 0 {
 		m = append(m, "["+strings.Join(v.Tags, ",")+"]")
-	}
-	if len(m) == 0 {
-		return ""
 	}
 	return "  " + strings.Join(m, " ")
 }
@@ -259,13 +269,13 @@ func printJSON(d Deps, v any) error {
 // ---- edit
 
 func newTaskEditCmd(d Deps) *cobra.Command {
-	var title, desc, tags string
+	var title, desc, tags, typ string
 	cmd := &cobra.Command{
-		Use:   "edit [--title <t>] [-d <description>] [-t <tags>] <n>[/<subtask>]",
-		Short: "Change a task's title, description or tags, or a subtask's description; with no flags, open $EDITOR",
+		Use:   "edit [--title <t>] [-d <description>] [-t <tags>] [--type regular|hotfix] <n>[/<subtask>]",
+		Short: "Change a task's title, description, tags or type, or a subtask's description; with no flags, open $EDITOR",
 		Long: "With flags, sets those fields. Without, opens your editor with the title on the first line and\n" +
 			"the description below a blank line, like a commit message (needs a terminal). <n>/<subtask>\n" +
-			"edits a subtask's description (-d, or the editor).",
+			"edits a subtask's description (-d, or the editor). --type works only while the task has no branch.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, sub, err := parseRef(args[0])
@@ -273,9 +283,9 @@ func newTaskEditCmd(d Deps) *cobra.Command {
 				return err
 			}
 			f := cmd.Flags()
-			byFlags := f.Changed("title") || f.Changed("description") || f.Changed("tags")
+			byFlags := f.Changed("title") || f.Changed("description") || f.Changed("tags") || f.Changed("type")
 			if sub != "" {
-				if f.Changed("title") || f.Changed("tags") {
+				if f.Changed("title") || f.Changed("tags") || f.Changed("type") {
 					return errors.New("a subtask has only a description (-d); its name is its work branch")
 				}
 				return withBoard(cmd.Context(), d, func(e *flow.Env, path string) error {
@@ -299,6 +309,9 @@ func newTaskEditCmd(d Deps) *cobra.Command {
 					if f.Changed("tags") {
 						c.Tags = splitTags(tags)
 					}
+					if f.Changed("type") {
+						return withType(c, typ)
+					}
 					return c, nil
 				})
 			})
@@ -307,7 +320,21 @@ func newTaskEditCmd(d Deps) *cobra.Command {
 	cmd.Flags().StringVar(&title, "title", "", "new title")
 	cmd.Flags().StringVarP(&desc, "description", "d", "", "new description (Markdown)")
 	cmd.Flags().StringVarP(&tags, "tags", "t", "", "new comma-separated tags (empty clears)")
+	cmd.Flags().StringVar(&typ, "type", "", "new type: regular or hotfix (only before the task has a branch)")
 	return cmd
+}
+
+// withType sets the type of a task that has no branch yet; with one, the type follows the branch.
+func withType(c board.Card, typ string) (board.Card, error) {
+	t, err := parseType(typ)
+	if err != nil {
+		return c, err
+	}
+	if c.Branch != "" {
+		return c, fmt.Errorf("task #%d already has a branch; its type follows the branch", c.ID)
+	}
+	c.Type = t
+	return c, nil
 }
 
 // editSubtask sets a subtask's description from -d, or from the editor when no flag was given. The editor

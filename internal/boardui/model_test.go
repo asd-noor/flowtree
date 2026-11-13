@@ -142,14 +142,14 @@ func TestTickReloadsEvenWithoutAFileChange(t *testing.T) {
 
 func TestRenderShowsColumnsAndDetail(t *testing.T) {
 	c := card(7, "Login", board.Todo)
-	c.Human, c.Description, c.Branch = true, "Body text", "regular/login"
+	c.Human, c.Description, c.Branch, c.Type = true, "Body text", "regular/login", board.Hotfix
 	c.Subtasks = []board.Subtask{{Name: "api", Branch: "work/login/api"}}
 	c.SubStatus = []board.Status{board.Doing}
 	m := newModel(Source{}, []Card{c})
 	m.width = 120
 	m = key(key(m, "l"), "enter")
 	out := ansi.Strip(render(m))
-	for _, want := range []string{"╭ BACKLOG 0 ─", "╭ TODO 1 ─", "▌#7 Login human", "regular/login", "branch: regular/login", "Body text", "doing", "work/login/api"} {
+	for _, want := range []string{"╭ BACKLOG 0 ─", "╭ TODO 1 ─", "hotfix human", "regular/login", "branch: regular/login", "Body text", "doing", "work/login/api"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}

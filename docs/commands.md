@@ -131,42 +131,36 @@ inside a worktree it would move; the main worktree is never moved.
 
 ## Flow commands
 
-`<kind>` is `regular`, `release`, `hotfix` or `work` (the `regular` kind is still driven by the `feature` command group). `<name>` is the name without its prefix (a version for
-release and hotfix). `work` has no `publish` or `track`; it is addressed as `<n>/<sub>` (task number and subtask), see below. The behaviour behind these is described in [git-flow.md](git-flow.md).
+Regular and hotfix branches are driven through their board task: `task start`, `finish`, … (see [Board](#board)).
+`release` and `work` have a command group each: `<kind>` is `release` or `work`. `<name>` is the version of a
+release; `work` has no `publish` or `track` and is addressed as `<n>/<sub>` (task number and subtask), see below.
+The behaviour behind these is described in [git-flow.md](git-flow.md).
 
 | Command | Effect |
 |---------|--------|
 | `<kind> list [-v]` (`ls`) | List branches of the kind; `*` marks the current one. `-v` adds the state: no commits yet, based on latest, may be rebased, merged (can be deleted). |
-| `<kind> start [-F] [--dry-run] <name> [<base>]` (`work`: see below) | Create the branch from `<base>` (default develop; master for hotfix) and its worktree. Runs hooks, prints a summary. |
-| `<kind> finish [flags] [<name>]` | Merge and clean up. Flags below. |
-| `<kind> checkout [<name>]` | Print the branch's directory, creating its worktree if needed. |
-| `<kind> publish [<name>]` | Push to the remote and set the upstream; refuses if the branch is already there. |
-| `<kind> track <name>` | Check out a branch that exists on the remote (a worktree). |
-| `<kind> delete [-f] [-r] [--dry-run] <name>` | Remove worktree and local branch without merging. Refuses an unmerged branch unless `-f`; `-r` also deletes the remote branch. |
+| `<kind> start [-F] [--dry-run] <version> [<base>]` (`work`: see below) | Create the branch from `<base>` (default develop) and its worktree. Runs hooks, prints a summary. |
+| `<kind> finish [flags] [<version>]` | Merge and clean up. Flags below. |
+| `<kind> checkout [<version>]` | Print the branch's directory, creating its worktree if needed. |
+| `release publish [<version>]` | Push to the remote and set the upstream; refuses if the branch is already there. |
+| `release track <version>` | Check out a branch that exists on the remote (a worktree). |
+| `<kind> delete [-f] [-r] [--dry-run] <version>` | Remove worktree and local branch without merging. Refuses an unmerged branch unless `-f`; `-r` also deletes the remote branch. |
 
 `--dry-run` (on `start`, `finish`, `delete`) prints the planned steps and changes nothing.
 
-### `feature finish`
-
-```
-flowtree feature finish [--push] [-k] [--keeplocal] [--keepremote] [-D] [--dry-run] [<name>]
-```
-
-Fetches (when the remote exists), then merges into develop with `--no-ff`; the branch is never rebased. If
-develop or its remote copy already contains the branch (a merged pull request), it only cleans up.
-`--push` push develop afterwards; `-k` keep local and remote
-branch; `--keeplocal`/`--keepremote` keep one; `-D` (`--force-delete`) remove the worktree even with untracked files.
-
-### `release finish`, `hotfix finish`
+### `release finish`
 
 ```
 flowtree release finish [-F] [-s] [-u KEY] [-m MSG | -f FILE] [-p] [-k] [--keeplocal] [--keepremote]
                         [-D] [-n] [-b] [-S] [-T TAG] [--ff-master] [--dry-run] [<version>]
 ```
 
-`-m`/`-f` tag message (not both); `-s`/`-u` sign; `-n` no tag; `-b` no back-merge into develop; `-T` custom tag
-name; `-S` squash into master; `--ff-master` (release only) fast-forward master; `-p` push develop, master
-and the tag. The tag name is the version exactly as given to `start` (`release start v1.2.0` tags `v1.2.0`) unless `-T` is given.
+Merges into master with `--no-ff`, tags it, merges the tag into develop and cleans up. `-m`/`-f` tag message (not
+both); `-s`/`-u` sign; `-n` no tag; `-b` no back-merge into develop; `-T` custom tag name; `-S` squash into master;
+`--ff-master` fast-forward master; `-p` push develop, master and the tag; `-k` keep local and remote branch;
+`--keeplocal`/`--keepremote` keep one; `-D` remove the worktree even with untracked files. The tag name is the
+version exactly as given to `start` (`release start v1.2.0` tags `v1.2.0`) unless `-T` is given. `task finish`
+takes the same flags for a hotfix task (`--tagname` for `-T`).
 
 ### `work start`, `work finish`
 
@@ -186,14 +180,6 @@ adds one, and nothing is created. `-d` sets the subtask's description on the boa
 `finish`, `checkout` and `delete` take `<n>/<sub>`, the task number and the subtask name (`12/api`); the work branch is
 the one under task #12's branch. The argument is required. `finish` rebases the branch onto its parent, fast-forwards
 the parent and removes the work worktree and branch.
-
-### Regular-only commands
-
-| Command | Effect |
-|---------|--------|
-| `feature diff [<name>]` | The changes on the branch since it left develop. |
-| `feature rebase [-i] [-p] [<name>]` | Rebase onto develop inside the worktree; `-i` is interactive and needs a terminal. |
-| `feature pull <remote> [<name>]` | Fetch, then fast-forward pull the branch in its worktree; if it does not exist locally, create it tracking `<remote>/<branch>` with a worktree. |
 
 ## Board
 
@@ -217,15 +203,15 @@ The flow commands keep the board up to date (a board failure only prints a warni
 
 | Command | Board |
 |---------|-------|
-| `task start <n> <name\|version> [<base>]` (or `feature`/`hotfix start -T <n> <name>`) | links task #n to the new branch (it must exist and have no branch) |
-| `feature`/`hotfix start <name>` | adds a task named after the branch |
+| `task start <n> <name\|version> [<base>]` | links task #n to the new branch (it must exist and have no branch) |
 | `work start` | adds a subtask to the parent's task (the parent must have one) |
-| `task review [--undo] [<n>]` (and `feature`/`hotfix review`) | marks the task ready for review at the current tip; a new commit moves it back to doing; `--undo` clears it. The branch must have a task (`task sync` adds one); review never creates one |
-| `feature rebase` | moves a review mark that was at the old tip to the new one |
-| `finish`, `delete` | record the branch's last tip, so the task reads as done (merged) or abandoned (not) once the branch is gone |
+| `task review [--undo] [<n>]` | marks the task ready for review at the current tip; a new commit moves it back to doing; `--undo` clears it. The branch must have a task (`task sync` adds one); review never creates one |
+| `task rebase` | moves a review mark that was at the old tip to the new one |
+| `task finish`, `task delete` | record the branch's last tip, so the task reads as done (merged) or abandoned (not) once the branch is gone |
 
-Releases have no task. A task is regular or hotfix; `task start` refuses a task of the other type before
-creating anything, and tasks from before types read their type from the branch prefix. `--dry-run` shows the board steps as `board: ...`.
+Releases have no task. A task is regular or hotfix and its type decides the branch `task start` makes; tasks
+from before types read their type from the branch prefix. Starting, reviewing and working never create a task: only
+`task add` and `task sync` do. `--dry-run` shows the board steps as `board: ...`.
 
 | Command | Effect |
 |---------|--------|
@@ -239,7 +225,7 @@ creating anything, and tasks from before types read their type from the branch p
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
 | `task start [-F] [--dry-run] <n> <name\|version> [<base>]` | Start the branch of an existing task by its type: `regular/<name>` from develop, or `hotfix/<version>` from master (version required); `<base>` overrides. Creates the worktree (and prints its directory for the shell wrapper), runs post-create hooks, links the task (leaves the backlog). Refused when the task has a branch, or the branch or tag exists locally or on the remote (then `task track <n> <branch>`). Never creates a task. |
 | `task sync [-n]` | Catch up with plain git: add tasks (typed by the branch prefix) for regular/hotfix branches without one and subtasks for unknown work branches, relink a task whose branch was renamed (same tip), record every tip. `-n` only prints the changes. |
-| `task review\|diff\|publish\|rebase\|pull [<n>]` | The branch lifecycle of task `<n>`. Without `<n>` it is the task of the regular or hotfix worktree you are in, or the parent of a work worktree; elsewhere it is an error. `review` takes `--undo`; `rebase [-i] [-p]` and `pull` are for regular tasks only (`pull` uses the configured remote); `diff` compares with develop (regular) or master (hotfix). |
+| `task review\|diff\|publish\|rebase\|pull [<n>]` | The branch lifecycle of task `<n>`. Without `<n>` it is the task of the regular or hotfix worktree you are in, or the parent of a work worktree; elsewhere it is an error. `review` takes `--undo`; `rebase [-i] [-p]` (`-i` needs a terminal) and `pull` (fast-forward from the configured remote) are for regular tasks only; `diff` compares with develop (regular) or master (hotfix). |
 | `task checkout <n>` | Print the task's worktree directory, creating it if needed (the shell wrapper cds there). |
 | `task finish [flags] <n>` | Merge the task's branch: regular into develop; hotfix into master, tagged, and back into develop. Regular tasks take `--push`, `--keep`, `--keeplocal`, `--keepremote`, `-D/--force-delete`, `--dry-run`; hotfix tasks also `--fetch`, `--squash`, `--sign`, `--signingkey`, `--message`, `--messagefile`, `--notag`, `--nobackmerge`, `--tagname`. A flag the type does not take is an error before anything changes. Refused while work branches are open. |
 | `task delete [-f] [-r] [--dry-run] <n>` | Delete the task's branch and worktree without merging. |

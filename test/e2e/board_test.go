@@ -36,10 +36,10 @@ func tasks(t *testing.T, repo string) map[int]taskView {
 func TestBoardFollowsTheFlow(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "task", "add", "Login page").MustSucceed(t)
-	if dry := Run(t, repo, "feature", "start", "--dry-run", "-T", "1", "login").MustSucceed(t).Stdout; !strings.Contains(dry, "board: link task #1") {
+	if dry := Run(t, repo, "task", "start", "--dry-run", "1", "login").MustSucceed(t).Stdout; !strings.Contains(dry, "board: link task #1") {
 		t.Errorf("dry run should show the board step:\n%s", dry)
 	}
-	Run(t, repo, "feature", "start", "-T", "1", "login").MustSucceed(t)
+	Run(t, repo, "task", "start", "1", "login").MustSucceed(t)
 	if v := tasks(t, repo)[1]; v.Status != "doing" || v.Branch != "regular/login" {
 		t.Fatalf("after start: %+v", v)
 	}
@@ -56,7 +56,7 @@ func TestBoardFollowsTheFlow(t *testing.T) {
 		t.Errorf("subtask after work finish: %+v", v)
 	}
 
-	Run(t, fwt, "feature", "review").MustSucceed(t)
+	Run(t, fwt, "task", "review").MustSucceed(t)
 	if v := tasks(t, repo)[1]; v.Status != "review" {
 		t.Errorf("after review: %s", v.Status)
 	}
@@ -64,32 +64,29 @@ func TestBoardFollowsTheFlow(t *testing.T) {
 	if v := tasks(t, repo)[1]; v.Status != "doing" {
 		t.Errorf("a new commit should move it back to doing: %s", v.Status)
 	}
-	Run(t, fwt, "feature", "review").MustSucceed(t)
-	Run(t, fwt, "feature", "review", "--undo").MustSucceed(t)
+	Run(t, fwt, "task", "review").MustSucceed(t)
+	Run(t, fwt, "task", "review", "--undo").MustSucceed(t)
 	if v := tasks(t, repo)[1]; v.Status != "doing" {
 		t.Errorf("after review --undo: %s", v.Status)
 	}
 
-	Run(t, repo, "feature", "finish", "login").MustSucceed(t)
+	Run(t, repo, "task", "finish", "1").MustSucceed(t)
 	if v := tasks(t, repo)[1]; v.Status != "done" {
 		t.Errorf("after finish: %s", v.Status)
 	}
 }
 
-func TestBoardCreatesTasksAndRefusesBadLinks(t *testing.T) {
+func TestBoardRefusesBadLinksAndReleasesGetNoTask(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "other").MustSucceed(t)
-	if v := tasks(t, repo)[1]; v.Title != "other" || v.Status != "doing" {
-		t.Fatalf("start without -T should add a task: %+v", v)
-	}
-	Run(t, repo, "feature", "delete", "-f", "other").MustSucceed(t)
+	startRegular(t, repo, "other")
+	Run(t, repo, "task", "delete", "-f", "1").MustSucceed(t)
 	if v := tasks(t, repo)[1]; v.Status != "abandoned" {
 		t.Errorf("deleted unmerged: %s", v.Status)
 	}
 
-	for _, args := range [][]string{{"-T", "9", "x"}, {"-T", "1", "y"}} {
-		res := Run(t, repo, append([]string{"feature", "start"}, args...)...).MustFail(t)
-		if !strings.Contains(res.Stderr, "task #") || strings.Contains(branches(t, repo), "regular/"+args[2]) {
+	for _, args := range [][]string{{"9", "x"}, {"1", "y"}} {
+		res := Run(t, repo, append([]string{"task", "start"}, args...)...).MustFail(t)
+		if !strings.Contains(res.Stderr, "task #") || strings.Contains(branches(t, repo), "regular/"+args[1]) {
 			t.Errorf("%v: stderr = %q; no branch may be created", args, res.Stderr)
 		}
 	}
@@ -97,19 +94,16 @@ func TestBoardCreatesTasksAndRefusesBadLinks(t *testing.T) {
 	if len(tasks(t, repo)) != 1 {
 		t.Error("a release gets no task")
 	}
-	if res := Run(t, repo, "release", "start", "-T", "1", "2.0.0").MustFail(t); !strings.Contains(res.Stderr, "unknown shorthand") {
-		t.Errorf("release start has no -T: %q", res.Stderr)
-	}
 }
 
 func TestReviewMarkSurvivesARebase(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	startRegular(t, repo, "a")
 	wt := worktreeDir(repo, "regular/a")
 	commitFile(t, wt, "a.txt")
-	Run(t, wt, "feature", "review").MustSucceed(t)
+	Run(t, wt, "task", "review").MustSucceed(t)
 	commitFile(t, repo, "on-develop.txt")
-	Run(t, wt, "feature", "rebase").MustSucceed(t)
+	Run(t, wt, "task", "rebase").MustSucceed(t)
 	if v := tasks(t, repo)[1]; v.Status != "review" {
 		t.Errorf("a rebase alone must keep the task in review: %s", v.Status)
 	}
@@ -118,7 +112,7 @@ func TestReviewMarkSurvivesARebase(t *testing.T) {
 func TestSubtaskBriefAndPrompt(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "task", "add", "-d", "Email and password.", "Login").MustSucceed(t)
-	Run(t, repo, "feature", "start", "-T", "1", "login").MustSucceed(t)
+	Run(t, repo, "task", "start", "1", "login").MustSucceed(t)
 	Run(t, repo, "work", "start", "-P", "1", "-d", "POST /login", "api").MustSucceed(t)
 	Run(t, repo, "task", "edit", "1/api", "-d", "POST /login, returns a JWT").MustSucceed(t)
 	if res := Run(t, repo, "task", "edit", "1/api", "--title", "x").MustFail(t); !strings.Contains(res.Stderr, "only a description") {
@@ -146,17 +140,14 @@ func TestTaskType(t *testing.T) {
 		t.Fatalf("types after add: %+v", got)
 	}
 
-	res := Run(t, repo, "hotfix", "start", "-T", "1", "1.0.1").MustFail(t)
-	if !strings.Contains(res.Stderr, "task #1 is a regular task, not a hotfix") || strings.Contains(branches(t, repo), "hotfix/") {
-		t.Errorf("mismatch must be refused before git changes: %q", res.Stderr)
-	}
-	Run(t, repo, "hotfix", "start", "-T", "2", "1.0.1").MustSucceed(t)
+	// the version of a hotfix task becomes its branch: the type decides the kind, so no mismatch can be asked for
+	Run(t, repo, "task", "start", "2", "1.0.1").MustSucceed(t)
 	if res := Run(t, repo, "task", "edit", "2", "--type", "regular").MustFail(t); !strings.Contains(res.Stderr, "already has a branch") {
 		t.Errorf("edit --type with a branch: %q", res.Stderr)
 	}
 
 	// a branch made with plain git: sync types it by prefix
-	Run(t, repo, "feature", "start", "auto").MustSucceed(t)
+	testutil.Git(t, repo, "branch", "regular/auto", "develop")
 	testutil.Git(t, repo, "branch", "hotfix/9.9.9", "main")
 	Run(t, repo, "task", "sync").MustSucceed(t)
 	byBranch := map[string]string{}

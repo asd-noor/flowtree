@@ -237,50 +237,49 @@ func TestRemovePicksAndConfirms(t *testing.T) {
 	}
 }
 
-func TestCheckoutAndFinishPickOpenBranch(t *testing.T) {
+func TestCheckoutAndFinishPickOpenRelease(t *testing.T) {
 	repo := flowRepo(t)
 	d, out, _ := testDeps(t, repo, nil)
-	for _, n := range []string{"a", "b"} {
-		if err := run(t, d, "feature", "start", n); err != nil {
-			t.Fatal(err)
-		}
-	}
-	out.Reset()
-	p := &pickerFake{answer: "b"}
-	if err := run(t, tty(d, "", p), "feature", "checkout"); err != nil {
+	if err := run(t, d, "release", "start", "1.0.0"); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(out.String()); got != wtPath(repo, "regular/b") {
+	out.Reset()
+	p := &pickerFake{answer: "1.0.0"}
+	if err := run(t, tty(d, "", p), "release", "checkout"); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != wtPath(repo, "release/1.0.0") {
 		t.Errorf("checkout printed %q", got)
 	}
-	if got := strings.Join(p.keys(), " "); got != "a b" {
+	if got := strings.Join(p.keys(), " "); got != "1.0.0" {
 		t.Errorf("rows %q", got)
 	}
 
-	testutil.WriteFile(t, filepath.Join(wtPath(repo, "regular/b"), "b.txt"), "b\n")
-	testutil.Git(t, wtPath(repo, "regular/b"), "add", "-A")
-	testutil.Git(t, wtPath(repo, "regular/b"), "commit", "-q", "-m", "b")
-	if err := run(t, tty(d, "", p), "feature", "finish"); err != nil {
+	wt := wtPath(repo, "release/1.0.0")
+	testutil.WriteFile(t, filepath.Join(wt, "CHANGELOG.md"), "1.0.0\n")
+	testutil.Git(t, wt, "add", "-A")
+	testutil.Git(t, wt, "commit", "-q", "-m", "changelog")
+	if err := run(t, tty(d, "", p), "release", "finish", "-m", "m"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(branchList(t, repo), "regular/b") || !strings.Contains(branchList(t, repo), "regular/a") {
-		t.Errorf("finish should have merged and removed only regular/b:\n%s", branchList(t, repo))
+	if strings.Contains(branchList(t, repo), "release/1.0.0") {
+		t.Errorf("finish should have merged and removed the release:\n%s", branchList(t, repo))
 	}
 }
 
 func TestFinishInsideWorktreeDoesNotPick(t *testing.T) {
 	repo := flowRepo(t)
 	d, _, _ := testDeps(t, repo, nil)
-	if err := run(t, d, "feature", "start", "a"); err != nil {
+	if err := run(t, d, "release", "start", "1.0.0"); err != nil {
 		t.Fatal(err)
 	}
-	wt := wtPath(repo, "regular/a")
+	wt := wtPath(repo, "release/1.0.0")
 	testutil.WriteFile(t, filepath.Join(wt, "a.txt"), "a\n")
 	testutil.Git(t, wt, "add", "-A")
 	testutil.Git(t, wt, "commit", "-q", "-m", "a")
 	p := &pickerFake{answer: "never"}
 	inside, _, _ := testDeps(t, wt, nil)
-	if err := run(t, tty(inside, "", p), "feature", "finish"); err != nil {
+	if err := run(t, tty(inside, "", p), "release", "finish", "-m", "m"); err != nil {
 		t.Fatal(err)
 	}
 	if p.calls != 0 {
@@ -291,7 +290,7 @@ func TestFinishInsideWorktreeDoesNotPick(t *testing.T) {
 func TestFinishNoNameWithoutTerminalKeepsError(t *testing.T) {
 	repo := flowRepo(t)
 	d, _, _ := testDeps(t, repo, nil)
-	err := run(t, d, "feature", "finish")
+	err := run(t, d, "release", "finish")
 	if err == nil || !strings.Contains(err.Error(), "specify a <name>") {
 		t.Errorf("err = %v", err)
 	}

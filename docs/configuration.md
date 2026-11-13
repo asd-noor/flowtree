@@ -82,8 +82,8 @@ command hooks run code. `flowtree config hooks` prints the exact path and, when 
 
 The file is read strictly: unknown fields and invalid hooks are errors. A missing file means no hooks.
 
-`post_create` hooks run, in order, after every worktree flowtree creates (`add`, `feature start`, `hotfix start`,
-`checkout`, `track`, `switch`, `pull` when they create one). A failing hook prints a warning and the worktree
+`post_create` hooks run, in order, after every worktree flowtree creates (`add`, `task start`, `release start`, `work start`,
+`checkout`, `track`, `switch` when they create one). A failing hook prints a warning and the worktree
 stays.
 
 | Type | Fields | Effect |

@@ -8,13 +8,13 @@ import (
 	"flowtree/internal/gitx"
 )
 
-// StartOpts describe `<kind> start`.
+// StartOpts describe `task start` (regular, hotfix), `release start` and `work start`.
 type StartOpts struct {
 	Kind   Kind
 	Name   string
 	Base   string // defaults to the kind's base branch
 	Parent int    // work only: the task whose branch the subtask belongs to (0: from the working directory)
-	Task   int    // regular and hotfix only: the board task the branch is for (0: a new task)
+	Task   int    // regular and hotfix only: the board task the branch is for
 	Desc   string // work only: the subtask's description on the board
 	Fetch  bool
 }
@@ -57,18 +57,26 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 	if err := checkStartable(e, o.Kind, name, branch, base); err != nil {
 		return nil, err
 	}
-	if o.Task > 0 && o.Kind == Release {
-		return nil, fmt.Errorf("releases have no task; -T is for regular and hotfix branches")
-	}
-	if err := checkTask(e, o.Task, o.Kind); err != nil {
+	if err := checkStartTask(e, o); err != nil {
 		return nil, err
 	}
 	return Plan(
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
 		One("check "+e.S.Remote+" state", func(e *Env) error { return checkStartRemote(e, o, branch, base) }),
 		createSteps(o.Kind, o.Task, name, branch, base),
-		If(o.Kind != Release, linkStep(o.Task, branch, name)),
+		If(o.Kind != Release, linkStep(o.Task, branch)),
 	), nil
+}
+
+// checkStartTask refuses a regular or hotfix start without a task; releases have none.
+func checkStartTask(e *Env, o StartOpts) error {
+	switch {
+	case o.Kind == Release:
+		return nil
+	case o.Task <= 0:
+		return fmt.Errorf("a %s branch is started from a task: flowtree task start <n> <name>", o.Kind)
+	}
+	return checkTask(e, o.Task, o.Kind)
 }
 
 // planStartWork starts a local subtask off the tip of its parent; it never touches the remote.
@@ -144,7 +152,7 @@ func checkNoneOpen(e *Env) error {
 
 func checkStartRemote(e *Env, o StartOpts, branch, base string) error {
 	if e.HasRemote() && gitx.RemoteBranchExists(e.MainGit(), e.S.Remote, branch) {
-		return fmt.Errorf("branch '%s' already exists on %s; use 'flowtree task track %s %s'", branch, e.S.Remote, taskArg(o.Task), branch)
+		return fmt.Errorf("branch '%s' already exists on %s; %s", branch, e.S.Remote, trackHint(o, branch))
 	}
 	if o.Base == "" {
 		return CheckSync(e, base)
@@ -164,17 +172,16 @@ func createTopic(e *Env, branch, base string) (string, error) {
 	return path, err
 }
 
-// taskArg is the task number for a hint, or a placeholder when the branch has no task yet.
-func taskArg(task int) string {
-	if task > 0 {
-		return fmt.Sprint(task)
+func trackHint(o StartOpts, branch string) string {
+	if o.Kind == Release {
+		return "use 'flowtree release track " + strings.TrimPrefix(branch, "release/") + "'"
 	}
-	return "<n>"
+	return fmt.Sprintf("use 'flowtree task track %d %s'", o.Task, branch)
 }
 
 func finishCmd(e *Env, k Kind, task int, name, branch string) string {
 	if k == Regular || k == Hotfix {
-		return "flowtree task finish " + taskArg(task)
+		return fmt.Sprintf("flowtree task finish %d", task)
 	}
 	return fmt.Sprintf("flowtree %s finish %s", k, finishArg(e, k, name, branch))
 }

@@ -15,7 +15,11 @@ worktrees, so you `cd` between them instead of switching branches in one checkou
 | `work` | `work/<parent>/` | its parent (a regular or hotfix branch) | the parent: rebased, then fast-forwarded | its own worktree, never pushed |
 
 Names and prefixes are settings (`flowtree init --flow`, see [configuration.md](configuration.md)). `regular`
-replaces git-flow's `feature`, `bugfix` and `support`; it carries any sprint work, bug fixes included. Its command group is still `feature` for now.
+replaces git-flow's `feature`, `bugfix` and `support`; it carries any sprint work, bug fixes included.
+
+Regular and hotfix branches are the branches of board tasks: a task has a type (`regular` or `hotfix`), and
+`task start <n> <name|version>` starts the branch of its type. Releases have no task. The key of the prefix is
+`flowtree.regularprefix`.
 
 ## The main-checkout rule
 
@@ -24,7 +28,7 @@ The main checkout (the directory you cloned into) rests on `develop`. It only ev
 
 ## Work branches
 
-A feature or hotfix is a task; a work branch is a subtask of one, so several people or agents can work on a task
+A regular or hotfix branch belongs to a task; a work branch is a subtask of one, so several people or agents can work on a task
 in parallel. Its name carries its parent: `work/regular/login/api` belongs to `regular/login`.
 
 - `work start [-P <n>] <sub>`: the parent is the branch of task `-P` (`12` or `#12`), else the regular or hotfix
@@ -37,10 +41,10 @@ in parallel. Its name carries its parent: `work/regular/login/api` belongs to `r
 - Work branches are local: there is no `work publish`, `track` or `pull`.
 - `work finish`, `checkout` and `delete` take `<n>/<sub>`: task number and subtask name (`12/api`), resolved to
   `work/<task 12's branch>/api`.
-- `task finish` and `task delete` (and the legacy `feature`/`hotfix` ones) refuse while the branch has open work branches.
+- `task finish` and `task delete` refuse while the branch has open work branches.
 
 If you check a topic branch out in the main checkout by hand, the commands that need its worktree
-(`checkout`, `switch`, `rebase`, `pull`) move the main checkout back (master for hotfix, else develop; it
+(`task checkout`, `switch`, `task rebase`, `task pull`) move the main checkout back (master for hotfix, else develop; it
 must be clean), give the branch a worktree and say so on stderr.
 
 ## Lifecycle
@@ -48,16 +52,16 @@ must be clean), give the branch a worktree and say so on stderr.
 ```
 flowtree init --flow                 # once per clone: settings, master + develop
 
-flowtree feature start login         # regular/login from develop, in <baseDir>/regular/login
-flowtree feature finish              # merge commit into develop, remove worktree and branch
+flowtree task add "Login"            # task #1, type regular
+flowtree task start 1 login          # regular/login from develop, in <baseDir>/regular/login
+flowtree task finish 1               # merge commit into develop, remove worktree and branch
 
 flowtree release start 1.2.0         # release/1.2.0 from develop, in its own worktree
 flowtree release finish -m "1.2.0"   # merge to master, tag, merge the tag into develop
 
-flowtree hotfix start 1.2.1          # hotfix/1.2.1 from master, in its own worktree
-flowtree hotfix finish -p            # like release finish, then push develop, master and the tag
-
-flowtree task start 3 login          # start the branch of existing task #3: regular/login from develop (hotfix task: hotfix/<version> from master)
+flowtree task add --type hotfix "Crash"   # task #2
+flowtree task start 2 1.2.1          # hotfix/1.2.1 from master, in its own worktree
+flowtree task finish -p 2            # like release finish, then push develop, master and the tag
 ```
 
 ## `finish`
@@ -101,15 +105,16 @@ removed: the main checkout goes back to develop.
   back-merge, and finishes the cleanup.
 - `start` refuses if a release or hotfix is already open (only one of the two at a time: a hotfix fixes a shipped
   release, so they never overlap), if the tag exists, if the branch exists locally, or if
-  it exists on the remote (use `track`).
+  it exists on the remote (use `task track`).
 - Finishing and starting refuse when master or develop is behind or has diverged from the remote.
 
 ## Names
 
-`finish`, `publish`, `checkout`, `rebase` and the other per-branch commands take the name without its prefix
-(`login`, not `regular/login`; the prefix is accepted too). Regular names also accept a unique prefix of the name. `work` commands take `<n>/<sub>` instead.
-With no name they use the branch of the worktree you are in. Outside such a worktree, on a terminal, `finish`
-and `checkout` open a picker over the open branches of that kind.
+`task` commands take the task number (`12` or `#12`): `task start` also the branch name without its prefix, a
+version for a hotfix. `review`, `diff`, `publish`, `rebase` and `pull` may omit the number inside the task's worktree
+(or a work worktree of it); `checkout`, `finish` and `delete` always need it. `work` commands take `<n>/<sub>`.
+`release` commands take the version without its prefix; with none they use the release of the worktree you are in,
+and outside it, on a terminal, `finish` and `checkout` open a picker.
 
 ## Differences from git-flow
 
@@ -117,8 +122,8 @@ and `checkout` open a picker over the open branches of that kind.
 - A release and a hotfix cannot be open at the same time.
 - `bugfix` and `support` are folded into `regular`, so support-style branches start from develop, not master.
 - A conflicting merge is aborted rather than left in progress.
-- While a release is open, `feature finish` and `hotfix finish` still merge into develop, through a throwaway
-  worktree. `hotfix finish` back-merges into develop only, as AVH does.
+- While a release is open, `task finish` of a regular task still merges into develop, through a throwaway
+  worktree; a hotfix task's finish back-merges into develop only, as AVH does.
 - Settings live in the `flowtree` section of git config (`flowtree config`), hooks in a file inside `.git/`.
 
 ## Known limits

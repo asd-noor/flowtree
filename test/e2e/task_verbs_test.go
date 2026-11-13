@@ -16,7 +16,7 @@ func mustFailWith(t *testing.T, dir, want string, args ...string) {
 
 func TestTaskVerbsResolveTheTask(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	fwt := worktreeDir(repo, "regular/login")
 	commitFile(t, fwt, "a.txt")
 	Run(t, fwt, "work", "start", "api").MustSucceed(t)
@@ -46,7 +46,7 @@ func TestTaskVerbsResolveTheTask(t *testing.T) {
 
 func TestTaskCheckoutByIDMakesTheWorktree(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	wt := worktreeDir(repo, "regular/login")
 	testutil.Git(t, repo, "worktree", "remove", "--force", wt)
 	out := Run(t, repo, "task", "checkout", "1").MustSucceed(t).Stdout
@@ -59,12 +59,9 @@ func TestTaskCheckoutByIDMakesTheWorktree(t *testing.T) {
 func TestTaskReviewNeedsACard(t *testing.T) {
 	repo := flowRepo(t)
 	testutil.Git(t, repo, "branch", "regular/raw", "develop")
-	for _, args := range [][]string{{"task", "review"}, {"feature", "review"}} {
-		wt := t.TempDir() + "/raw"
-		testutil.Git(t, repo, "worktree", "add", wt, "regular/raw")
-		mustFailWith(t, wt, "no task for 'regular/raw'; run `flowtree task sync`", args...)
-		testutil.Git(t, repo, "worktree", "remove", "--force", wt)
-	}
+	wt := t.TempDir() + "/raw"
+	testutil.Git(t, repo, "worktree", "add", wt, "regular/raw")
+	mustFailWith(t, wt, "no task for 'regular/raw'; run `flowtree task sync`", "task", "review")
 	if out := Run(t, repo, "task", "list").MustSucceed(t).Stdout; strings.Contains(out, "raw") {
 		t.Errorf("review must not create a card:\n%s", out)
 	}
@@ -72,7 +69,7 @@ func TestTaskReviewNeedsACard(t *testing.T) {
 
 func TestTaskFinishRegular(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	wt := worktreeDir(repo, "regular/login")
 	commitFile(t, wt, "a.txt")
 	mustFailWith(t, wt, "accepts 1 arg", "task", "finish")
@@ -85,7 +82,7 @@ func TestTaskFinishRegular(t *testing.T) {
 
 func TestTaskFinishRefusesFlagsOfTheOtherType(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	before := branches(t, repo)
 	mustFailWith(t, repo, "--notag is for hotfix tasks", "task", "finish", "--notag", "1")
 	mustFailWith(t, repo, "--message is for hotfix tasks", "task", "finish", "-m", "x", "1")
@@ -96,7 +93,7 @@ func TestTaskFinishRefusesFlagsOfTheOtherType(t *testing.T) {
 
 func TestTaskFinishHotfixTagsAndBackMerges(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "hotfix", "start", "1.0.1").MustSucceed(t)
+	startTask(t, repo, "hotfix", "1.0.1")
 	wt := worktreeDir(repo, "hotfix/1.0.1")
 	commitFile(t, wt, "fix.txt")
 	Run(t, repo, "task", "finish", "-m", "fix", "1").MustSucceed(t)
@@ -111,7 +108,7 @@ func TestTaskFinishHotfixTagsAndBackMerges(t *testing.T) {
 
 func TestTaskFinishRefusesOpenWorkBranches(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	Run(t, repo, "work", "start", "-P", "1", "api").MustSucceed(t)
 	mustFailWith(t, repo, "open work branches", "task", "finish", "1")
 	mustFailWith(t, repo, "open work branches", "task", "delete", "-f", "1")
@@ -119,11 +116,11 @@ func TestTaskFinishRefusesOpenWorkBranches(t *testing.T) {
 
 func TestTaskRebaseIsForRegularTasks(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "hotfix", "start", "1.0.1").MustSucceed(t)
+	startTask(t, repo, "hotfix", "1.0.1")
 	mustFailWith(t, repo, "rebase is for regular tasks", "task", "rebase", "1")
 	mustFailWith(t, repo, "pull is for regular tasks", "task", "pull", "1")
 
-	Run(t, repo, "feature", "start", "login").MustSucceed(t) // task 2
+	startRegular(t, repo, "login") // task 2
 	wt := worktreeDir(repo, "regular/login")
 	commitFile(t, wt, "a.txt")
 	commitFile(t, repo, "on-develop.txt")
@@ -135,7 +132,7 @@ func TestTaskRebaseIsForRegularTasks(t *testing.T) {
 
 func TestTaskDelete(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	commitFile(t, worktreeDir(repo, "regular/login"), "a.txt")
 	mustFailWith(t, repo, "has not been merged", "task", "delete", "1")
 	Run(t, repo, "task", "delete", "-f", "1").MustSucceed(t)
@@ -146,7 +143,7 @@ func TestTaskDelete(t *testing.T) {
 
 func TestTaskPublishAndPull(t *testing.T) {
 	repo, remote := flowRepoWithRemote(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	wt := worktreeDir(repo, "regular/login")
 	commitFile(t, wt, "a.txt")
 	Run(t, wt, "task", "publish").MustSucceed(t)
@@ -158,7 +155,7 @@ func TestTaskPublishAndPull(t *testing.T) {
 
 func TestTaskTrackLinksAnExistingCard(t *testing.T) {
 	repo, _ := flowRepoWithRemote(t)
-	Run(t, repo, "feature", "start", "login").MustSucceed(t)
+	startRegular(t, repo, "login")
 	wt := worktreeDir(repo, "regular/login")
 	commitFile(t, wt, "a.txt")
 	Run(t, wt, "task", "publish").MustSucceed(t)

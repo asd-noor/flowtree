@@ -93,9 +93,9 @@ func TestInitFlowNeedsACommit(t *testing.T) {
 
 func TestSettingsLiveInTheMainWorktreesGitConfig(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "feature", "start", "a").MustSucceed(t)
+	startRegular(t, repo, "a")
 	// from a linked worktree the same settings apply
-	if res := Run(t, worktreeDir(repo, "regular/a"), "feature", "list").MustSucceed(t); !strings.Contains(res.Stdout, "a") {
+	if res := Run(t, worktreeDir(repo, "regular/a"), "task", "list").MustSucceed(t); !strings.Contains(res.Stdout, "a") {
 		t.Errorf("stdout = %q", res.Stdout)
 	}
 	if _, err := os.Stat(filepath.Join(repo, ".flowtree.json")); err == nil {

@@ -147,7 +147,7 @@ func newTaskPullCmd(d Deps) *cobra.Command {
 				if err := regularOnly("pull", t); err != nil {
 					return nil, err
 				}
-				return flow.PlanPull(e, e.S.Remote, t.Name(e))
+				return flow.PlanPull(e, t.Name(e))
 			})
 		},
 	}

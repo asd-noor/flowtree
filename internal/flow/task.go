@@ -21,12 +21,25 @@ type Task struct {
 // Name is the branch's name without its prefix, as the topic functions take it.
 func (t Task) Name(e *Env) string { return e.S.Name(t.Kind, t.Branch) }
 
-// kindOfCard is the branch kind of a card, from its effective type.
-func kindOfCard(s Settings, c board.Card) Kind {
+// KindOfCard is the branch kind of a card, from its effective type.
+func KindOfCard(s Settings, c board.Card) Kind {
 	if TypeOf(s, c) == board.Hotfix {
 		return Hotfix
 	}
 	return Regular
+}
+
+// KindOfTask is the branch kind task id starts, so a missing task is reported before anything else.
+func KindOfTask(e *Env, id int) (Kind, error) {
+	b, err := loadBoard(e)
+	if err != nil {
+		return Regular, err
+	}
+	c, ok := b.Card(id)
+	if !ok {
+		return Regular, fmt.Errorf("no task #%d", id)
+	}
+	return KindOfCard(e.S, c), nil
 }
 
 // ResolveTask finds the task id and its open branch. With id 0 it is the task of the regular or
@@ -46,7 +59,7 @@ func ResolveTask(e *Env, id int) (Task, error) {
 	case !gitx.BranchExists(e.MainGit(), c.Branch):
 		return Task{}, fmt.Errorf("the branch '%s' of task #%d does not exist", c.Branch, c.ID)
 	}
-	return Task{Card: c, Branch: c.Branch, Kind: kindOfCard(e.S, c)}, nil
+	return Task{Card: c, Branch: c.Branch, Kind: KindOfCard(e.S, c)}, nil
 }
 
 func taskCard(e *Env, b board.Board, id int) (board.Card, error) {
@@ -96,7 +109,7 @@ func PlanTaskTrack(e *Env, id int, branch string) ([]Step, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Plan(track, linkStep(id, branch, "")), nil
+	return Plan(track, linkStep(id, branch)), nil
 }
 
 // finishHint is the command that resumes finishing the branch of kind k named ver.
@@ -109,5 +122,5 @@ func finishHint(e *Env, k Kind, ver string) string {
 			return fmt.Sprintf("flowtree task finish %d", c.ID)
 		}
 	}
-	return fmt.Sprintf("flowtree %s finish %s", k, ver)
+	return "flowtree task finish"
 }

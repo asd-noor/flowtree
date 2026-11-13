@@ -104,18 +104,10 @@ func typeOfKind(k Kind) board.Type {
 	return board.Regular
 }
 
-// linkStep ties a new regular or hotfix branch to task id, or to a new task named after it.
-func linkStep(task int, branch, title string) []Step {
-	desc := "add a task for " + branch
-	if task > 0 {
-		desc = fmt.Sprintf("link task #%d to %s", task, branch)
-	}
-	return boardStep(desc, func(e *Env, b board.Board) (board.Board, error) {
-		start, typ := tipOf(e, branch), typeOfKind(kindOf(e.S, branch))
-		if task > 0 {
-			return b.Link(task, branch, start, typ)
-		}
-		return b.Ensure(branch, title, start, typ, time.Now().UTC()), nil
+// linkStep ties a new regular or hotfix branch to task id.
+func linkStep(task int, branch string) []Step {
+	return boardStep(fmt.Sprintf("link task #%d to %s", task, branch), func(e *Env, b board.Board) (board.Board, error) {
+		return b.Link(task, branch, tipOf(e, branch), typeOfKind(kindOf(e.S, branch)))
 	})
 }
 
@@ -139,17 +131,10 @@ func kindOf(s Settings, branch string) Kind {
 	return k
 }
 
-// checkTask refuses -T for a task that does not exist, already has a branch or is of the other type than
+// checkTask refuses a task that does not exist, already has a branch or is of the other type than
 // the branch kind k, before anything is created.
 func checkTask(e *Env, task int, k Kind) error {
-	if task == 0 {
-		return nil
-	}
-	path, err := BoardPath(e)
-	if err != nil {
-		return err
-	}
-	b, err := board.Load(path)
+	b, err := loadBoard(e)
 	if err != nil {
 		return err
 	}

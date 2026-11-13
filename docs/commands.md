@@ -220,7 +220,7 @@ The flow commands keep the board up to date (a board failure only prints a warni
 | `task start <n> <name\|version> [<base>]` (or `feature`/`hotfix start -T <n> <name>`) | links task #n to the new branch (it must exist and have no branch) |
 | `feature`/`hotfix start <name>` | adds a task named after the branch |
 | `work start` | adds a subtask to the parent's task (the parent must have one) |
-| `feature`/`hotfix review [--undo] [<name>]` | marks the task ready for review at the current tip; a new commit moves it back to doing; `--undo` clears it |
+| `task review [--undo] [<n>]` (and `feature`/`hotfix review`) | marks the task ready for review at the current tip; a new commit moves it back to doing; `--undo` clears it. The branch must have a task (`task sync` adds one); review never creates one |
 | `feature rebase` | moves a review mark that was at the old tip to the new one |
 | `finish`, `delete` | record the branch's last tip, so the task reads as done (merged) or abandoned (not) once the branch is gone |
 
@@ -239,6 +239,11 @@ creating anything, and tasks from before types read their type from the branch p
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
 | `task start [-F] [--dry-run] <n> <name\|version> [<base>]` | Start the branch of an existing task by its type: `regular/<name>` from develop, or `hotfix/<version>` from master (version required); `<base>` overrides. Creates the worktree (and prints its directory for the shell wrapper), runs post-create hooks, links the task (leaves the backlog). Refused when the task has a branch, or the branch or tag exists locally or on the remote (then `task track <n> <branch>`). Never creates a task. |
 | `task sync [-n]` | Catch up with plain git: add tasks (typed by the branch prefix) for regular/hotfix branches without one and subtasks for unknown work branches, relink a task whose branch was renamed (same tip), record every tip. `-n` only prints the changes. |
+| `task review\|diff\|publish\|rebase\|pull [<n>]` | The branch lifecycle of task `<n>`. Without `<n>` it is the task of the regular or hotfix worktree you are in, or the parent of a work worktree; elsewhere it is an error. `review` takes `--undo`; `rebase [-i] [-p]` and `pull` are for regular tasks only (`pull` uses the configured remote); `diff` compares with develop (regular) or master (hotfix). |
+| `task checkout <n>` | Print the task's worktree directory, creating it if needed (the shell wrapper cds there). |
+| `task finish [flags] <n>` | Merge the task's branch: regular into develop; hotfix into master, tagged, and back into develop. Regular tasks take `--push`, `--keep`, `--keeplocal`, `--keepremote`, `-D/--force-delete`, `--dry-run`; hotfix tasks also `--fetch`, `--squash`, `--sign`, `--signingkey`, `--message`, `--messagefile`, `--notag`, `--nobackmerge`, `--tagname`. A flag the type does not take is an error before anything changes. Refused while work branches are open. |
+| `task delete [-f] [-r] [--dry-run] <n>` | Delete the task's branch and worktree without merging. |
+| `task track <n> <remote branch>` | Check out an existing remote `regular/...` or `hotfix/...` branch and link it to task `<n>`, which must exist, have no branch and be of that type. Creates no task. |
 | `board` | Terminal kanban for people (cards show a `regular`/`hotfix` badge); needs a terminal (without one, use `task list`). |
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,

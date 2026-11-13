@@ -165,7 +165,7 @@ func checkTask(e *Env, task int, k Kind) error {
 	return nil
 }
 
-// Review marks the task of a regular or hotfix as waiting for review at the branch's current tip, or
+// Review marks the task of a regular or hotfix (which must have one) as waiting for review at the branch's current tip, or
 // with undo clears the mark. New commits move the task back to doing on their own.
 func Review(e *Env, k Kind, name string, undo bool) (string, error) {
 	branch, err := ResolveTopic(e, k, name)
@@ -177,8 +177,9 @@ func Review(e *Env, k Kind, name string, undo bool) (string, error) {
 		tip = tipOf(e, branch)
 	}
 	return branch, updateBoard(e, func(b board.Board) (board.Board, error) {
-		start, _ := e.MainGit()("merge-base", branch, e.S.Target(branch))
-		b = b.Ensure(branch, e.S.Name(k, branch), start, typeOfKind(k), time.Now().UTC())
+		if _, ok := b.ByBranch(branch); !ok {
+			return b, noTaskFor(branch)
+		}
 		return b.Track(branch, tipOf(e, branch)).SetReview(branch, tip), nil
 	})
 }

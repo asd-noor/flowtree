@@ -101,6 +101,8 @@ flowtree install-skill <dir>       # install the embedded agent skill into a ski
 
 flowtree feature list [-v] | start [-F] <name> [<base>] | finish [flags] [<name>] | checkout|publish [<name>]
                  track <name> | delete [-f] [-r] <name> | diff [<name>] | rebase [-i] [-p] [<name>] | pull <remote> [<name>]
+flowtree task    review [--undo] | diff | publish | rebase [-i] [-p] | pull   # [<n>]: default is the task of the worktree you are in
+                 checkout <n> | finish [flags] <n> | delete [-f] [-r] <n> | track <n> <remote branch>
 flowtree work    list [-v] | start [-P <n>] <sub> | finish [flags] <n>/<sub> | checkout <n>/<sub> | delete [-f] <n>/<sub>
 flowtree release list [-v] | start [-F] <version> [<base>] | finish [flags] [<version>] | checkout|publish|track|delete
 flowtree hotfix  …same as release; branches from master
@@ -137,8 +139,8 @@ flowtree task sync                     # after branches were made or renamed wit
 ```
 
 Columns follow git rather than manual moves: a task without a branch is in todo (or the backlog), with a branch it
-is doing, and once its branch is merged into its target it is done. `task start 1 login` starts the branch of task #1 and links it
-(`feature start -T 1 login` does the same; without `-T` a task is added), `work start` adds subtasks, and `feature review` moves the task to
+is doing, and once its branch is merged into its target it is done. `task start 1 login` starts the branch of task #1 and links it,
+`work start` adds subtasks, and `task review` moves the task to
 review until the next commit. `flowtree board` shows the columns side by side in the terminal (enter for details,
 `e` to edit, `c` to comment, live reload). See [docs/commands.md](docs/commands.md#board).
 

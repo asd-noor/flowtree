@@ -166,11 +166,18 @@ func printList(d Deps, e *flow.Env, k flow.Kind, verbose bool) error {
 		return err
 	}
 	if len(entries) == 0 {
-		d.Printf("No %s branches exist.\n\nYou can start a new %s branch:\n\n    flowtree %s start %s\n\n", k, k, k, nameArg(k))
+		d.Printf("%s", noBranches(k))
 		return nil
 	}
 	d.Printf("%s", renderEntries(entries))
 	return nil
+}
+
+func noBranches(k flow.Kind) string {
+	if k == flow.Regular || k == flow.Hotfix {
+		return fmt.Sprintf("No %s branches exist.\n\nYou can add a task and start its branch:\n\n    flowtree task add <title>\n    flowtree task start <n> %s\n\n", k, nameArg(k))
+	}
+	return fmt.Sprintf("No %s branches exist.\n\nYou can start a new %s branch:\n\n    flowtree %s start %s\n\n", k, k, k, nameArg(k))
 }
 
 // renderEntries formats list entries; the current branch is starred.

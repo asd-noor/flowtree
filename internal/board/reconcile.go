@@ -12,6 +12,7 @@ type Ref struct {
 	Tip    string
 	Start  string // where it left its target, for a new task or subtask
 	Title  string // the name a new task gets
+	Type   Type   // the type a new task gets
 	Parent string // set for a work branch: the branch whose task it is a subtask of
 }
 
@@ -27,7 +28,7 @@ func Reconcile(b Board, refs []Ref, now time.Time) (Board, []string) {
 	for _, r := range tops {
 		if _, ok := b.ByBranch(r.Branch); !ok {
 			var c Card
-			b, c = b.Add(Card{Title: r.Title, Branch: r.Branch, Start: r.Start, Tip: r.Tip, Created: now})
+			b, c = b.Add(Card{Title: r.Title, Type: r.Type, Branch: r.Branch, Start: r.Start, Tip: r.Tip, Created: now})
 			note("added task #%d for %s", c.ID, r.Branch)
 		}
 	}

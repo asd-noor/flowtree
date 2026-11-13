@@ -56,6 +56,8 @@ flowtree release finish -m "1.2.0"   # merge to master, tag, merge the tag into 
 
 flowtree hotfix start 1.2.1          # hotfix/1.2.1 from master, in its own worktree
 flowtree hotfix finish -p            # like release finish, then push develop, master and the tag
+
+flowtree task start 3 login          # start the branch of existing task #3: regular/login from develop (hotfix task: hotfix/<version> from master)
 ```
 
 ## `finish`

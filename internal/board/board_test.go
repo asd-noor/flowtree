@@ -72,14 +72,17 @@ func TestUpdateUnderParallelWriters(t *testing.T) {
 
 func TestLifecycleOperations(t *testing.T) {
 	b, _ := Empty().Add(Card{Title: "t", Backlog: true})
-	b, err := b.Link(1, "regular/a", "s0")
+	b, err := b.Link(1, "regular/a", "s0", Hotfix)
 	if c, _ := b.Card(1); err != nil || c.Branch != "regular/a" || c.Start != "s0" || c.Backlog {
 		t.Fatalf("link: %+v %v", c, err)
 	}
-	if _, err := b.Link(1, "regular/b", "s"); err == nil {
+	if c, _ := b.Card(1); c.Type != Hotfix {
+		t.Errorf("link must store the type: %+v", c)
+	}
+	if _, err := b.Link(1, "regular/b", "s", Regular); err == nil {
 		t.Error("a linked task cannot take another branch")
 	}
-	if b2 := b.Ensure("regular/a", "dup", "s", time.Time{}); len(b2.Cards) != 1 {
+	if b2 := b.Ensure("regular/a", "dup", "s", Regular, time.Time{}); len(b2.Cards) != 1 {
 		t.Error("Ensure must reuse the linked card")
 	}
 	b = b.AddSubtask("regular/a", Subtask{Name: "x", Branch: "work/regular/a/x"})

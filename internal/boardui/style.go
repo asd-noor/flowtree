@@ -32,6 +32,7 @@ var (
 	frameColor  = lipgloss.BrightBlack
 	faint       = lipgloss.NewStyle().Faint(true)
 	bold        = lipgloss.NewStyle().Bold(true)
+	hotfixBadge = lipgloss.NewStyle().Foreground(lipgloss.BrightRed).Bold(true)
 	humanBadge  = lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true)
 	noticeStyle = lipgloss.NewStyle().Foreground(lipgloss.BrightRed).Bold(true)
 )

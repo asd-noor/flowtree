@@ -45,7 +45,9 @@ func loadCards(e *flow.Env, path string) func() ([]boardui.Card, error) {
 			return nil, err
 		}
 		return mapSlice(b.Cards, func(c board.Card) boardui.Card {
-			return boardui.Card{Card: c, Status: flow.CardStatus(e, c),
+			shown := c
+			shown.Type = flow.TypeOf(e.S, c)
+			return boardui.Card{Card: shown, Status: flow.CardStatus(e, c),
 				SubStatus: mapSlice(c.Subtasks, func(s board.Subtask) board.Status { return flow.SubtaskStatus(e, s) })}
 		}), nil
 	}

@@ -48,7 +48,7 @@ func TestBoardFollowsTheFlow(t *testing.T) {
 	if v := tasks(t, repo)[1]; len(v.Subtasks) != 1 || v.Subtasks[0].Status != "doing" {
 		t.Fatalf("subtask after work start: %+v", v)
 	}
-	Run(t, api, "work", "finish").MustSucceed(t)
+	Run(t, repo, "work", "finish", "1/api").MustSucceed(t)
 	if v := tasks(t, repo)[1]; v.Subtasks[0].Status != "done" {
 		t.Errorf("subtask after work finish: %+v", v)
 	}
@@ -116,7 +116,7 @@ func TestSubtaskBriefAndPrompt(t *testing.T) {
 	repo := flowRepo(t)
 	Run(t, repo, "task", "add", "-d", "Email and password.", "Login").MustSucceed(t)
 	Run(t, repo, "feature", "start", "-T", "1", "login").MustSucceed(t)
-	Run(t, repo, "work", "start", "-P", "regular/login", "-d", "POST /login", "api").MustSucceed(t)
+	Run(t, repo, "work", "start", "-P", "1", "-d", "POST /login", "api").MustSucceed(t)
 	Run(t, repo, "task", "edit", "1/api", "-d", "POST /login, returns a JWT").MustSucceed(t)
 	if res := Run(t, repo, "task", "edit", "1/api", "--title", "x").MustFail(t); !strings.Contains(res.Stderr, "only a description") {
 		t.Errorf("stderr = %q", res.Stderr)

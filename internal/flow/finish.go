@@ -123,7 +123,7 @@ func rebaseOnto(e *Env, branch, onto string) error {
 	if _, err := e.Git(dir)("rebase", onto); err != nil {
 		_ = e.Git(dir).Ok("rebase", "--abort")
 		return fmt.Errorf("finish was aborted due to conflicts during rebase; rebase manually in '%s' "+
-			"(git rebase %s), then re-run: flowtree work finish %s\n%w", dir, onto, e.S.Name(Work, branch), err)
+			"(git rebase %s), then re-run: flowtree work finish %s\n%w", dir, onto, WorkArg(e, branch), err)
 	}
 	return nil
 }

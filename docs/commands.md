@@ -132,12 +132,12 @@ inside a worktree it would move; the main worktree is never moved.
 ## Flow commands
 
 `<kind>` is `regular`, `release`, `hotfix` or `work` (the `regular` kind is still driven by the `feature` command group). `<name>` is the name without its prefix (a version for
-release and hotfix). `work` has no `publish` or `track`; its `start` is described below. The behaviour behind these is described in [git-flow.md](git-flow.md).
+release and hotfix). `work` has no `publish` or `track`; it is addressed as `<n>/<sub>` (task number and subtask), see below. The behaviour behind these is described in [git-flow.md](git-flow.md).
 
 | Command | Effect |
 |---------|--------|
 | `<kind> list [-v]` (`ls`) | List branches of the kind; `*` marks the current one. `-v` adds the state: no commits yet, based on latest, may be rebased, merged (can be deleted). |
-| `<kind> start [-F] [--dry-run] <name> [<base>]` | Create the branch from `<base>` (default develop; master for hotfix) and its worktree. Runs hooks, prints a summary. |
+| `<kind> start [-F] [--dry-run] <name> [<base>]` (`work`: see below) | Create the branch from `<base>` (default develop; master for hotfix) and its worktree. Runs hooks, prints a summary. |
 | `<kind> finish [flags] [<name>]` | Merge and clean up. Flags below. |
 | `<kind> checkout [<name>]` | Print the branch's directory, creating its worktree if needed. |
 | `<kind> publish [<name>]` | Push to the remote and set the upstream; refuses if the branch is already there. |
@@ -171,15 +171,21 @@ and the tag. The tag name is the version exactly as given to `start` (`release s
 ### `work start`, `work finish`
 
 ```
-flowtree work start [-P <parent>] [-d <brief>] [--dry-run] <name>
-flowtree work finish [-k] [--keeplocal] [-D] [--dry-run] [<name>]
+flowtree work start [-P <n>] [-d <brief>] [--dry-run] <sub>
+flowtree work finish [-k] [--keeplocal] [-D] [--dry-run] <n>/<sub>
+flowtree work checkout <n>/<sub>
+flowtree work delete [-f] [--dry-run] <n>/<sub>
 ```
 
-`start` creates `work/<parent>/<name>` from the parent's tip, in its own worktree. `-P` names the parent
-(`regular/login`, `hotfix/1.2.1`); without it the parent is the regular or hotfix branch whose worktree you are in, else
-a picker on a terminal, else an error. `finish` rebases the branch onto its parent, fast-forwards the parent and
-removes the work worktree and branch. `-d` sets the subtask's description on the board: its brief. A `<name>` may be bare (`api`, the subtask of the parent you are in, or the
-only one of that name) or carry the parent (`regular/login/api`).
+`start` creates `work/<parent>/<sub>` from the parent's tip, in its own worktree. `-P` is the number of the task
+(`12` or `#12`) whose regular or hotfix branch is the parent; the task must exist and its branch be open. Without it the
+parent is the regular or hotfix branch whose worktree you are in, else a picker of tasks with an open branch on a
+terminal, else an error. The parent needs a task: a branch made with plain git is refused until `flowtree task sync`
+adds one, and nothing is created. `-d` sets the subtask's description on the board: its brief.
+
+`finish`, `checkout` and `delete` take `<n>/<sub>`, the task number and the subtask name (`12/api`); the work branch is
+the one under task #12's branch. The argument is required. `finish` rebases the branch onto its parent, fast-forwards
+the parent and removes the work worktree and branch.
 
 ### Regular-only commands
 
@@ -213,7 +219,7 @@ The flow commands keep the board up to date (a board failure only prints a warni
 |---------|-------|
 | `feature`/`hotfix start -T <n> <name>` | links task #n to the new branch (it must exist and have no branch) |
 | `feature`/`hotfix start <name>` | adds a task named after the branch |
-| `work start` | adds a subtask to the parent's task |
+| `work start` | adds a subtask to the parent's task (the parent must have one) |
 | `feature`/`hotfix review [--undo] [<name>]` | marks the task ready for review at the current tip; a new commit moves it back to doing; `--undo` clears it |
 | `feature rebase` | moves a review mark that was at the old tip to the new one |
 | `finish`, `delete` | record the branch's last tip, so the task reads as done (merged) or abandoned (not) once the branch is gone |

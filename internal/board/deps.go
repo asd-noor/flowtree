@@ -93,9 +93,25 @@ func (b Board) NeededBy(id int) []int {
 	return out
 }
 
-// Unfinished lists the needs of c that are not done, by the statuses status gives.
+// Unfinished lists the needs of c that are not done, by the statuses status gives. A missing need is
+// left out: nothing can finish it.
 func Unfinished(c Card, status func(id int) Status) []int {
-	return slices.DeleteFunc(slices.Clone(c.Needs), func(id int) bool { return status(id) == Done })
+	return slices.DeleteFunc(slices.Clone(c.Needs), func(id int) bool { s := status(id); return s == Done || s == Missing })
+}
+
+// Dep is a task another one needs or is needed by, with its branch and column.
+type Dep struct {
+	ID     int
+	Branch string
+	Status Status
+}
+
+// Deps describes the tasks ids, in order, with the statuses status gives.
+func (b Board) Deps(ids []int, status func(id int) Status) []Dep {
+	return mapSlice(ids, func(id int) Dep {
+		c, _ := b.Card(id)
+		return Dep{ID: id, Branch: c.Branch, Status: status(id)}
+	})
 }
 
 // Blocked says whether c is still open and a need of it is not done. A need that was abandoned still

@@ -32,6 +32,16 @@ func Load(path string) (Board, error) {
 	return b, nil
 }
 
+// Read loads the board under the lock, so it never sees a write in progress.
+func Read(path string) (Board, error) {
+	unlock, err := lock(path + ".lock")
+	if err != nil {
+		return Board{}, err
+	}
+	defer unlock()
+	return Load(path)
+}
+
 // Update applies fn to the board under a lock and writes the result atomically, so parallel commands in
 // other worktrees neither lose writes nor see a half-written file.
 func Update(path string, fn func(Board) (Board, error)) error {

@@ -244,8 +244,8 @@ func TestDetailWrapsLongLines(t *testing.T) {
 func TestBlockedMarkAndDependencyLines(t *testing.T) {
 	c := card(7, "later", board.Todo)
 	c.Blocked = true
-	c.Needs = []Dep{{ID: 5, Branch: "regular/a", Status: board.Doing}}
-	c.NeededBy = []Dep{{ID: 9, Status: board.Todo}}
+	c.Needs = []board.Dep{{ID: 5, Branch: "regular/a", Status: board.Doing}}
+	c.NeededBy = []board.Dep{{ID: 9, Status: board.Todo}}
 	m := newModel(Source{}, []Card{c})
 	m.width, m.height = 120, 40
 	m.col = 1

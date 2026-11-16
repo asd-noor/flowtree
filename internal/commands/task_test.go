@@ -110,7 +110,13 @@ func TestParseNeedsAndNeedLine(t *testing.T) {
 			t.Errorf("parseNeeds(%q) = %v, %v", in, got, err)
 		}
 	}
-	if line := needLine(depRef{ID: 2, Branch: "regular/x", Status: board.Abandoned}); strings.Contains(line, "git merge") {
+	if line := needLine(board.Dep{ID: 2, Branch: "regular/x", Status: board.Abandoned}); strings.Contains(line, "git merge") {
 		t.Errorf("abandoned need asks for a merge: %q", line)
+	}
+	if line := needLine(board.Dep{ID: 7, Status: board.Missing}); !strings.Contains(line, "missing") {
+		t.Errorf("missing need: %q", line)
+	}
+	if got := lookup(map[int]board.Status{1: board.Done})(9); got != board.Missing {
+		t.Errorf("lookup of a task not on the board = %q", got)
 	}
 }

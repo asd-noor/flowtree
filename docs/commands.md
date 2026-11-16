@@ -236,9 +236,10 @@ from before types read their type from the branch prefix. Starting, reviewing an
 
 A task can need other tasks (`task add --needs`, `task edit --needs`). The list is stored on the task; "needed by"
 is derived. A task is blocked while any task it needs is not done (an abandoned one still blocks; the listing shows
-its status). `--needs` is refused for an unknown task, the task itself, or a cycle (`#5 -> #6 -> #5`). Nothing is
+its status; a task that is itself done or abandoned is never blocked; a needed task missing from a hand-edited board
+shows as `missing` and does not block). `--needs` is refused for an unknown task, the task itself, or a cycle (`#5 -> #6 -> #5`). Nothing is
 gated: `task start` and `task finish` only warn on stderr and go ahead, and nothing merges for you. `task prompt` tells
-the worker to merge the branch of a needed task that is not done yet. Old free-text "Needs #n" lines are not read.
+the worker to merge the branch of a needed task that is not done yet, and not to wait for an abandoned one. Old free-text "Needs #n" lines are not read.
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,
 `enter`/`tab` toggles the detail pane (branch, tags, description, subtasks, comments; long lines wrap), `J`/`K`

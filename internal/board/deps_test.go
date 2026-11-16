@@ -1,6 +1,10 @@
 package board
 
 import (
+	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -111,5 +115,36 @@ func TestCheckNeedsForNewTaskAndWideGraph(t *testing.T) {
 	wide := boardWith(needs, 60)
 	if err := wide.CheckNeeds(1, []int{60}); err == nil || !strings.Contains(err.Error(), "dependency cycle") {
 		t.Errorf("cycle through a wide graph: %v", err)
+	}
+}
+
+func TestMissingNeedDoesNotBlock(t *testing.T) {
+	look := func(id int) Status {
+		if id == 7 {
+			return Missing
+		}
+		return Done
+	}
+	c := Card{ID: 1, Needs: []int{2, 7}}
+	if Blocked(c, look) || len(Unfinished(c, look)) != 0 {
+		t.Errorf("a missing need blocks: %v", Unfinished(c, look))
+	}
+	deps := boardWith(nil, 2).Deps([]int{2, 7}, look)
+	if deps[1] != (Dep{ID: 7, Status: Missing}) {
+		t.Errorf("deps: %+v", deps)
+	}
+}
+
+func TestReadTakesTheLock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), FileName)
+	if err := Update(path, func(b Board) (Board, error) { b, _ = b.Add(Card{Title: "x"}); return b, nil }); err != nil {
+		t.Fatal(err)
+	}
+	b, err := Read(path)
+	if err != nil || len(b.Cards) != 1 {
+		t.Fatalf("read: %v %+v", err, b)
+	}
+	if _, err := os.Stat(path + ".lock"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("lock left behind: %v", err)
 	}
 }

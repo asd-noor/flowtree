@@ -16,15 +16,8 @@ type Card struct {
 	Status    board.Status
 	SubStatus []board.Status // parallel to Card.Subtasks
 	Blocked   bool           // a needed task is not done
-	Needs     []Dep
-	NeededBy  []Dep
-}
-
-// Dep is a task a card needs or is needed by.
-type Dep struct {
-	ID     int
-	Branch string
-	Status board.Status
+	Needs     []board.Dep
+	NeededBy  []board.Dep
 }
 
 // Source is everything the board reaches outside itself for.

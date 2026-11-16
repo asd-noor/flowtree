@@ -13,6 +13,10 @@ const (
 	Abandoned Status = "abandoned"
 )
 
+// Missing is the status of a needed task that is not on the board (only a hand-edited board has one).
+// It is no column, and it does not block.
+const Missing Status = "missing"
+
 // Columns lists every status in board order.
 var Columns = []Status{Backlog, Todo, Doing, Review, Done, Abandoned}
 

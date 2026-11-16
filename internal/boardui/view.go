@@ -217,7 +217,7 @@ func blockedMark(c Card) string {
 }
 
 // depLine is a detail line listing tasks with their statuses; empty when there are none.
-func depLine(name string, deps []Dep) string {
+func depLine(name string, deps []board.Dep) string {
 	if len(deps) == 0 {
 		return ""
 	}

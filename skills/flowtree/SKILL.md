@@ -133,7 +133,8 @@ flowtree task show <n> --json        # description, subtasks, comments
 flowtree task comment <n> "..."      # report progress
 flowtree task start <n> <name>       # take task #n: its branch, in doing (a hotfix task takes a version)
 flowtree task review [<n>]           # ready for review (a new commit moves it back to doing)
-flowtree task add -d "..." "Title"   # only when the user asks for a new task
+flowtree task add -d "..." [--type hotfix] [--needs 5,6] "Title"   # only when the user asks for a new task
+flowtree task edit <n> --needs 5,6   # set what it needs (replaces the list; "" clears)
 flowtree task sync                   # after branches were made with plain git (the only way a card is created for one)
 ```
 

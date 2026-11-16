@@ -161,14 +161,7 @@ type view struct {
 	Blocked  bool          `json:"blocked"`
 	Subtasks []subtaskView `json:"subtasks,omitempty"`
 
-	needs, neededBy []depRef // for the text output
-}
-
-// depRef is a task another one needs or is needed by, with its column and branch.
-type depRef struct {
-	ID     int
-	Branch string
-	Status board.Status
+	needs, neededBy []board.Dep // for the text output
 }
 
 type subtaskView struct {
@@ -178,29 +171,39 @@ type subtaskView struct {
 
 // statuses is the column of every card; one pass of git queries that dependency checks then look up.
 func statuses(e *flow.Env, b board.Board) map[int]board.Status {
-	out := make(map[int]board.Status, len(b.Cards))
-	for _, c := range b.Cards {
-		out[c.ID] = flow.CardStatus(e, c)
+	return statusesOf(e, b, mapSlice(b.Cards, func(c board.Card) int { return c.ID }))
+}
+
+// statusesOf is the column of the cards ids that are on the board, for commands that look at a few.
+func statusesOf(e *flow.Env, b board.Board, ids []int) map[int]board.Status {
+	out := make(map[int]board.Status, len(ids))
+	for _, id := range ids {
+		if c, ok := b.Card(id); ok {
+			out[id] = flow.CardStatus(e, c)
+		}
 	}
 	return out
 }
 
-func lookup(st map[int]board.Status) func(int) board.Status {
-	return func(id int) board.Status { return st[id] }
+// around is card c, the tasks it needs and the tasks that need it: what show and prompt look at.
+func around(b board.Board, c board.Card) []int {
+	return append(append([]int{c.ID}, c.Needs...), b.NeededBy(c.ID)...)
 }
 
-// depRefs describes the cards ids, in order.
-func depRefs(b board.Board, st map[int]board.Status, ids []int) []depRef {
-	return mapSlice(ids, func(id int) depRef {
-		c, _ := b.Card(id)
-		return depRef{ID: id, Branch: c.Branch, Status: st[id]}
-	})
+// lookup reads a status map; a task not on the board is Missing.
+func lookup(st map[int]board.Status) func(int) board.Status {
+	return func(id int) board.Status {
+		if s, ok := st[id]; ok {
+			return s
+		}
+		return board.Missing
+	}
 }
 
 func viewOf(e *flow.Env, b board.Board, st map[int]board.Status, c board.Card) view {
 	by := b.NeededBy(c.ID)
 	return view{Card: c, Type: flow.TypeOf(e.S, c), Status: st[c.ID], NeededBy: by, Blocked: board.Blocked(c, lookup(st)),
-		needs: depRefs(b, st, c.Needs), neededBy: depRefs(b, st, by), Subtasks: mapSlice(c.Subtasks, func(s board.Subtask) subtaskView {
+		needs: b.Deps(c.Needs, lookup(st)), neededBy: b.Deps(by, lookup(st)), Subtasks: mapSlice(c.Subtasks, func(s board.Subtask) subtaskView {
 			return subtaskView{Subtask: s, Status: flow.SubtaskStatus(e, s)}
 		})}
 }
@@ -287,7 +290,7 @@ func newTaskShowCmd(d Deps) *cobra.Command {
 				if !ok {
 					return fmt.Errorf("no task #%d", id)
 				}
-				v := viewOf(e, b, statuses(e, b), c)
+				v := viewOf(e, b, statusesOf(e, b, around(b, c)), c)
 				if asJSON {
 					return printJSON(d, v)
 				}
@@ -331,22 +334,22 @@ func warnUnfinishedNeeds(e *flow.Env, id int) {
 	if err != nil {
 		return
 	}
-	b, err := board.Load(path)
+	b, err := board.Read(path)
 	c, ok := b.Card(id)
 	if err != nil || !ok || len(c.Needs) == 0 {
 		return
 	}
-	st := statuses(e, b)
+	st := statusesOf(e, b, c.Needs)
 	if un := board.Unfinished(c, lookup(st)); len(un) > 0 {
 		e.Warn("task #%d has unfinished needs: %s", id, strings.Join(mapSlice(un, func(n int) string { return fmt.Sprintf("#%d (%s)", n, st[n]) }), ", "))
 	}
 }
 
-func depsText(title string, refs []depRef) string {
+func depsText(title string, refs []board.Dep) string {
 	if len(refs) == 0 {
 		return ""
 	}
-	lines := mapSlice(refs, func(r depRef) string {
+	lines := mapSlice(refs, func(r board.Dep) string {
 		return fmt.Sprintf("  #%-4d %-9s %s\n", r.ID, r.Status, orElse(r.Branch, "(no branch)"))
 	})
 	return "\n" + title + ":\n" + strings.Join(lines, "")
@@ -671,7 +674,7 @@ func newTaskPromptCmd(d Deps) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				p.Needs = depRefs(b, statuses(e, b), c.Needs)
+				p.Needs = b.Deps(c.Needs, lookup(statusesOf(e, b, c.Needs)))
 				d.Printf("%s", renderPrompt(p))
 				return nil
 			})
@@ -688,7 +691,7 @@ type prompt struct {
 	Kind        flow.Kind
 	Name        string // the branch's name for flowtree commands
 	Arg         string // what `task start` takes: <name> or, for a hotfix, <version>
-	Needs       []depRef
+	Needs       []board.Dep
 }
 
 func promptOf(e *flow.Env, c board.Card, sub string) (prompt, error) {
@@ -735,19 +738,21 @@ func renderPrompt(p prompt) string {
 }
 
 // needsText lists the tasks this one needs; for one that is not done it says how to get its work in.
-func needsText(needs []depRef) string {
+func needsText(needs []board.Dep) string {
 	if len(needs) == 0 {
 		return ""
 	}
 	return "## Needs\n\nThese tasks should be done first:\n\n" + strings.Join(mapSlice(needs, needLine), "") + "\n"
 }
 
-func needLine(r depRef) string {
+func needLine(r board.Dep) string {
 	switch {
 	case r.Status == board.Done:
 		return fmt.Sprintf("- #%d (done)\n", r.ID)
 	case r.Status == board.Abandoned:
 		return fmt.Sprintf("- #%d (abandoned): its work will not come; ask whether this task still needs it.\n", r.ID)
+	case r.Status == board.Missing:
+		return fmt.Sprintf("- #%d (missing): no such task on the board; ignore it.\n", r.ID)
 	case r.Branch == "":
 		return fmt.Sprintf("- #%d (%s): not started, no branch yet.\n", r.ID, r.Status)
 	}

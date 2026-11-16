@@ -101,17 +101,13 @@ func parseNeeds(s string) ([]int, error) {
 	return ids, nil
 }
 
-func splitTags(s string) []string {
-	return slices.DeleteFunc(mapSlice(strings.Split(s, ","), strings.TrimSpace), func(t string) bool { return t == "" })
-}
-
 // ---- add
 
 func newTaskAddCmd(d Deps) *cobra.Command {
-	var desc, tags, typ, needs string
+	var desc, typ, needs string
 	var backlog, human bool
 	cmd := &cobra.Command{
-		Use:   "add [-d <description>] [-t <tags>] [--type regular|hotfix] [--needs <ids>] [--backlog] [--human] <title>...",
+		Use:   "add [-d <description>] [--type regular|hotfix] [--needs <ids>] [--backlog] [--human] <title>...",
 		Short: "Add a task to todo (or the backlog)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -126,7 +122,7 @@ func newTaskAddCmd(d Deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c := board.Card{Title: strings.Join(args, " "), Type: t, Description: desc, Tags: splitTags(tags),
+			c := board.Card{Title: strings.Join(args, " "), Type: t, Description: desc,
 				Backlog: backlog, Human: human, Created: time.Now().UTC()}
 			return withBoard(cmd.Context(), d, func(_ *flow.Env, path string) error {
 				var added board.Card
@@ -142,7 +138,6 @@ func newTaskAddCmd(d Deps) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&desc, "description", "d", "", "description (Markdown)")
-	cmd.Flags().StringVarP(&tags, "tags", "t", "", "comma-separated tags")
 	cmd.Flags().StringVar(&typ, "type", string(board.Regular), "task type: regular or hotfix")
 	cmd.Flags().StringVar(&needs, "needs", "", "comma-separated ids of tasks that should be done first")
 	cmd.Flags().BoolVar(&backlog, "backlog", false, "park it in the backlog; agents leave it alone")
@@ -264,9 +259,6 @@ func markers(v view) string {
 	if v.Blocked {
 		m = append(m, "[blocked]")
 	}
-	if len(v.Tags) > 0 {
-		m = append(m, "["+strings.Join(v.Tags, ",")+"]")
-	}
 	return "  " + strings.Join(m, " ")
 }
 
@@ -366,10 +358,10 @@ func printJSON(d Deps, v any) error {
 // ---- edit
 
 func newTaskEditCmd(d Deps) *cobra.Command {
-	var title, desc, tags, typ, needs string
+	var title, desc, typ, needs string
 	cmd := &cobra.Command{
-		Use:   "edit [--title <t>] [-d <description>] [-t <tags>] [--type regular|hotfix] [--needs <ids>] <n>[/<subtask>]",
-		Short: "Change a task's title, description, tags, type or needs, or a subtask's description; with no flags, open $EDITOR",
+		Use:   "edit [--title <t>] [-d <description>] [--type regular|hotfix] [--needs <ids>] <n>[/<subtask>]",
+		Short: "Change a task's title, description, type or needs, or a subtask's description; with no flags, open $EDITOR",
 		Long: "With flags, sets those fields. Without, opens your editor with the title on the first line and\n" +
 			"the description below a blank line, like a commit message (needs a terminal). <n>/<subtask>\n" +
 			"edits a subtask's description (-d, or the editor). --type works only while the task has no branch.\n" +
@@ -381,9 +373,9 @@ func newTaskEditCmd(d Deps) *cobra.Command {
 				return err
 			}
 			f := cmd.Flags()
-			byFlags := f.Changed("title") || f.Changed("description") || f.Changed("tags") || f.Changed("type") || f.Changed("needs")
+			byFlags := f.Changed("title") || f.Changed("description") || f.Changed("type") || f.Changed("needs")
 			if sub != "" {
-				if f.Changed("title") || f.Changed("tags") || f.Changed("type") || f.Changed("needs") {
+				if f.Changed("title") || f.Changed("type") || f.Changed("needs") {
 					return errors.New("a subtask has only a description (-d); its name is its work branch")
 				}
 				return withBoard(cmd.Context(), d, func(e *flow.Env, path string) error {
@@ -409,9 +401,6 @@ func newTaskEditCmd(d Deps) *cobra.Command {
 						if f.Changed("description") {
 							c.Description = desc
 						}
-						if f.Changed("tags") {
-							c.Tags = splitTags(tags)
-						}
 						if f.Changed("type") {
 							return withType(c, typ)
 						}
@@ -427,7 +416,6 @@ func newTaskEditCmd(d Deps) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&title, "title", "", "new title")
 	cmd.Flags().StringVarP(&desc, "description", "d", "", "new description (Markdown)")
-	cmd.Flags().StringVarP(&tags, "tags", "t", "", "new comma-separated tags (empty clears)")
 	cmd.Flags().StringVar(&needs, "needs", "", "ids of the tasks that should be done first (empty clears)")
 	cmd.Flags().StringVar(&typ, "type", "", "new type: regular or hotfix (only before the task has a branch)")
 	return cmd

@@ -1,7 +1,9 @@
 package board
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -91,5 +93,18 @@ func TestLifecycleOperations(t *testing.T) {
 	c, _ := b.Card(1)
 	if len(c.Subtasks) != 1 || c.Subtasks[0].Tip != "w1" || c.Tip != "t1" || c.ReviewTip != "t1" {
 		t.Fatalf("%+v", c)
+	}
+}
+
+func TestOldBoardWithTagsLoadsAndDropsThem(t *testing.T) {
+	path := filepath.Join(t.TempDir(), FileName)
+	if err := os.WriteFile(path, []byte(`{"next_id":2,"cards":[{"id":1,"title":"x","tags":["ui"],"created":"2026-11-16T00:00:00Z"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Update(path, func(b Board) (Board, error) { return b, nil }); err != nil {
+		t.Fatalf("old board: %v", err)
+	}
+	if data, _ := os.ReadFile(path); strings.Contains(string(data), "tags") {
+		t.Errorf("tags kept:\n%s", data)
 	}
 }

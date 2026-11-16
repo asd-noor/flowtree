@@ -65,10 +65,10 @@ subtasks are open.
 
 | Command | Effect |
 |---------|--------|
-| `task add [-d <text>] [-t <tags>] [--type regular\|hotfix] [--needs <ids>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. `--type` defaults to regular. `--needs 5,6` lists tasks to finish first. |
+| `task add [-d <text>] [--type regular\|hotfix] [--needs <ids>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. `--type` defaults to regular. `--needs 5,6` lists tasks to finish first. |
 | `task list [-s <status>] [--ready] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned; `[blocked]` while a needed task is not done. `--ready`: todo tasks whose needs are all done. JSON has `needs`, `needed_by`, `blocked`. |
 | `task show [--json] <n>` | Description, needs and needed by, subtasks and comments of a task. |
-| `task edit [--title <t>] [-d <text>] [-t <tags>] [--type regular\|hotfix] [--needs <ids>] <n>[/<sub>]` | Change fields (`--type` only while the task has no branch; `--needs` replaces the list, `""` clears it; unknown id, self and cycles are refused); with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
+| `task edit [--title <t>] [-d <text>] [--type regular\|hotfix] [--needs <ids>] <n>[/<sub>]` | Change fields (`--type` only while the task has no branch; `--needs` replaces the list, `""` clears it; unknown id, self and cycles are refused); with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
 | `task prompt <n>[/<sub>]` | Print the task (or subtask) as a Markdown brief: descriptions, branch, absolute worktree path, how it is finished, and needed tasks (merge the branch of one not done yet with `git merge <branch>`). Hand it to whoever works on it. |
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |

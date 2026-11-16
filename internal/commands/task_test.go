@@ -20,14 +20,14 @@ func TestTaskCommands(t *testing.T) {
 		}
 		return out.String()
 	}
-	if got := must("task", "add", "-t", "ui, auth", "Login", "page"); got != "#1\n" {
+	if got := must("task", "add", "Login", "page"); got != "#1\n" {
 		t.Fatalf("add printed %q", got)
 	}
 	must("task", "add", "--backlog", "--human", "Later")
 	must("task", "edit", "1", "-d", "Body")
 	must("task", "comment", "--author", "me", "#1", "first", "note")
 
-	if got := must("task", "list"); !strings.Contains(got, "#1    todo      Login page  [regular] [ui,auth]") || !strings.Contains(got, "#2    backlog   Later  [regular] [human]") {
+	if got := must("task", "list"); !strings.Contains(got, "#1    todo      Login page  [regular]") || !strings.Contains(got, "#2    backlog   Later  [regular] [human]") {
 		t.Errorf("list:\n%s", got)
 	}
 	if got := must("task", "list", "-s", "backlog"); strings.Contains(got, "#1") {
@@ -57,6 +57,7 @@ func TestTaskCommands(t *testing.T) {
 		{"task", "show", "9"}, {"task", "show", "x"}, {"task", "list", "-s", "nope"},
 		{"task", "edit", "1"}, // no flags and no terminal
 		{"task", "edit", "1", "--title", ""},
+		{"task", "add", "-t", "ui", "x"}, // tags are gone
 	} {
 		if err := run(t, d, args...); err == nil {
 			t.Errorf("%v should fail", args)

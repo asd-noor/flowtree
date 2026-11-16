@@ -96,7 +96,7 @@ func columnTop(name string, n int, active bool, a accent, edge lipgloss.Style, w
 	return edge.Render("╭ ") + head.Render(title) + edge.Render(" "+strings.Repeat("─", fill)+"╮")
 }
 
-// cardLines is a card as cardRows lines of width w: a marker and its title, its branch and tags, a gap.
+// cardLines is a card as cardRows lines of width w: a marker and its title, its branch, a gap.
 func cardLines(c Card, on bool, a accent, w int) []string {
 	badges := ansi.StringWidth(typeMark(c) + humanMark(c) + blockedMark(c))
 	title := ansi.Truncate(fmt.Sprintf("#%d %s", c.ID, c.Title), max(w-1-badges, 0), "…")
@@ -109,19 +109,12 @@ func cardLines(c Card, on bool, a accent, w int) []string {
 	return padLines([]string{first, second}, cardRows, w)
 }
 
-// cardSub is the dim line under a card's title: its branch and tags.
+// cardSub is the dim line under a card's title: its branch.
 func cardSub(c Card) string {
-	parts := []string{}
-	if c.Branch != "" {
-		parts = append(parts, c.Branch)
-	}
-	if len(c.Tags) > 0 {
-		parts = append(parts, "#"+strings.Join(c.Tags, " #"))
-	}
-	if len(parts) == 0 {
+	if c.Branch == "" {
 		return "no branch"
 	}
-	return strings.Join(parts, "  ")
+	return c.Branch
 }
 
 // window picks how many of n cards show and from which, keeping the cursor row in view.
@@ -176,9 +169,6 @@ func detailText(c Card) string {
 		fmt.Fprintf(&b, "%s %s\n", label("branch"), c.Branch)
 	}
 	b.WriteString(depLine("needs", c.Needs) + depLine("needed by", c.NeededBy))
-	if len(c.Tags) > 0 {
-		fmt.Fprintf(&b, "%s %s\n", label("tags"), strings.Join(c.Tags, ", "))
-	}
 	if c.Description != "" {
 		fmt.Fprintf(&b, "\n%s\n", strings.TrimRight(c.Description, "\n"))
 	}

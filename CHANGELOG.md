@@ -8,6 +8,8 @@ All notable changes to flowtree are documented here. The format follows
 
 ### Changed
 
+- **Breaking:** tasks no longer have tags: `-t` is gone from `task add` and `task edit`, and list, show, `--json` and
+  the board no longer show them. Old boards still load; their tags are dropped the next time the board is saved.
 - **Breaking:** the `feature` and `hotfix` command groups are gone. Regular and hotfix branches are now the
   branches of board tasks and are driven by `flowtree task`; `flowtree release` and `flowtree work` stay.
 - **Breaking:** a task has a type, `regular` (the default) or `hotfix` (`task add --type`, `task edit --type` while

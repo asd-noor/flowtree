@@ -215,10 +215,10 @@ from before types read their type from the branch prefix. Starting, reviewing an
 
 | Command | Effect |
 |---------|--------|
-| `task add [-d <text>] [-t <tags>] [--type regular|hotfix] [--needs <ids>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. `--type` defaults to regular. `--needs 5,6` (or `#5,#6`) lists the tasks that should be done first; see [Dependencies](#dependencies). |
+| `task add [-d <text>] [--type regular|hotfix] [--needs <ids>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. `--type` defaults to regular. `--needs 5,6` (or `#5,#6`) lists the tasks that should be done first; see [Dependencies](#dependencies). |
 | `task list [-s <status>] [--ready] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned, and their type (`[regular]`, `[hotfix]`), and `[blocked]` when a needed task is not done. `--ready` keeps the todo tasks whose needs are all done. `--json` always has `"type"` and `"blocked"`, plus `"needs"` and `"needed_by"` when there are any. |
 | `task show [--json] <n>` | Type, description, needs and needed by (id, status, branch), subtasks and comments of a task. |
-| `task edit [--title <t>] [-d <text>] [-t <tags>] [--type regular|hotfix] [--needs <ids>] <n>[/<sub>]` | Change fields (`--type` only while the task has no branch; after that it follows the branch; `--needs` replaces the list, `--needs ""` clears it); with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
+| `task edit [--title <t>] [-d <text>] [--type regular|hotfix] [--needs <ids>] <n>[/<sub>]` | Change fields (`--type` only while the task has no branch; after that it follows the branch; `--needs` replaces the list, `--needs ""` clears it); with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
 | `task prompt <n>[/<sub>]` | Print the task (or subtask) as a Markdown brief: descriptions, branch, absolute worktree path, how it is finished, and the tasks it needs (with a `git merge <branch>` hint for one not done yet). Hand it to whoever works on it. |
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
@@ -242,7 +242,7 @@ gated: `task start` and `task finish` only warn on stderr and go ahead, and noth
 the worker to merge the branch of a needed task that is not done yet, and not to wait for an abandoned one. Old free-text "Needs #n" lines are not read.
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,
-`enter`/`tab` toggles the detail pane (branch, tags, description, subtasks, comments; long lines wrap), `J`/`K`
+`enter`/`tab` toggles the detail pane (branch, description, subtasks, comments; long lines wrap), `J`/`K`
 scroll it a line and `ctrl+d`/`ctrl+u` or `pgdn`/`pgup` half a pane, with a `lines a-b/n` counter in the help bar
 when the card doesn't fit; selecting another card starts again from its top. `e` edits the card in your
 git editor (title line, blank line, description), `c` writes a new comment in it (empty adds nothing), `q`/`esc`/`ctrl+c` quit. The board is reloaded every second, statuses

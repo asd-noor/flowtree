@@ -130,8 +130,8 @@ Run `flowtree <command> --help` for every flag. `release finish` with no version
 Each repository has a kanban of its own, stored in the git directory (shared by all worktrees, never pushed):
 
 ```sh
-flowtree task add -t ui "Login page"   # -> #1, in todo
-flowtree task list                     # #1    todo      Login page  [ui]
+flowtree task add "Login page"         # -> #1, in todo
+flowtree task list                     # #1    todo      Login page  [regular]
 flowtree task show 1 | edit 1 | comment 1 "..." | backlog 1 | human 1
 flowtree task sync                     # after branches were made or renamed with plain git
 ```

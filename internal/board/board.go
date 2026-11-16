@@ -30,9 +30,8 @@ type Card struct {
 	Type        Type      `json:"type,omitempty"` // empty on cards from before types; see flow.TypeOf
 	Title       string    `json:"title"`
 	Description string    `json:"description,omitempty"` // Markdown
-	Tags        []string  `json:"tags,omitempty"`
-	Human       bool      `json:"human,omitempty"`   // for a person; agents leave it alone
-	Backlog     bool      `json:"backlog,omitempty"` // parked; agents leave it alone until it moves to todo
+	Human       bool      `json:"human,omitempty"`       // for a person; agents leave it alone
+	Backlog     bool      `json:"backlog,omitempty"`     // parked; agents leave it alone until it moves to todo
 	Branch      string    `json:"branch,omitempty"`
 	Start       string    `json:"start,omitempty"`      // commit the branch started from
 	Tip         string    `json:"tip,omitempty"`        // last known tip, so a merged and deleted branch reads as done

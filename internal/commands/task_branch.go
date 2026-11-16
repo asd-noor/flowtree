@@ -211,6 +211,7 @@ func newTaskFinishCmd(d Deps) *cobra.Command {
 				if err := checkFinishFlags(cmd.Flags(), t); err != nil {
 					return nil, err
 				}
+				warnUnfinishedNeeds(e, t.Card.ID)
 				o.Kind, o.Name = t.Kind, t.Name(e)
 				return flow.PlanFinish(e, o)
 			})

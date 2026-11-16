@@ -37,6 +37,7 @@ type Card struct {
 	Start       string    `json:"start,omitempty"`      // commit the branch started from
 	Tip         string    `json:"tip,omitempty"`        // last known tip, so a merged and deleted branch reads as done
 	ReviewTip   string    `json:"review_tip,omitempty"` // tip when review was asked for
+	Needs       []int     `json:"needs,omitempty"`      // ids of tasks to finish first; needed-by is derived
 	Subtasks    []Subtask `json:"subtasks,omitempty"`
 	Comments    []Comment `json:"comments,omitempty"`
 	Created     time.Time `json:"created"`

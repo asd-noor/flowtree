@@ -98,13 +98,13 @@ func columnTop(name string, n int, active bool, a accent, edge lipgloss.Style, w
 
 // cardLines is a card as cardRows lines of width w: a marker and its title, its branch and tags, a gap.
 func cardLines(c Card, on bool, a accent, w int) []string {
-	badges := ansi.StringWidth(typeMark(c) + humanMark(c))
+	badges := ansi.StringWidth(typeMark(c) + humanMark(c) + blockedMark(c))
 	title := ansi.Truncate(fmt.Sprintf("#%d %s", c.ID, c.Title), max(w-1-badges, 0), "…")
 	mark, text := " ", lipgloss.NewStyle()
 	if on {
 		mark, text = lipgloss.NewStyle().Foreground(a.bright).Render("▌"), text.Foreground(a.bright).Bold(true)
 	}
-	first := mark + text.Render(title) + typeBadge(c).Render(typeMark(c)) + humanBadge.Render(humanMark(c))
+	first := mark + text.Render(title) + typeBadge(c).Render(typeMark(c)) + humanBadge.Render(humanMark(c)) + blockedBadge.Render(blockedMark(c))
 	second := "  " + faint.Render(ansi.Truncate(cardSub(c), max(w-2, 0), "…"))
 	return padLines([]string{first, second}, cardRows, w)
 }
@@ -170,11 +170,12 @@ func detailLines(m model) []string {
 
 func detailText(c Card) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s%s%s\n", bold.Render(fmt.Sprintf("#%d %s", c.ID, c.Title)), typeBadge(c).Render(typeMark(c)), humanBadge.Render(humanMark(c)))
+	fmt.Fprintf(&b, "%s%s%s%s\n", bold.Render(fmt.Sprintf("#%d %s", c.ID, c.Title)), typeBadge(c).Render(typeMark(c)), humanBadge.Render(humanMark(c)), blockedBadge.Render(blockedMark(c)))
 	fmt.Fprintf(&b, "%s %s\n", label("status"), statusText(c.Status, string(c.Status)))
 	if c.Branch != "" {
 		fmt.Fprintf(&b, "%s %s\n", label("branch"), c.Branch)
 	}
+	b.WriteString(depLine("needs", c.Needs) + depLine("needed by", c.NeededBy))
 	if len(c.Tags) > 0 {
 		fmt.Fprintf(&b, "%s %s\n", label("tags"), strings.Join(c.Tags, ", "))
 	}
@@ -206,6 +207,25 @@ func humanMark(c Card) string {
 		return " human"
 	}
 	return ""
+}
+
+func blockedMark(c Card) string {
+	if c.Blocked {
+		return " blocked"
+	}
+	return ""
+}
+
+// depLine is a detail line listing tasks with their statuses; empty when there are none.
+func depLine(name string, deps []Dep) string {
+	if len(deps) == 0 {
+		return ""
+	}
+	items := make([]string, len(deps))
+	for i, d := range deps {
+		items[i] = fmt.Sprintf("#%d %s", d.ID, statusText(d.Status, string(d.Status)))
+	}
+	return fmt.Sprintf("%s %s\n", label(name), strings.Join(items, ", "))
 }
 
 // label is a dim, aligned field name of the detail pane.

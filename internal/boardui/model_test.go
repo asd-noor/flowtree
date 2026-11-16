@@ -240,3 +240,27 @@ func TestDetailWrapsLongLines(t *testing.T) {
 		t.Errorf("long line should wrap and still fit:\n%s", out)
 	}
 }
+
+func TestBlockedMarkAndDependencyLines(t *testing.T) {
+	c := card(7, "later", board.Todo)
+	c.Blocked = true
+	c.Needs = []Dep{{ID: 5, Branch: "regular/a", Status: board.Doing}}
+	c.NeededBy = []Dep{{ID: 9, Status: board.Todo}}
+	m := newModel(Source{}, []Card{c})
+	m.width, m.height = 120, 40
+	m.col = 1
+	if out := ansi.Strip(render(m)); !strings.Contains(out, "#7 later blocked") {
+		t.Errorf("no blocked marker on the card:\n%s", out)
+	}
+	m = key(m, "enter")
+	out := ansi.Strip(render(m))
+	for _, want := range []string{"needs:", "#5 doing", "needed by:", "#9 todo"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("detail lacks %q:\n%s", want, out)
+		}
+	}
+	plain := newModel(Source{}, []Card{card(1, "free", board.Todo)})
+	if out := ansi.Strip(render(plain)); strings.Contains(out, "blocked") {
+		t.Errorf("unblocked card marked:\n%s", out)
+	}
+}

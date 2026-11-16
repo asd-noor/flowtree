@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -99,5 +100,17 @@ func TestRenderPrompt(t *testing.T) {
 	}
 	if got := renderPrompt(prompt{ID: 4, Title: "Later", Arg: "<version>"}); !strings.Contains(got, "task start 4 <version>") {
 		t.Errorf("a task without a branch should say how to start it:\n%s", got)
+	}
+}
+
+func TestParseNeedsAndNeedLine(t *testing.T) {
+	for in, want := range map[string][]int{"5,6": {5, 6}, "#5, #6": {5, 6}, "5 6": {5, 6}, " #5  #6 ": {5, 6}, "": nil} {
+		got, err := parseNeeds(in)
+		if err != nil || !slices.Equal(got, want) {
+			t.Errorf("parseNeeds(%q) = %v, %v", in, got, err)
+		}
+	}
+	if line := needLine(depRef{ID: 2, Branch: "regular/x", Status: board.Abandoned}); strings.Contains(line, "git merge") {
+		t.Errorf("abandoned need asks for a merge: %q", line)
 	}
 }

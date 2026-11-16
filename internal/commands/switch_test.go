@@ -69,7 +69,7 @@ func branchList(t *testing.T, repo string) string {
 
 func TestSwitchUniqueQueryNeedsNoPicker(t *testing.T) {
 	repo := flowRepo(t)
-	testutil.Git(t, repo, "branch", "feature/login", "develop")
+	testutil.Git(t, repo, "branch", "regular/login", "develop")
 	cdfile := filepath.Join(t.TempDir(), "cd")
 	d, out, _ := testDeps(t, repo, map[string]string{CdFileEnv: cdfile})
 	p := &pickerFake{answer: "never"}
@@ -78,7 +78,7 @@ func TestSwitchUniqueQueryNeedsNoPicker(t *testing.T) {
 	if err := run(t, d, "switch", "logi"); err != nil {
 		t.Fatal(err)
 	}
-	want := wtPath(repo, "feature/login")
+	want := wtPath(repo, "regular/login")
 	if got := strings.TrimSpace(out.String()); got != want {
 		t.Errorf("printed %q, want %q", got, want)
 	}
@@ -120,9 +120,9 @@ func TestSwitchMovesMainWorktree(t *testing.T) {
 
 func TestSwitchAmbiguousQueryUsesPicker(t *testing.T) {
 	repo := flowRepo(t)
-	testutil.Git(t, repo, "branch", "feature/login", "develop")
-	testutil.Git(t, repo, "branch", "feature/logout", "develop")
-	p := &pickerFake{answer: "feature/logout"}
+	testutil.Git(t, repo, "branch", "regular/login", "develop")
+	testutil.Git(t, repo, "branch", "regular/logout", "develop")
+	p := &pickerFake{answer: "regular/logout"}
 	d, out, _ := testDeps(t, repo, nil)
 	d = tty(d, "", p)
 	if err := run(t, d, "switch", "log"); err != nil {
@@ -131,23 +131,23 @@ func TestSwitchAmbiguousQueryUsesPicker(t *testing.T) {
 	if p.calls != 1 || p.query != "log" {
 		t.Errorf("picker calls %d, query %q", p.calls, p.query)
 	}
-	if got, want := strings.Join(p.keys(), " "), "@ feature/login feature/logout main"; got != want {
+	if got, want := strings.Join(p.keys(), " "), "@ main regular/login regular/logout"; got != want {
 		t.Errorf("rows %q, want %q", got, want)
 	}
-	if got := strings.TrimSpace(out.String()); got != wtPath(repo, "feature/logout") {
+	if got := strings.TrimSpace(out.String()); got != wtPath(repo, "regular/logout") {
 		t.Errorf("printed %q", got)
 	}
-	if p.rows[3].Preview == nil || !strings.Contains(p.rows[3].Preview(), "moved onto 'main'") {
+	if p.rows[1].Preview == nil || !strings.Contains(p.rows[1].Preview(), "moved onto 'main'") {
 		t.Error("rows need previews")
 	}
 }
 
 func TestSwitchWithoutTerminalFailsClearly(t *testing.T) {
 	repo := flowRepo(t)
-	testutil.Git(t, repo, "branch", "feature/a", "develop")
-	testutil.Git(t, repo, "branch", "feature/b", "develop")
+	testutil.Git(t, repo, "branch", "regular/a", "develop")
+	testutil.Git(t, repo, "branch", "regular/b", "develop")
 	d, _, _ := testDeps(t, repo, nil)
-	for _, q := range [][]string{{"switch"}, {"switch", "feature"}} {
+	for _, q := range [][]string{{"switch"}, {"switch", "regular"}} {
 		err := run(t, d, q...)
 		if err == nil || !strings.Contains(err.Error(), "no terminal") {
 			t.Errorf("%v: err = %v", q, err)
@@ -169,21 +169,21 @@ func TestSwitchNeedsFlow(t *testing.T) {
 
 func TestSwitchCompletion(t *testing.T) {
 	repo := flowRepo(t)
-	testutil.Git(t, repo, "branch", "feature/login", "develop")
+	testutil.Git(t, repo, "branch", "regular/login", "develop")
 	d, out, _ := testDeps(t, repo, nil)
-	if err := run(t, d, "__complete", "switch", "f"); err != nil {
+	if err := run(t, d, "__complete", "switch", "r"); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "feature/login") || strings.Contains(out.String(), "main") {
+	if !strings.Contains(out.String(), "regular/login") || strings.Contains(out.String(), "main") {
 		t.Errorf("completion: %q", out.String())
 	}
 }
 
 func TestPrintDirPicksOnTerminal(t *testing.T) {
 	repo := flowRepo(t)
-	wt := wtPath(repo, "feature/a")
-	testutil.Git(t, repo, "worktree", "add", "-q", "-b", "feature/a", wt, "develop")
-	p := &pickerFake{answer: "feature/a"}
+	wt := wtPath(repo, "regular/a")
+	testutil.Git(t, repo, "worktree", "add", "-q", "-b", "regular/a", wt, "develop")
+	p := &pickerFake{answer: "regular/a"}
 	d, out, _ := testDeps(t, repo, nil)
 	if err := run(t, tty(d, "", p), "print-dir"); err != nil {
 		t.Fatal(err)
@@ -191,7 +191,7 @@ func TestPrintDirPicksOnTerminal(t *testing.T) {
 	if got := strings.TrimSpace(out.String()); got != wt {
 		t.Errorf("printed %q, want %q", got, wt)
 	}
-	if got := strings.Join(p.keys(), " "); got != "@ feature/a" {
+	if got := strings.Join(p.keys(), " "); got != "@ regular/a" {
 		t.Errorf("rows %q: only existing worktrees, main first", got)
 	}
 	// a name never opens the picker, and without a terminal no name means the main worktree
@@ -208,18 +208,18 @@ func TestPrintDirPicksOnTerminal(t *testing.T) {
 
 func TestRemovePicksAndConfirms(t *testing.T) {
 	repo := flowRepo(t)
-	wt := wtPath(repo, "feature/a")
-	testutil.Git(t, repo, "worktree", "add", "-q", "-b", "feature/a", wt, "develop")
+	wt := wtPath(repo, "regular/a")
+	testutil.Git(t, repo, "worktree", "add", "-q", "-b", "regular/a", wt, "develop")
 	base, _, _ := testDeps(t, repo, nil)
 
-	p := &pickerFake{answer: "feature/a"}
+	p := &pickerFake{answer: "regular/a"}
 	if err := run(t, tty(base, "n\n", p), "remove"); err == nil {
 		t.Error("declining must cancel")
 	}
 	if _, err := os.Stat(wt); err != nil {
 		t.Fatal("declined removal removed the worktree")
 	}
-	if got := strings.Join(p.keys(), " "); got != "feature/a" {
+	if got := strings.Join(p.keys(), " "); got != "regular/a" {
 		t.Errorf("rows %q: the main worktree must not be offered", got)
 	}
 
@@ -237,50 +237,49 @@ func TestRemovePicksAndConfirms(t *testing.T) {
 	}
 }
 
-func TestCheckoutAndFinishPickOpenBranch(t *testing.T) {
+func TestCheckoutAndFinishPickOpenRelease(t *testing.T) {
 	repo := flowRepo(t)
 	d, out, _ := testDeps(t, repo, nil)
-	for _, n := range []string{"a", "b"} {
-		if err := run(t, d, "feature", "start", n); err != nil {
-			t.Fatal(err)
-		}
-	}
-	out.Reset()
-	p := &pickerFake{answer: "b"}
-	if err := run(t, tty(d, "", p), "feature", "checkout"); err != nil {
+	if err := run(t, d, "release", "start", "1.0.0"); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(out.String()); got != wtPath(repo, "feature/b") {
+	out.Reset()
+	p := &pickerFake{answer: "1.0.0"}
+	if err := run(t, tty(d, "", p), "release", "checkout"); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != wtPath(repo, "release/1.0.0") {
 		t.Errorf("checkout printed %q", got)
 	}
-	if got := strings.Join(p.keys(), " "); got != "a b" {
+	if got := strings.Join(p.keys(), " "); got != "1.0.0" {
 		t.Errorf("rows %q", got)
 	}
 
-	testutil.WriteFile(t, filepath.Join(wtPath(repo, "feature/b"), "b.txt"), "b\n")
-	testutil.Git(t, wtPath(repo, "feature/b"), "add", "-A")
-	testutil.Git(t, wtPath(repo, "feature/b"), "commit", "-q", "-m", "b")
-	if err := run(t, tty(d, "", p), "feature", "finish"); err != nil {
+	wt := wtPath(repo, "release/1.0.0")
+	testutil.WriteFile(t, filepath.Join(wt, "CHANGELOG.md"), "1.0.0\n")
+	testutil.Git(t, wt, "add", "-A")
+	testutil.Git(t, wt, "commit", "-q", "-m", "changelog")
+	if err := run(t, tty(d, "", p), "release", "finish", "-m", "m"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(branchList(t, repo), "feature/b") || !strings.Contains(branchList(t, repo), "feature/a") {
-		t.Errorf("finish should have merged and removed only feature/b:\n%s", branchList(t, repo))
+	if strings.Contains(branchList(t, repo), "release/1.0.0") {
+		t.Errorf("finish should have merged and removed the release:\n%s", branchList(t, repo))
 	}
 }
 
 func TestFinishInsideWorktreeDoesNotPick(t *testing.T) {
 	repo := flowRepo(t)
 	d, _, _ := testDeps(t, repo, nil)
-	if err := run(t, d, "feature", "start", "a"); err != nil {
+	if err := run(t, d, "release", "start", "1.0.0"); err != nil {
 		t.Fatal(err)
 	}
-	wt := wtPath(repo, "feature/a")
+	wt := wtPath(repo, "release/1.0.0")
 	testutil.WriteFile(t, filepath.Join(wt, "a.txt"), "a\n")
 	testutil.Git(t, wt, "add", "-A")
 	testutil.Git(t, wt, "commit", "-q", "-m", "a")
 	p := &pickerFake{answer: "never"}
 	inside, _, _ := testDeps(t, wt, nil)
-	if err := run(t, tty(inside, "", p), "feature", "finish"); err != nil {
+	if err := run(t, tty(inside, "", p), "release", "finish", "-m", "m"); err != nil {
 		t.Fatal(err)
 	}
 	if p.calls != 0 {
@@ -291,7 +290,7 @@ func TestFinishInsideWorktreeDoesNotPick(t *testing.T) {
 func TestFinishNoNameWithoutTerminalKeepsError(t *testing.T) {
 	repo := flowRepo(t)
 	d, _, _ := testDeps(t, repo, nil)
-	err := run(t, d, "feature", "finish")
+	err := run(t, d, "release", "finish")
 	if err == nil || !strings.Contains(err.Error(), "specify a <name>") {
 		t.Errorf("err = %v", err)
 	}

@@ -26,13 +26,12 @@ preserved. Commands write the file when you should end up somewhere else:
 | Command | You end up in |
 |---------|---------------|
 | `add` | the new worktree |
-| `<kind> start`, `track`, `checkout` | the branch's worktree |
+| `task start`, `task track`, `task checkout`, `release start`, `release track`, `release checkout`, `work start`, `work checkout` | the branch's worktree |
 | `switch` | where you chose |
 | `finish`, `delete`, `remove` of the worktree you are standing in | the main worktree |
-| `feature pull` that creates a worktree | that worktree |
 
 Without the wrapper everything still works; commands that print a path (`checkout`, `switch`, `print-dir`,
-`add -q`) can be used as `cd "$(flowtree checkout login)"`. One difference: `remove` refuses to delete the
+`add -q`) can be used as `cd "$(flowtree task checkout 1)"`. One difference: `remove` refuses to delete the
 worktree you are standing in unless the wrapper is active, because otherwise your shell would be left in a
 deleted directory.
 
@@ -42,9 +41,9 @@ Completion is dynamic and reads the repository you are in:
 
 - worktree names for `print-dir`, `exec`, `remove`;
 - branch names (local, plus remote-only) for `add`;
-- open `feature`/`release`/`hotfix`/`work` names for `finish`, `checkout`, `publish`, `delete`, `rebase`, `diff`;
-- branches that exist only on the remote for `track`;
-- remotes for `feature pull`;
+- open `release` versions and `work` `<n>/<sub>` refs for `finish`, `checkout`, `publish`, `delete`;
+- tasks without a branch for `task start`;
+- release branches that exist only on the remote for `release track`;
 - row names for `switch`.
 
 Completion never prints errors into your prompt; outside a repository it simply suggests nothing. Only the
@@ -79,12 +78,12 @@ so it keeps working after upgrades and never needs regenerating.
   come after it is sourced in your rc file.
 - zsh: `compinit` must have run. `shell-init` runs it for you when it has not; with the file-based setup, call
   it yourself after the `fpath` is set up.
-- Inside a repository, `flowtree __complete feature finish ""` prints what would be suggested; if that is empty,
+- Inside a repository, `flowtree __complete release finish ""` prints what would be suggested; if that is empty,
   the problem is the repository (for example flow not set up: `flowtree init --flow`), not the shell.
 
 ## The picker
 
-`switch`, `print-dir` and `remove` without a name, and `finish`/`checkout` without a name outside a topic
+`switch`, `print-dir` and `remove` without a name, and `release finish`/`checkout` without a version outside a release
 worktree, open a built-in picker when a terminal is attached:
 
 | Key | Action |

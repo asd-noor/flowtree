@@ -24,9 +24,7 @@ var Constructors = []Constructor{
 	newShellInitCmd,
 	newSwitchCmd,
 	newTaskCmd,
-	newTopicCmd(flow.Hotfix),
 	newTopicCmd(flow.Release),
-	newTopicCmd(flow.Feature),
 	newTopicCmd(flow.Work),
 }
 

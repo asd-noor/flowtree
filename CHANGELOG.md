@@ -4,6 +4,46 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [v0.5.0] - 2026-11-16
+
+### Changed
+
+- **Breaking:** tasks no longer have tags: `-t` is gone from `task add` and `task edit`, and list, show, `--json` and
+  the board no longer show them. Old boards still load; their tags are dropped the next time the board is saved.
+- **Breaking:** the `feature` and `hotfix` command groups are gone. Regular and hotfix branches are now the
+  branches of board tasks and are driven by `flowtree task`; `flowtree release` and `flowtree work` stay.
+- **Breaking:** a task has a type, `regular` (the default) or `hotfix` (`task add --type`, `task edit --type` while
+  it has no branch). `task start <n> <name|version> [<base>]` starts the branch of the task's type: `regular/<name>`
+  from develop, or `hotfix/<version>` from master, with its own worktree.
+- **Breaking:** the lifecycle verbs moved under `task`: `review`, `diff`, `publish`, `rebase`, `pull` (the task
+  number is optional inside the task's worktree), `checkout`, `finish`, `delete` (the number is required) and
+  `track <n> <remote branch>`, which links an existing remote branch to a task. `rebase` and `pull` are for regular
+  tasks; `finish` rejects flags the task's type does not take. `pull` no longer creates a branch that only exists on
+  the remote; use `task track`.
+- **Breaking:** `work start -P <n>` takes the task number, and `work checkout|finish|delete` take `<n>/<sub>`.
+- **Breaking:** the `feature` branch kind is renamed `regular`: its prefix is `regular/` and its setting is
+  `flowtree.regularprefix`. The old `flowtree.featureprefix` key is no longer read.
+- **Breaking:** starting, reviewing and working no longer create tasks; a branch needs a task made with
+  `task add`. `task sync` still adds tasks, typed by the branch prefix, for branches made with plain git.
+- `flowtree board` cards show their type.
+
+### Added
+
+- `task start`, `task track` and the other `task` lifecycle verbs, with shell completion of the tasks that have no
+  branch for `task start`.
+- `--type regular|hotfix` on `task add` and `task edit`; `task list --json` and `task show` report the type.
+- Task dependencies: `task add --needs 5,6` and `task edit <n> --needs ...` (`""` clears) record the tasks that
+  should be done first; unknown ids, a self-reference and cycles are refused. `task list` marks `[blocked]` tasks
+  and `--ready` lists the todo tasks whose needs are done; `task show` and `--json` (`needs`, `needed_by`,
+  `blocked`) report them, `flowtree board` shows a `blocked` mark and the lists in the detail pane, and
+  `task prompt` names needed tasks and how to merge an unfinished one. `task start` and `task finish` warn about
+  unfinished needs and go ahead. Nothing is gated or merged for you.
+
+### Migration
+
+Finish open `feature/*` branches before upgrading, or tell flowtree to keep the old prefix with
+`git config flowtree.regularprefix feature/`. Re-run `flowtree init --flow` to write the new key.
+
 ## [v0.4.3] - 2026-11-09
 
 ### Changed

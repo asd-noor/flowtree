@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -19,14 +20,14 @@ func TestTaskCommands(t *testing.T) {
 		}
 		return out.String()
 	}
-	if got := must("task", "add", "-t", "ui, auth", "Login", "page"); got != "#1\n" {
+	if got := must("task", "add", "Login", "page"); got != "#1\n" {
 		t.Fatalf("add printed %q", got)
 	}
 	must("task", "add", "--backlog", "--human", "Later")
 	must("task", "edit", "1", "-d", "Body")
 	must("task", "comment", "--author", "me", "#1", "first", "note")
 
-	if got := must("task", "list"); !strings.Contains(got, "#1    todo      Login page  [ui,auth]") || !strings.Contains(got, "#2    backlog   Later  [human]") {
+	if got := must("task", "list"); !strings.Contains(got, "#1    todo      Login page  [regular]") || !strings.Contains(got, "#2    backlog   Later  [regular] [human]") {
 		t.Errorf("list:\n%s", got)
 	}
 	if got := must("task", "list", "-s", "backlog"); strings.Contains(got, "#1") {
@@ -37,14 +38,26 @@ func TestTaskCommands(t *testing.T) {
 	}
 	must("task", "todo", "2")
 	must("task", "human", "--off", "2")
-	if got := must("task", "show", "--json", "2"); !strings.Contains(got, `"status": "todo"`) || strings.Contains(got, `"human"`) {
+	if got := must("task", "show", "--json", "2"); !strings.Contains(got, `"status": "todo"`) || !strings.Contains(got, `"type": "regular"`) || strings.Contains(got, `"human"`) {
 		t.Errorf("json:\n%s", got)
 	}
 
+	must("task", "add", "--type", "hotfix", "Urgent")
+	must("task", "edit", "3", "--type", "regular")
+	must("task", "edit", "3", "--type", "hotfix")
+	if got := must("task", "show", "--json", "3"); !strings.Contains(got, `"type": "hotfix"`) {
+		t.Errorf("json:\n%s", got)
+	}
+	if got := must("task", "show", "3"); !strings.Contains(got, "[hotfix]") {
+		t.Errorf("show:\n%s", got)
+	}
+
 	for _, args := range [][]string{
+		{"task", "add", "--type", "chore", "x"}, {"task", "edit", "1", "--type", "nope"},
 		{"task", "show", "9"}, {"task", "show", "x"}, {"task", "list", "-s", "nope"},
 		{"task", "edit", "1"}, // no flags and no terminal
 		{"task", "edit", "1", "--title", ""},
+		{"task", "add", "-t", "ui", "x"}, // tags are gone
 	} {
 		if err := run(t, d, args...); err == nil {
 			t.Errorf("%v should fail", args)
@@ -76,9 +89,9 @@ func TestBoardNeedsTerminal(t *testing.T) {
 func TestRenderPrompt(t *testing.T) {
 	sub := board.Subtask{Name: "api", Description: "POST /login"}
 	got := renderPrompt(prompt{ID: 3, Title: "Login", Desc: "Email and password.", Sub: &sub,
-		Branch: "work/feature/login/api", Kind: flow.Work, Name: "api"})
+		Branch: "work/regular/login/api", Kind: flow.Work, Name: "api"})
 	for _, want := range []string{"# Task #3: Login", "Email and password.", "## Subtask: api", "POST /login",
-		"`work/feature/login/api`", "none yet; create it with `flowtree work checkout api`", "`flowtree work finish api`"} {
+		"`work/regular/login/api`", "none yet; create it with `flowtree work checkout 3/api`", "`flowtree work finish 3/api`"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("prompt lacks %q:\n%s", want, got)
 		}
@@ -86,7 +99,25 @@ func TestRenderPrompt(t *testing.T) {
 	if strings.Contains(got, "commit") {
 		t.Errorf("the brief must not set a commit policy; the one handing it out does:\n%s", got)
 	}
-	if got := renderPrompt(prompt{ID: 4, Title: "Later"}); !strings.Contains(got, "feature start -T 4") {
+	if got := renderPrompt(prompt{ID: 4, Title: "Later", Arg: "<version>"}); !strings.Contains(got, "task start 4 <version>") {
 		t.Errorf("a task without a branch should say how to start it:\n%s", got)
+	}
+}
+
+func TestParseNeedsAndNeedLine(t *testing.T) {
+	for in, want := range map[string][]int{"5,6": {5, 6}, "#5, #6": {5, 6}, "5 6": {5, 6}, " #5  #6 ": {5, 6}, "": nil} {
+		got, err := parseNeeds(in)
+		if err != nil || !slices.Equal(got, want) {
+			t.Errorf("parseNeeds(%q) = %v, %v", in, got, err)
+		}
+	}
+	if line := needLine(board.Dep{ID: 2, Branch: "regular/x", Status: board.Abandoned}); strings.Contains(line, "git merge") {
+		t.Errorf("abandoned need asks for a merge: %q", line)
+	}
+	if line := needLine(board.Dep{ID: 7, Status: board.Missing}); !strings.Contains(line, "missing") {
+		t.Errorf("missing need: %q", line)
+	}
+	if got := lookup(map[int]board.Status{1: board.Done})(9); got != board.Missing {
+		t.Errorf("lookup of a task not on the board = %q", got)
 	}
 }

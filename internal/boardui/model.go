@@ -15,6 +15,9 @@ type Card struct {
 	board.Card
 	Status    board.Status
 	SubStatus []board.Status // parallel to Card.Subtasks
+	Blocked   bool           // a needed task is not done
+	Needs     []board.Dep
+	NeededBy  []board.Dep
 }
 
 // Source is everything the board reaches outside itself for.

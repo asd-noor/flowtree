@@ -33,7 +33,7 @@ type Config struct {
 type Flow struct {
 	Master        string
 	Develop       string
-	FeaturePrefix string
+	RegularPrefix string
 	RelPrefix     string
 	HotPrefix     string
 	WorkPrefix    string

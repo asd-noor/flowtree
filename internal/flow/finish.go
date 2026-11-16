@@ -47,15 +47,15 @@ func PlanFinish(e *Env, o FinishOpts) ([]Step, error) {
 		return nil, err
 	}
 	switch o.Kind {
-	case Feature:
-		return planFinishFeature(e, o, branch)
+	case Regular:
+		return planFinishRegular(e, o, branch)
 	case Work:
 		return planFinishWork(e, o, branch)
 	}
 	return planFinishRelease(e, o, branch)
 }
 
-func planFinishFeature(e *Env, o FinishOpts, branch string) ([]Step, error) {
+func planFinishRegular(e *Env, o FinishOpts, branch string) ([]Step, error) {
 	var merged bool
 	return Plan(
 		If(e.HasRemote(), One("fetch "+e.S.Remote, Fetch)),
@@ -74,7 +74,7 @@ func planFinishFeature(e *Env, o FinishOpts, branch string) ([]Step, error) {
 			if err := MergeInto(e, e.S.Develop, branch, NoFF, ""); err != nil {
 				return err
 			}
-			e.Say("\nSummary of actions:\n- The feature branch '%s' was merged into '%s'", branch, e.S.Develop)
+			e.Say("\nSummary of actions:\n- The regular branch '%s' was merged into '%s'", branch, e.S.Develop)
 			return nil
 		}),
 		trackStep(branch),
@@ -123,7 +123,7 @@ func rebaseOnto(e *Env, branch, onto string) error {
 	if _, err := e.Git(dir)("rebase", onto); err != nil {
 		_ = e.Git(dir).Ok("rebase", "--abort")
 		return fmt.Errorf("finish was aborted due to conflicts during rebase; rebase manually in '%s' "+
-			"(git rebase %s), then re-run: flowtree work finish %s\n%w", dir, onto, e.S.Name(Work, branch), err)
+			"(git rebase %s), then re-run: flowtree work finish %s\n%w", dir, onto, WorkArg(e, branch), err)
 	}
 	return nil
 }
@@ -296,8 +296,8 @@ func makeTag(e *Env, o FinishOpts, tag, ver string) error {
 	}
 	if err != nil {
 		return fmt.Errorf("the %s '%s' is already merged into '%s' but tagging '%s' failed: %w\n"+
-			"Fix the cause (for example the tag message or the signing key), then re-run 'flowtree %s finish %s': it resumes from here",
-			o.Kind, ver, e.S.Master, tag, err, o.Kind, ver)
+			"Fix the cause (for example the tag message or the signing key), then re-run '%s': it resumes from here",
+			o.Kind, ver, e.S.Master, tag, err, finishHint(e, o.Kind, ver))
 	}
 	return nil
 }

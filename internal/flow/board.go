@@ -22,7 +22,7 @@ func BoardPath(e *Env) (string, error) {
 	return board.Path(dir), nil
 }
 
-// Target is the branch a topic branch is finished into: develop for a feature, master for a hotfix,
+// Target is the branch a topic branch is finished into: develop for a regular branch, master for a hotfix,
 // the parent for a work branch. Other branches have none.
 func (s Settings) Target(branch string) string {
 	k, ok := s.KindOf(branch)
@@ -84,27 +84,37 @@ func tipOf(e *Env, branch string) string {
 	return tip
 }
 
-// linkStep ties a new feature or hotfix branch to task id, or to a new task named after it.
-func linkStep(task int, branch, title string) []Step {
-	desc := "add a task for " + branch
-	if task > 0 {
-		desc = fmt.Sprintf("link task #%d to %s", task, branch)
+// TypeOf is the type of a card: the stored one, else read from its branch prefix (a hotfix branch is a
+// hotfix, anything else, including no branch and old feature/ branches, is regular).
+func TypeOf(s Settings, c board.Card) board.Type {
+	switch {
+	case c.Type != "":
+		return c.Type
+	case kindOf(s, c.Branch) == Hotfix:
+		return board.Hotfix
 	}
-	return boardStep(desc, func(e *Env, b board.Board) (board.Board, error) {
-		start := tipOf(e, branch)
-		if task > 0 {
-			return b.Link(task, branch, start)
-		}
-		return b.Ensure(branch, title, start, time.Now().UTC()), nil
+	return board.Regular
+}
+
+// typeOfKind is the task type of a branch kind.
+func typeOfKind(k Kind) board.Type {
+	if k == Hotfix {
+		return board.Hotfix
+	}
+	return board.Regular
+}
+
+// linkStep ties a new regular or hotfix branch to task id.
+func linkStep(task int, branch string) []Step {
+	return boardStep(fmt.Sprintf("link task #%d to %s", task, branch), func(e *Env, b board.Board) (board.Board, error) {
+		return b.Link(task, branch, tipOf(e, branch), typeOfKind(kindOf(e.S, branch)))
 	})
 }
 
-// subtaskStep records a new work branch on its parent's task, adding that task if the parent has none.
+// subtaskStep records a new work branch on its parent's task.
 func subtaskStep(name, branch, parent, desc string) []Step {
 	return boardStep("add subtask "+name+" to the task of "+parent, func(e *Env, b board.Board) (board.Board, error) {
 		start := tipOf(e, branch)
-		pstart, _ := e.MainGit()("merge-base", parent, e.S.Target(parent))
-		b = b.Ensure(parent, e.S.Name(kindOf(e.S, parent), parent), pstart, time.Now().UTC())
 		return b.AddSubtask(parent, board.Subtask{Name: name, Branch: branch, Description: desc, Start: start, Tip: start}), nil
 	})
 }
@@ -121,16 +131,10 @@ func kindOf(s Settings, branch string) Kind {
 	return k
 }
 
-// checkTask refuses -T for a task that does not exist or already has a branch, before anything is created.
-func checkTask(e *Env, task int) error {
-	if task == 0 {
-		return nil
-	}
-	path, err := BoardPath(e)
-	if err != nil {
-		return err
-	}
-	b, err := board.Load(path)
+// checkTask refuses a task that does not exist, already has a branch or is of the other type than
+// the branch kind k, before anything is created.
+func checkTask(e *Env, task int, k Kind) error {
+	b, err := loadBoard(e)
 	if err != nil {
 		return err
 	}
@@ -140,11 +144,13 @@ func checkTask(e *Env, task int) error {
 		return fmt.Errorf("no task #%d", task)
 	case c.Branch != "":
 		return fmt.Errorf("task #%d already belongs to '%s'", task, c.Branch)
+	case TypeOf(e.S, c) != typeOfKind(k):
+		return fmt.Errorf("task #%d is a %s task, not a %s", task, TypeOf(e.S, c), typeOfKind(k))
 	}
 	return nil
 }
 
-// Review marks the task of a feature or hotfix as waiting for review at the branch's current tip, or
+// Review marks the task of a regular or hotfix (which must have one) as waiting for review at the branch's current tip, or
 // with undo clears the mark. New commits move the task back to doing on their own.
 func Review(e *Env, k Kind, name string, undo bool) (string, error) {
 	branch, err := ResolveTopic(e, k, name)
@@ -156,8 +162,9 @@ func Review(e *Env, k Kind, name string, undo bool) (string, error) {
 		tip = tipOf(e, branch)
 	}
 	return branch, updateBoard(e, func(b board.Board) (board.Board, error) {
-		start, _ := e.MainGit()("merge-base", branch, e.S.Target(branch))
-		b = b.Ensure(branch, e.S.Name(k, branch), start, time.Now().UTC())
+		if _, ok := b.ByBranch(branch); !ok {
+			return b, noTaskFor(branch)
+		}
 		return b.Track(branch, tipOf(e, branch)).SetReview(branch, tip), nil
 	})
 }
@@ -172,10 +179,10 @@ func carriedReview(b board.Board, branch, oldTip, newTip string) board.Board {
 	return b.Track(branch, newTip).SetReview(branch, newTip)
 }
 
-// syncRefs lists the feature, hotfix and work branches as Reconcile wants them.
+// syncRefs lists the regular, hotfix and work branches as Reconcile wants them.
 func syncRefs(e *Env) ([]board.Ref, error) {
 	var refs []board.Ref
-	for _, k := range []Kind{Feature, Hotfix, Work} {
+	for _, k := range []Kind{Regular, Hotfix, Work} {
 		branches, err := gitx.LocalBranches(e.MainGit(), e.S.Prefix(k))
 		if err != nil {
 			return nil, err
@@ -190,7 +197,9 @@ func syncRefs(e *Env) ([]board.Ref, error) {
 func refOf(e *Env, k Kind, branch string) board.Ref {
 	start, _ := e.MainGit()("merge-base", branch, e.S.Target(branch))
 	r := board.Ref{Branch: branch, Tip: tipOf(e, branch), Start: start, Title: e.S.Name(k, branch)}
-	if k == Work {
+	if k != Work {
+		r.Type = typeOfKind(k)
+	} else {
 		r.Parent = e.S.ParentOf(branch)
 		r.Title = strings.TrimPrefix(branch, e.S.WorkPrefix+r.Parent+"/")
 	}

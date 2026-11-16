@@ -10,8 +10,8 @@ import (
 // A branch with no commits of its own is not an interrupted finish: the message must not claim a resume.
 func TestFinishOfAnEmptyHotfixDoesNotClaimToResume(t *testing.T) {
 	repo := flowRepo(t)
-	Run(t, repo, "hotfix", "start", "1.0.1").MustSucceed(t)
-	res := Run(t, repo, "hotfix", "finish", "1.0.1", "-m", "m").MustSucceed(t)
+	startTask(t, repo, "hotfix", "1.0.1")
+	res := Run(t, repo, "task", "finish", "1", "-m", "m").MustSucceed(t)
 	if strings.Contains(res.Stdout, "Resuming") || !strings.Contains(res.Stdout, "no commits of its own") {
 		t.Errorf("stdout = %q", res.Stdout)
 	}

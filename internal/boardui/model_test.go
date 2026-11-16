@@ -142,14 +142,14 @@ func TestTickReloadsEvenWithoutAFileChange(t *testing.T) {
 
 func TestRenderShowsColumnsAndDetail(t *testing.T) {
 	c := card(7, "Login", board.Todo)
-	c.Human, c.Description, c.Branch = true, "Body text", "feature/login"
+	c.Human, c.Description, c.Branch, c.Type = true, "Body text", "regular/login", board.Hotfix
 	c.Subtasks = []board.Subtask{{Name: "api", Branch: "work/login/api"}}
 	c.SubStatus = []board.Status{board.Doing}
 	m := newModel(Source{}, []Card{c})
 	m.width = 120
 	m = key(key(m, "l"), "enter")
 	out := ansi.Strip(render(m))
-	for _, want := range []string{"╭ BACKLOG 0 ─", "╭ TODO 1 ─", "▌#7 Login human", "feature/login", "branch: feature/login", "Body text", "doing", "work/login/api"} {
+	for _, want := range []string{"╭ BACKLOG 0 ─", "╭ TODO 1 ─", "hotfix human", "regular/login", "branch: regular/login", "Body text", "doing", "work/login/api"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
@@ -238,5 +238,29 @@ func TestDetailWrapsLongLines(t *testing.T) {
 	m := key(key(newModel(Source{}, []Card{c}), "l"), "enter")
 	if out := ansi.Strip(render(m)); !strings.Contains(out, "end") || strings.Contains(out, "lines ") {
 		t.Errorf("long line should wrap and still fit:\n%s", out)
+	}
+}
+
+func TestBlockedMarkAndDependencyLines(t *testing.T) {
+	c := card(7, "later", board.Todo)
+	c.Blocked = true
+	c.Needs = []board.Dep{{ID: 5, Branch: "regular/a", Status: board.Doing}}
+	c.NeededBy = []board.Dep{{ID: 9, Status: board.Todo}}
+	m := newModel(Source{}, []Card{c})
+	m.width, m.height = 120, 40
+	m.col = 1
+	if out := ansi.Strip(render(m)); !strings.Contains(out, "#7 later blocked") {
+		t.Errorf("no blocked marker on the card:\n%s", out)
+	}
+	m = key(m, "enter")
+	out := ansi.Strip(render(m))
+	for _, want := range []string{"needs:", "#5 doing", "needed by:", "#9 todo"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("detail lacks %q:\n%s", want, out)
+		}
+	}
+	plain := newModel(Source{}, []Card{card(1, "free", board.Todo)})
+	if out := ansi.Strip(render(plain)); strings.Contains(out, "blocked") {
+		t.Errorf("unblocked card marked:\n%s", out)
 	}
 }

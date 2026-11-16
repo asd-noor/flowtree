@@ -7,25 +7,25 @@ import (
 )
 
 func TestReconcile(t *testing.T) {
-	b, _ := Empty().Add(Card{Title: "old name", Branch: "feature/old", Tip: "t1"})
-	b, _ = b.Add(Card{Title: "kept", Branch: "feature/kept", Tip: "k0"})
+	b, _ := Empty().Add(Card{Title: "old name", Branch: "regular/old", Tip: "t1"})
+	b, _ = b.Add(Card{Title: "kept", Branch: "regular/kept", Tip: "k0"})
 	refs := []Ref{
-		{Branch: "feature/new", Tip: "t1", Title: "new"},   // feature/old renamed
-		{Branch: "feature/kept", Tip: "k1", Title: "kept"}, // moved on
+		{Branch: "regular/new", Tip: "t1", Title: "new"},   // regular/old renamed
+		{Branch: "regular/kept", Tip: "k1", Title: "kept"}, // moved on
 		{Branch: "hotfix/1.0.1", Tip: "h1", Start: "m0", Title: "1.0.1"},
-		{Branch: "work/feature/kept/x", Tip: "w1", Start: "k1", Title: "x", Parent: "feature/kept"},
-		{Branch: "work/feature/gone/y", Tip: "w2", Title: "y", Parent: "feature/gone"}, // orphan: skipped
+		{Branch: "work/regular/kept/x", Tip: "w1", Start: "k1", Title: "x", Parent: "regular/kept"},
+		{Branch: "work/regular/gone/y", Tip: "w2", Title: "y", Parent: "regular/gone"}, // orphan: skipped
 	}
 	got, changes := Reconcile(b, refs, time.Time{})
 	want := []string{
-		"relinked task #1 from feature/old to feature/new",
+		"relinked task #1 from regular/old to regular/new",
 		"added task #3 for hotfix/1.0.1",
 		"added subtask x to task #2",
 	}
 	if strings.Join(changes, "\n") != strings.Join(want, "\n") {
 		t.Errorf("changes:\n%s", strings.Join(changes, "\n"))
 	}
-	if c, _ := got.Card(1); c.Branch != "feature/new" || c.Title != "old name" {
+	if c, _ := got.Card(1); c.Branch != "regular/new" || c.Title != "old name" {
 		t.Errorf("relinked card: %+v", c)
 	}
 	if c, _ := got.Card(2); c.Tip != "k1" || len(c.Subtasks) != 1 || c.Subtasks[0].Tip != "w1" {
@@ -33,5 +33,15 @@ func TestReconcile(t *testing.T) {
 	}
 	if again, more := Reconcile(got, refs, time.Time{}); len(more) != 0 || len(again.Cards) != 3 {
 		t.Errorf("a second run must change nothing: %v", more)
+	}
+}
+
+func TestReconcileTypesNewCards(t *testing.T) {
+	got, _ := Reconcile(Empty(), []Ref{{Branch: "hotfix/1", Type: Hotfix}, {Branch: "regular/a", Type: Regular}}, time.Time{})
+	if a, _ := got.Card(1); a.Type != Hotfix {
+		t.Errorf("hotfix card: %+v", a)
+	}
+	if b, _ := got.Card(2); b.Type != Regular {
+		t.Errorf("regular card: %+v", b)
 	}
 }

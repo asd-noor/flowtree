@@ -12,7 +12,7 @@ import (
 const (
 	DefaultMaster        = "master"
 	DefaultDevelop       = "develop"
-	DefaultFeaturePrefix = "feature/"
+	DefaultRegularPrefix = "regular/"
 	DefaultRelPrefix     = "release/"
 	DefaultHotPrefix     = "hotfix/"
 	DefaultWorkPrefix    = "work/"
@@ -21,7 +21,7 @@ const (
 // Settings are the resolved flow settings of a repository.
 type Settings struct {
 	Master, Develop string
-	FeaturePrefix   string
+	RegularPrefix   string
 	ReleasePrefix   string
 	HotfixPrefix    string
 	WorkPrefix      string
@@ -32,7 +32,7 @@ type Settings struct {
 func DefaultSettings() Settings {
 	return Settings{
 		Master: DefaultMaster, Develop: DefaultDevelop,
-		FeaturePrefix: DefaultFeaturePrefix, ReleasePrefix: DefaultRelPrefix, HotfixPrefix: DefaultHotPrefix, WorkPrefix: DefaultWorkPrefix,
+		RegularPrefix: DefaultRegularPrefix, ReleasePrefix: DefaultRelPrefix, HotfixPrefix: DefaultHotPrefix, WorkPrefix: DefaultWorkPrefix,
 		Remote: config.DefaultRemote,
 	}
 }
@@ -59,7 +59,7 @@ func (s Settings) override(f config.Flow) Settings {
 	}
 	pick(&s.Master, f.Master)
 	pick(&s.Develop, f.Develop)
-	pick(&s.FeaturePrefix, f.FeaturePrefix)
+	pick(&s.RegularPrefix, f.RegularPrefix)
 	pick(&s.ReleasePrefix, f.RelPrefix)
 	pick(&s.HotfixPrefix, f.HotPrefix)
 	pick(&s.WorkPrefix, f.WorkPrefix)
@@ -70,7 +70,7 @@ func (s Settings) override(f config.Flow) Settings {
 func (s Settings) ToConfig() config.Flow {
 	return config.Flow{
 		Master: s.Master, Develop: s.Develop,
-		FeaturePrefix: s.FeaturePrefix, RelPrefix: s.ReleasePrefix, HotPrefix: s.HotfixPrefix, WorkPrefix: s.WorkPrefix,
+		RegularPrefix: s.RegularPrefix, RelPrefix: s.ReleasePrefix, HotPrefix: s.HotfixPrefix, WorkPrefix: s.WorkPrefix,
 	}
 }
 
@@ -82,7 +82,7 @@ func (s Settings) Validate() error {
 	if s.Master == s.Develop {
 		return fmt.Errorf("master and develop must be different branches (both are '%s')", s.Master)
 	}
-	prefixes := []string{s.FeaturePrefix, s.ReleasePrefix, s.HotfixPrefix, s.WorkPrefix}
+	prefixes := []string{s.RegularPrefix, s.ReleasePrefix, s.HotfixPrefix, s.WorkPrefix}
 	for i, p := range prefixes {
 		if p == "" {
 			return fmt.Errorf("branch prefixes must not be empty")

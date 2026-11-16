@@ -8,54 +8,36 @@ import (
 	"flowtree/internal/gitx"
 )
 
-// StartOpts describe `<kind> start`.
+// StartOpts describe `task start` (regular, hotfix), `release start` and `work start`.
 type StartOpts struct {
 	Kind   Kind
 	Name   string
 	Base   string // defaults to the kind's base branch
-	Parent string // work only: the feature or hotfix the subtask belongs to
-	Task   int    // feature and hotfix only: the board task the branch is for (0: a new task)
+	Parent int    // work only: the task whose branch the subtask belongs to (0: from the working directory)
+	Task   int    // regular and hotfix only: the board task the branch is for
 	Desc   string // work only: the subtask's description on the board
 	Fetch  bool
 }
 
 // ErrNoParent is returned by ResolveParent when no parent was given and none follows from the working
 // directory; a caller on a terminal may then offer a choice.
-var ErrNoParent = errors.New("no parent given (-P <feature/x|hotfix/x>) and the working directory is not in a feature or hotfix worktree")
+var ErrNoParent = errors.New("no parent given (-P <task number>) and the working directory is not in a regular or hotfix worktree")
 
-// ResolveParent is the parent a new work branch belongs to: the one given, else the feature or hotfix
-// the working directory belongs to.
-func ResolveParent(e *Env, given string) (string, error) {
-	if given == "" {
-		if p, ok := CurrentParent(e); ok {
-			return p, nil
-		}
+// ResolveParent is the parent a new work branch belongs to: the branch of task id, else the regular or
+// hotfix the working directory belongs to, which must have a task.
+func ResolveParent(e *Env, task int) (string, error) {
+	if task > 0 {
+		return TaskBranch(e, task)
+	}
+	p, ok := CurrentParent(e)
+	if !ok {
 		return "", ErrNoParent
 	}
-	if !e.S.IsParent(given) {
-		return "", fmt.Errorf("parent '%s' must be a feature or hotfix branch (%s..., %s...)", given, e.S.FeaturePrefix, e.S.HotfixPrefix)
-	}
-	if !gitx.BranchExists(e.MainGit(), given) {
-		return "", fmt.Errorf("parent '%s' does not exist", given)
-	}
-	return given, nil
-}
-
-// Parents lists the open features and hotfixes, the branches a work branch can belong to.
-func Parents(e *Env) ([]string, error) {
-	var out []string
-	for _, k := range []Kind{Feature, Hotfix} {
-		bs, err := gitx.LocalBranches(e.MainGit(), e.S.Prefix(k))
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, bs...)
-	}
-	return out, nil
+	return p, checkParentHasTask(e, p)
 }
 
 func missingName(k Kind) error {
-	if k == Feature || k == Work {
+	if k == Regular || k == Work {
 		return fmt.Errorf("missing argument <name>")
 	}
 	return fmt.Errorf("missing argument <version>")
@@ -75,24 +57,32 @@ func PlanStart(e *Env, o StartOpts) ([]Step, error) {
 	if err := checkStartable(e, o.Kind, name, branch, base); err != nil {
 		return nil, err
 	}
-	if o.Task > 0 && o.Kind == Release {
-		return nil, fmt.Errorf("releases have no task; -T is for features and hotfixes")
-	}
-	if err := checkTask(e, o.Task); err != nil {
+	if err := checkStartTask(e, o); err != nil {
 		return nil, err
 	}
 	return Plan(
 		If(o.Fetch, One("fetch "+e.S.Remote, Fetch)),
-		One("check "+e.S.Remote+" state", func(e *Env) error { return checkStartRemote(e, o.Kind, branch, base, o.Base == "") }),
-		createSteps(o.Kind, name, branch, base),
-		If(o.Kind != Release, linkStep(o.Task, branch, name)),
+		One("check "+e.S.Remote+" state", func(e *Env) error { return checkStartRemote(e, o, branch, base) }),
+		createSteps(o.Kind, o.Task, name, branch, base),
+		If(o.Kind != Release, linkStep(o.Task, branch)),
 	), nil
+}
+
+// checkStartTask refuses a regular or hotfix start without a task; releases have none.
+func checkStartTask(e *Env, o StartOpts) error {
+	switch {
+	case o.Kind == Release:
+		return nil
+	case o.Task <= 0:
+		return fmt.Errorf("a %s branch is started from a task: flowtree task start <n> <name>", o.Kind)
+	}
+	return checkTask(e, o.Task, o.Kind)
 }
 
 // planStartWork starts a local subtask off the tip of its parent; it never touches the remote.
 func planStartWork(e *Env, o StartOpts) ([]Step, error) {
 	if strings.Contains(o.Name, "/") {
-		return nil, fmt.Errorf("a work name must not contain '/' (got '%s'); the parent goes in -P", o.Name)
+		return nil, fmt.Errorf("a work name must not contain '/' (got '%s'); the task goes in -P", o.Name)
 	}
 	parent, err := ResolveParent(e, o.Parent)
 	if err != nil {
@@ -102,18 +92,18 @@ func planStartWork(e *Env, o StartOpts) ([]Step, error) {
 	if err := checkStartable(e, Work, o.Name, branch, parent); err != nil {
 		return nil, err
 	}
-	return Plan(createSteps(Work, o.Name, branch, parent), subtaskStep(o.Name, branch, parent, o.Desc)), nil
+	return Plan(createSteps(Work, 0, o.Name, branch, parent), subtaskStep(o.Name, branch, parent, o.Desc)), nil
 }
 
 // createSteps create the branch and its worktree, then print a summary.
-func createSteps(k Kind, name, branch, base string) []Step {
+func createSteps(k Kind, task int, name, branch, base string) []Step {
 	var path string
 	return Plan(
 		One(createDesc(branch, base), func(e *Env) (err error) {
 			path, err = createTopic(e, branch, base)
 			return err
 		}),
-		One("print summary", func(e *Env) error { printStartSummary(e, k, name, branch, base, path); return nil }),
+		One("print summary", func(e *Env) error { printStartSummary(e, k, task, name, branch, base, path); return nil }),
 	)
 }
 
@@ -160,11 +150,11 @@ func checkNoneOpen(e *Env) error {
 	return nil
 }
 
-func checkStartRemote(e *Env, k Kind, branch, base string, defaultBase bool) error {
+func checkStartRemote(e *Env, o StartOpts, branch, base string) error {
 	if e.HasRemote() && gitx.RemoteBranchExists(e.MainGit(), e.S.Remote, branch) {
-		return fmt.Errorf("branch '%s' already exists on %s; use 'flowtree %s track %s'", branch, e.S.Remote, k, e.S.Name(k, branch))
+		return fmt.Errorf("branch '%s' already exists on %s; %s", branch, e.S.Remote, trackHint(e, o, branch))
 	}
-	if defaultBase {
+	if o.Base == "" {
 		return CheckSync(e, base)
 	}
 	return nil
@@ -182,9 +172,23 @@ func createTopic(e *Env, branch, base string) (string, error) {
 	return path, err
 }
 
-func printStartSummary(e *Env, k Kind, name, branch, base, path string) {
+func trackHint(e *Env, o StartOpts, branch string) string {
+	if o.Kind == Release {
+		return "use 'flowtree release track " + e.S.Name(Release, branch) + "'"
+	}
+	return fmt.Sprintf("use 'flowtree task track %d %s'", o.Task, branch)
+}
+
+func finishCmd(e *Env, k Kind, task int, name, branch string) string {
+	if k == Regular || k == Hotfix {
+		return fmt.Sprintf("flowtree task finish %d", task)
+	}
+	return fmt.Sprintf("flowtree %s finish %s", k, finishArg(e, k, name, branch))
+}
+
+func printStartSummary(e *Env, k Kind, task int, name, branch, base, path string) {
 	e.Say("\nSummary of actions:\n- A new branch '%s' was created, based on '%s'\n- %s\n", branch, base, whereIs(path))
-	e.Say("Now, start committing on your %s. When done, use:\n\n     flowtree %s finish %s\n", k, k, name)
+	e.Say("Now, start committing on your %s branch. When done, use:\n\n     %s\n", k, finishCmd(e, k, task, name, branch))
 }
 
 // PlanTrack returns the steps that check out a branch that exists on the remote.
@@ -223,6 +227,13 @@ func trackBranch(e *Env, branch string) (string, error) {
 		e.cd(path)
 	}
 	return path, err
+}
+
+func finishArg(e *Env, k Kind, name, branch string) string {
+	if k == Work {
+		return WorkArg(e, branch)
+	}
+	return name
 }
 
 func whereIs(path string) string {

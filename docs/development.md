@@ -39,14 +39,14 @@ the flag or subcommand, and prefer the older form: that is why settings are read
 - **Shell wrappers**: `internal/shell` runs the bash and fish wrappers against a fake `flowtree`; each test is
   skipped when its shell is missing. The zsh wrapper is not tested.
 
-Not covered by automated tests: the interactive TUI against a real terminal, `rebase -i`, signed tags, and the
+Not covered by automated tests: the interactive TUI against a real terminal, `task rebase -i`, signed tags, and the
 editor path of annotated tags.
 
 ## The agent skill
 
 `skills/flowtree/` is embedded into the binary (`skills/embed.go`) and installed by `flowtree install-skill`.
 When commands or flags change, update the skill too. Two tests guard it: every `flowtree <command>` in a code
-span of the skill must be a real command (and `feature|release|hotfix <sub>` a real subcommand), and the front
+span of the skill must be a real command (and `task|release|work <sub>` a real subcommand), and the front
 matter must have `name` and a `description` of at most 1024 characters.
 
 ## Conventions

@@ -44,10 +44,10 @@ func TestWriteCdFile(t *testing.T) {
 func TestPrintDirAndExec(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	wt := filepath.Join(filepath.Dir(repo), "worktrees", "feature", "x")
-	testutil.Git(t, repo, "worktree", "add", "-q", "-b", "feature/x", wt)
+	testutil.Git(t, repo, "worktree", "add", "-q", "-b", "regular/x", wt)
 
 	d, out, _ := testDeps(t, repo, nil)
-	for query, want := range map[string]string{"": repo, "@": repo, "feature/x": wt} {
+	for query, want := range map[string]string{"": repo, "@": repo, "regular/x": wt} {
 		out.Reset()
 		args := []string{"print-dir"}
 		if query != "" {
@@ -65,7 +65,7 @@ func TestPrintDirAndExec(t *testing.T) {
 	}
 
 	out.Reset()
-	if err := run(t, d, "exec", "feature/x", "--", "pwd"); err != nil {
+	if err := run(t, d, "exec", "regular/x", "--", "pwd"); err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.TrimSpace(out.String()); got != wt {

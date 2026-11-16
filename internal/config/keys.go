@@ -38,7 +38,7 @@ var settings = []setting{
 	{"remote", nonEmpty("remote", func(c *Config, v string) { c.Remote = v }), func(c Config) string { return c.Remote }, DefaultRemote},
 	{"master", nonEmpty("master", func(c *Config, v string) { c.Flow.Master = v }), func(c Config) string { return c.Flow.Master }, ""},
 	{"develop", nonEmpty("develop", func(c *Config, v string) { c.Flow.Develop = v }), func(c Config) string { return c.Flow.Develop }, ""},
-	{"featurePrefix", nonEmpty("featurePrefix", func(c *Config, v string) { c.Flow.FeaturePrefix = v }), func(c Config) string { return c.Flow.FeaturePrefix }, "feature/"},
+	{"regularPrefix", nonEmpty("regularPrefix", func(c *Config, v string) { c.Flow.RegularPrefix = v }), func(c Config) string { return c.Flow.RegularPrefix }, "regular/"},
 	{"releasePrefix", nonEmpty("releasePrefix", func(c *Config, v string) { c.Flow.RelPrefix = v }), func(c Config) string { return c.Flow.RelPrefix }, "release/"},
 	{"hotfixPrefix", nonEmpty("hotfixPrefix", func(c *Config, v string) { c.Flow.HotPrefix = v }), func(c Config) string { return c.Flow.HotPrefix }, "hotfix/"},
 	{"workPrefix", nonEmpty("workPrefix", func(c *Config, v string) { c.Flow.WorkPrefix = v }), func(c Config) string { return c.Flow.WorkPrefix }, "work/"},
@@ -253,7 +253,7 @@ func SetAll(g gitx.Git, scope Scope, pairs []Pair) error {
 func (f Flow) Pairs() []Pair {
 	return []Pair{
 		{"master", f.Master}, {"develop", f.Develop},
-		{"featurePrefix", f.FeaturePrefix}, {"releasePrefix", f.RelPrefix}, {"hotfixPrefix", f.HotPrefix},
+		{"regularPrefix", f.RegularPrefix}, {"releasePrefix", f.RelPrefix}, {"hotfixPrefix", f.HotPrefix},
 		{"workPrefix", f.WorkPrefix},
 	}
 }

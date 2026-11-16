@@ -60,7 +60,7 @@ func checkMention(t *testing.T, file string, root *cobra.Command, top map[string
 		t.Errorf("%s: 'flowtree %s' is not a command", file, first)
 		return
 	}
-	if first != "work" && first != "release" && first != "hotfix" || second == "" {
+	if first != "work" && first != "release" && first != "task" || second == "" {
 		return
 	}
 	for _, c := range root.Commands() {

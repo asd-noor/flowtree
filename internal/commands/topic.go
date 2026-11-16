@@ -4,17 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"flowtree/internal/board"
 	"flowtree/internal/flow"
 	"flowtree/internal/gitx"
 	"flowtree/internal/picker"
 )
 
-// newTopicCmd builds `flowtree feature|release|hotfix` with its subcommands.
+// newTopicCmd builds `flowtree release|work` with its subcommands.
 func newTopicCmd(k flow.Kind) Constructor {
 	return func(d Deps) *cobra.Command {
 		cmd := &cobra.Command{
@@ -26,9 +28,6 @@ func newTopicCmd(k flow.Kind) Constructor {
 		for _, sub := range topicSubs(k) {
 			cmd.AddCommand(sub(k, d))
 		}
-		if k == flow.Feature {
-			cmd.AddCommand(newDiffSub(k, d), newRebaseSub(k, d), newPullSub(k, d))
-		}
 		return cmd
 	}
 }
@@ -37,30 +36,22 @@ func newTopicCmd(k flow.Kind) Constructor {
 // published or tracked.
 func topicSubs(k flow.Kind) []func(flow.Kind, Deps) *cobra.Command {
 	subs := []func(flow.Kind, Deps) *cobra.Command{newListSub, newStartSub, newFinishSub, newCheckoutSub, newDeleteSub}
-	switch k {
-	case flow.Work:
+	if k == flow.Work {
 		return subs
-	case flow.Feature, flow.Hotfix:
-		subs = append(subs, newReviewSub)
 	}
 	return append(subs, newPublishSub, newTrackSub)
 }
 
 func topicShort(k flow.Kind) string {
-	switch k {
-	case flow.Work:
-		return "Work branches: local subtasks of a feature or hotfix, rebased onto it when finished"
-	case flow.Feature:
-		return "Feature branches: start from develop, merge back into develop with a merge commit"
-	case flow.Release:
-		return "Release branches: start from develop, merge into master (tagged) and back into develop"
+	if k == flow.Work {
+		return "Work branches: local subtasks of a regular or hotfix branch, rebased onto it when finished"
 	}
-	return "Hotfix branches: start from master, merge into master (tagged) and back into develop"
+	return "Release branches: start from develop, merge into master (tagged) and back into develop"
 }
 
 func nameArg(k flow.Kind) string {
-	if k == flow.Feature || k == flow.Work {
-		return "<name>"
+	if k == flow.Work {
+		return "<n>/<subtask>"
 	}
 	return "<version>"
 }
@@ -112,6 +103,9 @@ func completeTopics(k flow.Kind, d Deps) Completer {
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		if k == flow.Work {
+			return flow.WorkRefs(e, prefix), cobra.ShellCompDirectiveNoFileComp
+		}
 		return flow.Names(e, k, prefix), cobra.ShellCompDirectiveNoFileComp
 	}
 }
@@ -158,11 +152,19 @@ func printList(d Deps, e *flow.Env, k flow.Kind, verbose bool) error {
 		return err
 	}
 	if len(entries) == 0 {
-		d.Printf("No %s branches exist.\n\nYou can start a new %s branch:\n\n    flowtree %s start %s\n\n", k, k, k, nameArg(k))
+		d.Printf("%s", noBranches(k))
 		return nil
 	}
 	d.Printf("%s", renderEntries(entries))
 	return nil
+}
+
+func noBranches(k flow.Kind) string {
+	arg := nameArg(k)
+	if k == flow.Work {
+		arg = "-P <n> <subtask>"
+	}
+	return fmt.Sprintf("No %s branches exist.\n\nYou can start a new %s branch:\n\n    flowtree %s start %s\n\n", k, k, k, arg)
 }
 
 // renderEntries formats list entries; the current branch is starred.
@@ -197,9 +199,8 @@ func newStartSub(k flow.Kind, d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start [-F] [--dry-run] " + nameArg(k) + " [<base>]",
 		Short: fmt.Sprintf("Start a new %s branch", k),
-		Long: fmt.Sprintf("Create a %s branch from <base> (default %s) and give it its own worktree.",
-			k, map[bool]string{true: "master", false: "develop"}[k == flow.Hotfix]),
-		Args: cobra.RangeArgs(1, 2),
+		Long:  fmt.Sprintf("Create a %s branch from <base> (default develop) and give it its own worktree.", k),
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			o.Name, o.Base = args[0], optArg(args, 1)
 			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) { return flow.PlanStart(e, o) })
@@ -207,53 +208,70 @@ func newStartSub(k flow.Kind, d Deps) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&o.Fetch, "fetch", "F", false, "fetch the remote first")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
-	if k != flow.Release {
-		cmd.Flags().IntVarP(&o.Task, "task", "T", 0, "the board task this branch is for (default: a new task named after it)")
-	}
 	return cmd
 }
 
 func newWorkStartSub(d Deps) *cobra.Command {
 	o := flow.StartOpts{Kind: flow.Work}
 	var dry bool
+	var parent string
 	cmd := &cobra.Command{
-		Use:   "start [-P <parent>] [-d <brief>] [--dry-run] <name>",
-		Short: "Start a work branch: a local subtask of a feature or hotfix",
-		Long: "Create work/<parent>/<name> from the tip of <parent> and give it its own worktree.\n" +
-			"Without -P the parent is the feature or hotfix whose worktree you are in; elsewhere, on a\n" +
-			"terminal, a picker offers the open features and hotfixes.",
+		Use:   "start [-P <n>] [-d <brief>] [--dry-run] <subtask>",
+		Short: "Start a work branch: a local subtask of a regular or hotfix",
+		Long: "Create work/<parent>/<subtask> from the tip of the branch of task <n> and give it its own worktree.\n" +
+			"Without -P the parent is the regular or hotfix branch whose worktree you are in; elsewhere, on a\n" +
+			"terminal, a picker offers the tasks that have an open regular or hotfix branch.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			o.Name = args[0]
 			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) {
-				parent, err := chooseParent(cmd.Context(), d, e, o.Parent)
+				task, err := chooseParent(cmd.Context(), d, e, parent)
 				if err != nil {
 					return nil, err
 				}
-				o.Parent = parent
+				o.Parent = task
 				return flow.PlanStart(e, o)
 			})
 		},
 	}
-	cmd.Flags().StringVarP(&o.Parent, "parent", "P", "", "the feature or hotfix branch it belongs to (e.g. feature/login)")
+	cmd.Flags().StringVarP(&parent, "parent", "P", "", "the number of the task whose regular or hotfix branch it belongs to (e.g. 12 or #12)")
 	cmd.Flags().StringVarP(&o.Desc, "description", "d", "", "the subtask's brief on the board (Markdown)")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "print the steps without running them")
 	return cmd
 }
 
-// chooseParent is the parent given or inferred from the working directory, or, on a terminal when
-// neither works, a feature or hotfix picked from a list.
-func chooseParent(ctx context.Context, d Deps, e *flow.Env, given string) (string, error) {
-	parent, err := flow.ResolveParent(e, given)
+// chooseParent is the task number of the parent: the one given (-P), else the working directory's
+// (0), or, on a terminal when neither works, a task picked from those with an open regular or hotfix branch.
+func chooseParent(ctx context.Context, d Deps, e *flow.Env, given string) (int, error) {
+	if given != "" {
+		return parseID(given)
+	}
+	_, err := flow.ResolveParent(e, 0)
 	if !errors.Is(err, flow.ErrNoParent) || !d.IsTTY() {
-		return parent, err
+		return 0, err
 	}
-	open, err := flow.Parents(e)
+	open, err := flow.ParentTasks(e)
 	if err != nil || len(open) == 0 {
-		return "", errors.Join(flow.ErrNoParent, err)
+		return 0, errors.Join(flow.ErrNoParent, err)
 	}
-	row, err := d.pick(ctx, mapSlice(open, func(b string) picker.Row { return picker.Row{Key: b, Label: b} }), "")
-	return row.Key, err
+	row, err := d.pick(ctx, mapSlice(open, parentRow), "")
+	if err != nil {
+		return 0, err
+	}
+	return parseID(row.Key)
+}
+
+func parentRow(c board.Card) picker.Row {
+	return picker.Row{Key: strconv.Itoa(c.ID), Label: fmt.Sprintf("#%d %s (%s)", c.ID, c.Title, c.Branch)}
+}
+
+// workBranch is the work branch named by "<n>/<subtask>".
+func workBranch(e *flow.Env, ref string) (string, error) {
+	id, sub, err := parseRef(ref)
+	if err != nil {
+		return "", err
+	}
+	return flow.WorkRef(e, id, sub)
 }
 
 func newTrackSub(k flow.Kind, d Deps) *cobra.Command {
@@ -270,13 +288,13 @@ func newTrackSub(k flow.Kind, d Deps) *cobra.Command {
 
 func newCheckoutSub(k flow.Kind, d Deps) *cobra.Command {
 	return &cobra.Command{
-		Use:               "checkout [" + nameArg(k) + "]",
+		Use:               "checkout " + optional(k, nameArg(k)),
 		Short:             fmt.Sprintf("Print the directory of a %s branch, creating its worktree if needed", k),
-		Args:              cobra.MaximumNArgs(1),
+		Args:              topicArgs(k),
 		ValidArgsFunction: completeTopics(k, d),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return withFlow(cmd.Context(), d, func(e *flow.Env) error {
-				name, err := chooseTopic(cmd.Context(), d, e, k, optArg(args, 0))
+				name, err := resolveArg(cmd.Context(), d, e, k, optArg(args, 0))
 				if err != nil {
 					return err
 				}
@@ -302,31 +320,6 @@ func newPublishSub(k flow.Kind, d Deps) *cobra.Command {
 	}
 }
 
-func newReviewSub(k flow.Kind, d Deps) *cobra.Command {
-	var undo bool
-	cmd := &cobra.Command{
-		Use:   "review [--undo] [" + nameArg(k) + "]",
-		Short: fmt.Sprintf("Mark the %s's task as ready for review; new commits move it back to doing", k),
-		Long: "Records the branch's current tip on its board task, which then shows in review. A new commit moves\n" +
-			"the task back to doing by itself; run review again when it is ready. --undo clears the mark.",
-		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: completeTopics(k, d),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return withFlow(cmd.Context(), d, func(e *flow.Env) error {
-				branch, err := flow.Review(e, k, optArg(args, 0), undo)
-				if err == nil && undo {
-					d.Printf("The review mark of '%s' was cleared\n", branch)
-				} else if err == nil {
-					d.Printf("'%s' is ready for review\n", branch)
-				}
-				return err
-			})
-		},
-	}
-	cmd.Flags().BoolVar(&undo, "undo", false, "clear the review mark")
-	return cmd
-}
-
 // ---- delete
 
 func newDeleteSub(k flow.Kind, d Deps) *cobra.Command {
@@ -338,8 +331,14 @@ func newDeleteSub(k flow.Kind, d Deps) *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeTopics(k, d),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			o.Name = args[0]
-			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) { return flow.PlanDelete(e, o) })
+			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) {
+				name, err := resolveArg(cmd.Context(), d, e, k, args[0])
+				o.Name = name
+				if err != nil {
+					return nil, err
+				}
+				return flow.PlanDelete(e, o)
+			})
 		},
 	}
 	cmd.Flags().BoolVarP(&o.Force, "force", "f", false, "delete even when not merged; remove the worktree even with untracked files")
@@ -354,9 +353,9 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 	o := flow.FinishOpts{Kind: k}
 	var dry, keep bool
 	cmd := &cobra.Command{
-		Use:               "finish [flags] [" + nameArg(k) + "]",
+		Use:               "finish [flags] " + optional(k, nameArg(k)),
 		Short:             finishShort(k),
-		Args:              cobra.MaximumNArgs(1),
+		Args:              topicArgs(k),
 		ValidArgsFunction: completeTopics(k, d),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			o.Name = optArg(args, 0)
@@ -367,7 +366,7 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 				return fmt.Errorf("use either --message or --messagefile, not both")
 			}
 			return runPlan(cmd.Context(), d, dry, func(e *flow.Env) ([]flow.Step, error) {
-				name, err := chooseTopic(cmd.Context(), d, e, k, o.Name)
+				name, err := resolveArg(cmd.Context(), d, e, k, o.Name)
 				if err != nil {
 					return nil, err
 				}
@@ -377,10 +376,7 @@ func newFinishSub(k flow.Kind, d Deps) *cobra.Command {
 		},
 	}
 	bindCommonFinish(cmd.Flags(), &o, &keep, &dry)
-	switch k {
-	case flow.Feature:
-		cmd.Flags().BoolVar(&o.Push, "push", false, "push develop afterwards")
-	case flow.Release, flow.Hotfix:
+	if k == flow.Release {
 		bindReleaseFinish(cmd.Flags(), &o, k)
 	}
 	return cmd
@@ -390,10 +386,7 @@ func finishShort(k flow.Kind) string {
 	if k == flow.Work {
 		return "Rebase a work branch onto its parent, fast-forward the parent and clean up"
 	}
-	if k == flow.Feature {
-		return "Merge a feature branch into develop and clean up"
-	}
-	return fmt.Sprintf("Merge a %s into master, tag it, merge the tag into develop and clean up", k)
+	return "Merge a release into master, tag it, merge the tag into develop and clean up"
 }
 
 func bindCommonFinish(f *pflag.FlagSet, o *flow.FinishOpts, keep, dry *bool) {
@@ -418,6 +411,29 @@ func bindReleaseFinish(f *pflag.FlagSet, o *flow.FinishOpts, k flow.Kind) {
 	if k == flow.Release {
 		f.BoolVar(&o.FFMaster, "ff-master", false, "fast-forward master instead of creating a merge commit")
 	}
+}
+
+// topicArgs: work branches are addressed by task and subtask, so their argument is required.
+func topicArgs(k flow.Kind) cobra.PositionalArgs {
+	if k == flow.Work {
+		return cobra.ExactArgs(1)
+	}
+	return cobra.MaximumNArgs(1)
+}
+
+func optional(k flow.Kind, arg string) string {
+	if k == flow.Work {
+		return arg
+	}
+	return "[" + arg + "]"
+}
+
+// resolveArg is the topic branch a command argument names: "<n>/<subtask>" for work, else see chooseTopic.
+func resolveArg(ctx context.Context, d Deps, e *flow.Env, k flow.Kind, arg string) (string, error) {
+	if k == flow.Work {
+		return workBranch(e, arg)
+	}
+	return chooseTopic(ctx, d, e, k, arg)
 }
 
 // chooseTopic is name, or, on a terminal when no name was given and the working directory is not

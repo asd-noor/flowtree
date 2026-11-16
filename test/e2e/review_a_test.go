@@ -20,15 +20,16 @@ func checkedOutByHand(t *testing.T, repo, branch, base string) string {
 
 func TestFinishRefusesWhenMainCannotReturnToDevelop(t *testing.T) {
 	for _, tc := range []struct{ kind, name, branch, base string }{
-		{"feature", "x", "feature/x", "develop"},
+		{"regular", "x", "regular/x", "develop"},
 		{"hotfix", "1.0.1", "hotfix/1.0.1", "main"},
 	} {
 		repo := flowRepo(t)
 		other := checkedOutByHand(t, repo, tc.branch, tc.base)
+		Run(t, repo, "task", "sync").MustSucceed(t) // a branch made with plain git gets its card
 		before := testutil.Git(t, repo, "rev-parse", "develop")
 
-		args := []string{tc.kind, "finish", tc.name}
-		if tc.kind != "feature" {
+		args := []string{"task", "finish", "1"}
+		if tc.kind == "hotfix" {
 			args = append(args, "-m", "m")
 		}
 		res := Run(t, repo, args...).MustFail(t)

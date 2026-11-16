@@ -26,9 +26,9 @@ func newRemoveCmd(d Deps) *cobra.Command {
 		Long: "Removes the named worktrees. On a terminal, with no name, a picker lists the removable ones and\n" +
 			"asks for confirmation.\n\n" +
 			"Examples:\n" +
-			"  flowtree remove feature/old\n" +
-			"  flowtree remove --force feature/dirty\n" +
-			"  flowtree remove --with-branch feature/done",
+			"  flowtree remove regular/old\n" +
+			"  flowtree remove --force regular/dirty\n" +
+			"  flowtree remove --with-branch regular/done",
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 && !d.IsTTY() {
 				return errors.New("worktree name required; usage: flowtree remove <worktree>... (see 'flowtree list')")

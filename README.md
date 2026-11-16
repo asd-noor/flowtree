@@ -4,20 +4,21 @@ Git worktrees plus an opinionated git-flow. One binary:
 
 - **A worktree manager** in the spirit of [wtp](https://github.com/satococoa/wtp): `add`, `list`, `remove`,
   `print-dir`, `exec`, post-create hooks, shell integration.
-- **git-flow where topic branches live in their own worktrees**: `flowtree feature|release|hotfix start|finish|…`.
+- **git-flow where topic branches live in their own worktrees**: `flowtree task|release|work …`.
   Branching and merge behaviour follow `git flow` (AVH edition); the difference is that you `cd` between
   worktrees instead of switching branches.
 
 | flowtree | git-flow | branches from | merges into | lives in |
 |----------|----------|---------------|-------------|----------|
-| `feature` | feature/bugfix/support | develop | develop (merge commit) | its own worktree |
+| `regular` | feature/bugfix/support | develop | develop (merge commit) | its own worktree |
 | `release` | release | develop | master (tagged), the tag back into develop | its own worktree |
 | `hotfix`  | hotfix  | master  | master (tagged), the tag back into develop | its own worktree |
-| `work`    | (none) | its parent feature or hotfix | the parent (rebased, fast-forward) | its own worktree, local only |
+| `work`    | (none) | its parent regular or hotfix | the parent (rebased, fast-forward) | its own worktree, local only |
 
-Features and hotfixes are tasks; `work` branches are their subtasks, for parallel work on one task. A work branch
-is named `work/<parent>/<name>` (`work/feature/login/api`); `work start -P feature/login api` creates it, or
-`work start api` from inside the parent's worktree. A feature or hotfix cannot finish while subtasks are open.
+Regular and hotfix branches belong to board tasks (a task has a type, regular or hotfix, and `task start` starts the
+branch of its type); `release` branches have no task. `work` branches are subtasks, for parallel work on one task. A work branch
+is named `work/<parent>/<name>` (`work/regular/login/api`); `work start -P 12 api` creates it under task #12, or
+`work start api` from inside the parent's worktree. Work commands name a subtask as `<n>/<sub>` (`work finish 12/api`). A task cannot finish while subtasks are open.
 
 The main checkout rests on `develop` and only ever holds `master` or `develop`. Every topic branch gets its own
 worktree.
@@ -57,7 +58,7 @@ worktree, and moves you out of one that `finish` or `remove` deleted.
 | git | Needed for |
 |-----|------------|
 | 2.17 | `git worktree remove` and `move` (`remove`, `relocate`, every `finish`/`delete` cleanup) |
-| 2.18 | `rebase --rebase-merges`, only for `feature rebase -p` |
+| 2.18 | `rebase --rebase-merges`, only for `task rebase -p` |
 | 2.31 | `relocate` skips locked worktrees; on older git it stops with git's own error at the first locked one |
 
 Settings are read without `git config --show-scope` (2.26), so they work on the same git versions.
@@ -67,15 +68,16 @@ Settings are read without `git config --show-scope` (2.26), so they work on the 
 ```sh
 flowtree init --flow               # store settings in git config, create master + develop; prompts (-d for defaults)
 
-flowtree feature start login       # feature/login off develop, in ../worktrees/feature/login
+flowtree task add "Login"          # -> #1 (a hotfix task: `task add --type hotfix "Crash"`)
+flowtree task start 1 login        # regular/login off develop, in ../worktrees/regular/login
 # ...commit...
-flowtree feature finish            # merge commit into develop, remove worktree + branch (name inferred from cwd)
+flowtree task finish 1             # merge commit into develop, remove worktree + branch
 
 flowtree release start 1.2.0       # release/1.2.0 off develop, in ../worktrees/release/1.2.0
 flowtree release finish -m "1.2.0" # merge to master, tag, merge the tag into develop, remove worktree + branch
 
-flowtree hotfix start 1.2.1        # hotfix/1.2.1 off master
-flowtree hotfix finish -p          # as release finish, then push develop, master and the tag
+flowtree task start 2 1.2.1        # hotfix task #2: hotfix/1.2.1 off master
+flowtree task finish -p 2          # as release finish, then push develop, master and the tag
 
 flowtree switch                    # pick where to go (built-in picker); `flowtree switch login` goes straight there
 ```
@@ -86,7 +88,7 @@ flowtree switch                    # pick where to go (built-in picker); `flowtr
 
 ```
 flowtree init [--flow] [-w DIR] [-f] [-d]
-              [--master B] [--develop B] [-p feature/] [-r release/] [-x hotfix/] [--remote R]
+              [--master B] [--develop B] [-p regular/] [-r release/] [-x hotfix/] [--remote R]
 flowtree add [-b NEW] [--exec CMD] [-q] <branch> [<commitish>]
 flowtree config [<key> [<value>]] [--global] [--unset] | config hooks
 flowtree list | remove [-f] [--with-branch] [--force-branch] <worktree>... | exec <worktree> -- CMD...
@@ -97,20 +99,19 @@ flowtree board                     # terminal kanban for people (needs a termina
 flowtree shell-init [bash|zsh|fish] | completion <shell>
 flowtree install-skill <dir>       # install the embedded agent skill into a skills directory
 
-flowtree feature list [-v] | start [-F] <name> [<base>] | finish [flags] [<name>] | checkout|publish [<name>]
-                 track <name> | delete [-f] [-r] <name> | diff [<name>] | rebase [-i] [-p] [<name>] | pull <remote> [<name>]
-flowtree work    list [-v] | start [-P <parent>] <name> | finish [flags] [<name>] | checkout [<name>] | delete [-f] <name>
+flowtree task    start [-F] <n> <name|version> [<base>]
+                 review [--undo] | diff | publish | rebase [-i] [-p] | pull   # [<n>]: default is the task of the worktree you are in
+                 checkout <n> | finish [flags] <n> | delete [-f] [-r] <n> | track <n> <remote branch>
+flowtree work    list [-v] | start [-P <n>] <sub> | finish [flags] <n>/<sub> | checkout <n>/<sub> | delete [-f] <n>/<sub>
 flowtree release list [-v] | start [-F] <version> [<base>] | finish [flags] [<version>] | checkout|publish|track|delete
-flowtree hotfix  …same as release; branches from master
 ```
 
-Run `flowtree <command> --help` for every flag. `finish` with no name uses the branch of the worktree you are in
-(or, on a terminal, offers a picker). Feature names also accept a unique prefix; work names may be the bare
-subtask name.
+Run `flowtree <command> --help` for every flag. `release finish` with no version uses the release of the worktree you are in
+(or, on a terminal, offers a picker); `task` commands take the task number, `work` commands `<n>/<sub>`.
 
-- `feature finish` merges `--no-ff` into develop and never rebases; if a pull request already merged the branch,
+- `task finish` of a regular task merges `--no-ff` into develop and never rebases; if a pull request already merged the branch,
   it only cleans up.
-- `release`/`hotfix finish` merges `--no-ff` into master, creates an annotated tag (`-s`/`-u` sign it, `-m`/`-f`
+- `release finish` and `task finish` of a hotfix task merge `--no-ff` into master, creates an annotated tag (`-s`/`-u` sign it, `-m`/`-f`
   set the message, `-n` skips it, `-T` renames it), merges the **tag** into develop (`-b` skips that), and with
   `-p` pushes develop, master and the tag.
 - `finish` merges inside the worktree that already has the target branch checked out (usually the main
@@ -121,23 +122,24 @@ subtask name.
   by hand and run `finish` again; it continues from there.
 - Finishing deletes the local branch, its worktree and the remote branch; `-k` keeps the branches (the worktree
   is still removed), `-D` removes a worktree with untracked files.
-- `release`/`hotfix start` refuses if a release or hotfix is already open (only one of them at a time), or the
-  tag exists.
+- `release start` and `task start` of a hotfix task refuse if a release or hotfix is already open (only one of them
+  at a time), or the tag exists.
 
 ## Board
 
 Each repository has a kanban of its own, stored in the git directory (shared by all worktrees, never pushed):
 
 ```sh
-flowtree task add -t ui "Login page"   # -> #1, in todo
-flowtree task list                     # #1    todo      Login page  [ui]
+flowtree task add "Login page"         # -> #1, in todo
+flowtree task list                     # #1    todo      Login page  [regular]
 flowtree task show 1 | edit 1 | comment 1 "..." | backlog 1 | human 1
 flowtree task sync                     # after branches were made or renamed with plain git
 ```
 
 Columns follow git rather than manual moves: a task without a branch is in todo (or the backlog), with a branch it
-is doing, and once its branch is merged into its target it is done. `feature start -T 1 login` links task #1 to the
-new branch (without `-T` a task is added), `work start` adds subtasks, and `feature review` moves the task to
+is doing, and once its branch is merged into its target it is done. `task start 1 login` starts the branch of task #1 and links it
+(starting, reviewing and working never create tasks; `task sync` adds them for branches made with plain git),
+`work start` adds subtasks, and `task review` moves the task to
 review until the next commit. `flowtree board` shows the columns side by side in the terminal (enter for details,
 `e` to edit, `c` to comment, live reload). See [docs/commands.md](docs/commands.md#board).
 
@@ -153,7 +155,7 @@ flowtree config baseDir ~/worktrees/api  # or: git config flowtree.baseDir ~/wor
 flowtree config --global remote upstream
 ```
 
-Keys: `baseDir`, `remote`, `master`, `develop`, `featurePrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix`.
+Keys: `baseDir`, `remote`, `master`, `develop`, `regularPrefix`, `releasePrefix`, `hotfixPrefix`, `workPrefix`.
 An unknown `flowtree.*` key is an error, so typos do not go unnoticed.
 
 - `baseDir`: where worktrees go, `<baseDir>/<branch>`; relative to the main worktree, `~` is expanded. When it is

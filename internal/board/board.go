@@ -1,4 +1,4 @@
-// Package board is the per-repository kanban: cards for features and hotfixes, subtasks for their work
+// Package board is the per-repository kanban: cards for regular and hotfix branches, subtasks for their work
 // branches, and comments. It knows branch names but never runs git; status comes from facts the caller
 // gathers (see Status).
 package board
@@ -15,18 +15,28 @@ type Board struct {
 	Cards  []Card `json:"cards"`
 }
 
-// Card is a task: a feature or hotfix, before or after it has a branch.
+// Type says which git-flow branch a task becomes: regular or hotfix. Releases have no task.
+type Type string
+
+// The task types.
+const (
+	Regular Type = "regular"
+	Hotfix  Type = "hotfix"
+)
+
+// Card is a task: regular or hotfix, before or after it has a branch.
 type Card struct {
 	ID          int       `json:"id"`
+	Type        Type      `json:"type,omitempty"` // empty on cards from before types; see flow.TypeOf
 	Title       string    `json:"title"`
 	Description string    `json:"description,omitempty"` // Markdown
-	Tags        []string  `json:"tags,omitempty"`
-	Human       bool      `json:"human,omitempty"`   // for a person; agents leave it alone
-	Backlog     bool      `json:"backlog,omitempty"` // parked; agents leave it alone until it moves to todo
+	Human       bool      `json:"human,omitempty"`       // for a person; agents leave it alone
+	Backlog     bool      `json:"backlog,omitempty"`     // parked; agents leave it alone until it moves to todo
 	Branch      string    `json:"branch,omitempty"`
 	Start       string    `json:"start,omitempty"`      // commit the branch started from
 	Tip         string    `json:"tip,omitempty"`        // last known tip, so a merged and deleted branch reads as done
 	ReviewTip   string    `json:"review_tip,omitempty"` // tip when review was asked for
+	Needs       []int     `json:"needs,omitempty"`      // ids of tasks to finish first; needed-by is derived
 	Subtasks    []Subtask `json:"subtasks,omitempty"`
 	Comments    []Comment `json:"comments,omitempty"`
 	Created     time.Time `json:"created"`
@@ -95,8 +105,8 @@ func (b Board) mapCards(fn func(Card) Card) Board {
 	return Board{NextID: b.NextID, Cards: cards}
 }
 
-// Link gives card id its branch; the card must not have one yet.
-func (b Board) Link(id int, branch, start string) (Board, error) {
+// Link gives card id its branch and type; the card must not have one yet.
+func (b Board) Link(id int, branch, start string, typ Type) (Board, error) {
 	c, ok := b.Card(id)
 	switch {
 	case !ok:
@@ -105,17 +115,17 @@ func (b Board) Link(id int, branch, start string) (Board, error) {
 		return b, fmt.Errorf("task #%d already belongs to '%s'", id, c.Branch)
 	}
 	return b.With(id, func(c Card) Card {
-		c.Branch, c.Start, c.Tip, c.Backlog = branch, start, start, false
+		c.Branch, c.Start, c.Tip, c.Backlog, c.Type = branch, start, start, false, typ
 		return c
 	})
 }
 
-// Ensure returns the board with a card for branch, adding one titled title when there is none.
-func (b Board) Ensure(branch, title, start string, now time.Time) Board {
+// Ensure returns the board with a card of type typ for branch, adding one titled title when there is none.
+func (b Board) Ensure(branch, title, start string, typ Type, now time.Time) Board {
 	if _, ok := b.ByBranch(branch); ok {
 		return b
 	}
-	b, _ = b.Add(Card{Title: title, Branch: branch, Start: start, Tip: start, Created: now})
+	b, _ = b.Add(Card{Title: title, Type: typ, Branch: branch, Start: start, Tip: start, Created: now})
 	return b
 }
 

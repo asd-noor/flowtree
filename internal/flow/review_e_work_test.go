@@ -13,25 +13,14 @@ import (
 
 func TestPullAmbiguousPrefixIsReportedNotSwallowed(t *testing.T) {
 	e, repo := setup(t)
-	testutil.Git(t, repo, "branch", "feature/login", "develop")
-	testutil.Git(t, repo, "branch", "feature/logout", "develop")
-	_, err := flow.PlanPull(e, "origin", "log")
+	testutil.Git(t, repo, "branch", "regular/login", "develop")
+	testutil.Git(t, repo, "branch", "regular/logout", "develop")
+	_, err := flow.PlanPull(e, "log")
 	if err == nil || !strings.Contains(err.Error(), "multiple branches match") {
 		t.Fatalf("want the ambiguity error, got %v", err)
 	}
 	if strings.Contains(err.Error(), "not found on") {
 		t.Errorf("misleading message: %v", err)
-	}
-}
-
-func TestPullUnknownLocalNameFallsBackToTheRemoteBranch(t *testing.T) {
-	e, _ := setup(t)
-	steps, err := flow.PlanPull(e, "origin", "only-on-remote")
-	if err != nil || len(steps) != 2 {
-		t.Fatalf("a name that matches no local branch must still plan a pull: %v %d", err, len(steps))
-	}
-	if !strings.Contains(flow.Describe(steps), "feature/only-on-remote") {
-		t.Errorf("plan should target feature/only-on-remote:\n%s", flow.Describe(steps))
 	}
 }
 
@@ -45,29 +34,29 @@ func TestPullGitFailureIsNotHidden(t *testing.T) {
 		}
 		return real(ctx, dir, args...)
 	}
-	if _, err := flow.PlanPull(e, "origin", "anything"); err == nil || errors.Is(err, flow.ErrNoSuchBranch) {
+	if _, err := flow.PlanPull(e, "anything"); err == nil || errors.Is(err, flow.ErrNoSuchBranch) {
 		t.Fatalf("a git failure must be reported as such, got %v", err)
 	}
 }
 
 func TestPullWithoutNameOutsideATopicWorktree(t *testing.T) {
 	e, _ := setup(t) // cwd is the main worktree on develop
-	if _, err := flow.PlanPull(e, "origin", ""); err == nil || !strings.Contains(err.Error(), "no feature branch") {
+	if _, err := flow.PlanPull(e, ""); err == nil || !strings.Contains(err.Error(), "no regular branch") {
 		t.Fatalf("got %v", err)
 	}
 }
 
 func TestResolveTopicNotFoundIsDistinguishable(t *testing.T) {
 	e, repo := setup(t)
-	testutil.Git(t, repo, "branch", "feature/login", "develop")
-	testutil.Git(t, repo, "branch", "feature/logout", "develop")
-	if _, err := flow.ResolveTopic(e, flow.Feature, "zzz"); !errors.Is(err, flow.ErrNoSuchBranch) {
+	testutil.Git(t, repo, "branch", "regular/login", "develop")
+	testutil.Git(t, repo, "branch", "regular/logout", "develop")
+	if _, err := flow.ResolveTopic(e, flow.Regular, "zzz"); !errors.Is(err, flow.ErrNoSuchBranch) {
 		t.Errorf("not found should match ErrNoSuchBranch: %v", err)
 	}
 	if _, err := flow.ResolveTopic(e, flow.Hotfix, "9"); !errors.Is(err, flow.ErrNoSuchBranch) {
 		t.Errorf("hotfix not found should match ErrNoSuchBranch: %v", err)
 	}
-	if _, err := flow.ResolveTopic(e, flow.Feature, "log"); errors.Is(err, flow.ErrNoSuchBranch) {
+	if _, err := flow.ResolveTopic(e, flow.Regular, "log"); errors.Is(err, flow.ErrNoSuchBranch) {
 		t.Errorf("ambiguity must not look like not-found: %v", err)
 	}
 }

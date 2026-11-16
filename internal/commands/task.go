@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/spf13/cobra"
 
@@ -22,7 +23,7 @@ import (
 func newTaskCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "task",
-		Short: "The repository's kanban: tasks for features and hotfixes, subtasks for their work branches",
+		Short: "The repository's kanban: tasks for regular and hotfix branches, subtasks for their work branches",
 		Long: "Tasks live in the git directory (shared by every worktree, never pushed). A task's column\n" +
 			"follows from git: no branch (todo, or backlog), branch exists (doing), review asked at the\n" +
 			"current tip (review), merged into its target (done), deleted unmerged (abandoned).",
@@ -30,7 +31,9 @@ func newTaskCmd(d Deps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(newTaskAddCmd(d), newTaskListCmd(d), newTaskShowCmd(d), newTaskEditCmd(d),
-		newTaskCommentCmd(d), newTaskFlagCmd(d, "todo"), newTaskFlagCmd(d, "backlog"), newTaskHumanCmd(d), newTaskSyncCmd(d), newTaskPromptCmd(d))
+		newTaskCommentCmd(d), newTaskFlagCmd(d, "todo"), newTaskFlagCmd(d, "backlog"), newTaskHumanCmd(d), newTaskSyncCmd(d), newTaskPromptCmd(d),
+		newTaskStartCmd(d))
+	cmd.AddCommand(taskBranchCmds(d)...)
 	return cmd
 }
 
@@ -47,17 +50,20 @@ func withBoard(ctx context.Context, d Deps, fn func(e *flow.Env, path string) er
 
 // updateCard changes one card under the board lock.
 func updateCard(path string, id int, fn func(board.Card) (board.Card, error)) error {
-	return board.Update(path, func(b board.Board) (board.Board, error) {
-		c, ok := b.Card(id)
-		if !ok {
-			return b, fmt.Errorf("no task #%d", id)
-		}
-		next, err := fn(c)
-		if err != nil {
-			return b, err
-		}
-		return b.With(id, func(board.Card) board.Card { return next })
-	})
+	return board.Update(path, func(b board.Board) (board.Board, error) { return cardEdit(b, id, fn) })
+}
+
+// cardEdit returns the board with card id replaced by what fn makes of it.
+func cardEdit(b board.Board, id int, fn func(board.Card) (board.Card, error)) (board.Board, error) {
+	c, ok := b.Card(id)
+	if !ok {
+		return b, fmt.Errorf("no task #%d", id)
+	}
+	next, err := fn(c)
+	if err != nil {
+		return b, err
+	}
+	return b.With(id, func(board.Card) board.Card { return next })
 }
 
 // parseRef reads "<n>" or "<n>/<subtask>".
@@ -75,30 +81,54 @@ func parseID(s string) (int, error) {
 	return id, nil
 }
 
-func splitTags(s string) []string {
-	return slices.DeleteFunc(mapSlice(strings.Split(s, ","), strings.TrimSpace), func(t string) bool { return t == "" })
+func parseType(s string) (board.Type, error) {
+	if t := board.Type(s); t == board.Regular || t == board.Hotfix {
+		return t, nil
+	}
+	return "", fmt.Errorf("unknown type '%s'; one of regular, hotfix", s)
+}
+
+// parseNeeds reads "5,6", "#5, #6", "5 6" or "" (no needs).
+func parseNeeds(s string) ([]int, error) {
+	var ids []int
+	for _, f := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || unicode.IsSpace(r) }) {
+		id, err := parseID(f)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 // ---- add
 
 func newTaskAddCmd(d Deps) *cobra.Command {
-	var desc, tags string
+	var desc, typ, needs string
 	var backlog, human bool
 	cmd := &cobra.Command{
-		Use:   "add [-d <description>] [-t <tags>] [--backlog] [--human] <title>...",
+		Use:   "add [-d <description>] [--type regular|hotfix] [--needs <ids>] [--backlog] [--human] <title>...",
 		Short: "Add a task to todo (or the backlog)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(strings.Join(args, "")) == "" {
 				return errors.New("a task needs a title")
 			}
-			c := board.Card{Title: strings.Join(args, " "), Description: desc, Tags: splitTags(tags),
+			t, err := parseType(typ)
+			if err != nil {
+				return err
+			}
+			deps, err := parseNeeds(needs)
+			if err != nil {
+				return err
+			}
+			c := board.Card{Title: strings.Join(args, " "), Type: t, Description: desc,
 				Backlog: backlog, Human: human, Created: time.Now().UTC()}
 			return withBoard(cmd.Context(), d, func(_ *flow.Env, path string) error {
 				var added board.Card
 				err := board.Update(path, func(b board.Board) (board.Board, error) {
 					b, added = b.Add(c)
-					return b, nil
+					return b.SetNeeds(added.ID, deps)
 				})
 				if err == nil {
 					d.Printf("#%d\n", added.ID)
@@ -108,7 +138,8 @@ func newTaskAddCmd(d Deps) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&desc, "description", "d", "", "description (Markdown)")
-	cmd.Flags().StringVarP(&tags, "tags", "t", "", "comma-separated tags")
+	cmd.Flags().StringVar(&typ, "type", string(board.Regular), "task type: regular or hotfix")
+	cmd.Flags().StringVar(&needs, "needs", "", "comma-separated ids of tasks that should be done first")
 	cmd.Flags().BoolVar(&backlog, "backlog", false, "park it in the backlog; agents leave it alone")
 	cmd.Flags().BoolVar(&human, "human", false, "a task for a person; agents leave it alone")
 	return cmd
@@ -119,8 +150,13 @@ func newTaskAddCmd(d Deps) *cobra.Command {
 // view is a card with its derived status, as printed by list and show.
 type view struct {
 	board.Card
+	Type     board.Type    `json:"type"` // the effective type; shadows the stored one, which may be empty
 	Status   board.Status  `json:"status"`
+	NeededBy []int         `json:"needed_by,omitempty"`
+	Blocked  bool          `json:"blocked"`
 	Subtasks []subtaskView `json:"subtasks,omitempty"`
+
+	needs, neededBy []board.Dep // for the text output
 }
 
 type subtaskView struct {
@@ -128,17 +164,50 @@ type subtaskView struct {
 	Status board.Status `json:"status"`
 }
 
-func viewOf(e *flow.Env, c board.Card) view {
-	return view{Card: c, Status: flow.CardStatus(e, c), Subtasks: mapSlice(c.Subtasks, func(s board.Subtask) subtaskView {
-		return subtaskView{Subtask: s, Status: flow.SubtaskStatus(e, s)}
-	})}
+// statuses is the column of every card; one pass of git queries that dependency checks then look up.
+func statuses(e *flow.Env, b board.Board) map[int]board.Status {
+	return statusesOf(e, b, mapSlice(b.Cards, func(c board.Card) int { return c.ID }))
+}
+
+// statusesOf is the column of the cards ids that are on the board, for commands that look at a few.
+func statusesOf(e *flow.Env, b board.Board, ids []int) map[int]board.Status {
+	out := make(map[int]board.Status, len(ids))
+	for _, id := range ids {
+		if c, ok := b.Card(id); ok {
+			out[id] = flow.CardStatus(e, c)
+		}
+	}
+	return out
+}
+
+// around is card c, the tasks it needs and the tasks that need it: what show and prompt look at.
+func around(b board.Board, c board.Card) []int {
+	return append(append([]int{c.ID}, c.Needs...), b.NeededBy(c.ID)...)
+}
+
+// lookup reads a status map; a task not on the board is Missing.
+func lookup(st map[int]board.Status) func(int) board.Status {
+	return func(id int) board.Status {
+		if s, ok := st[id]; ok {
+			return s
+		}
+		return board.Missing
+	}
+}
+
+func viewOf(e *flow.Env, b board.Board, st map[int]board.Status, c board.Card) view {
+	by := b.NeededBy(c.ID)
+	return view{Card: c, Type: flow.TypeOf(e.S, c), Status: st[c.ID], NeededBy: by, Blocked: board.Blocked(c, lookup(st)),
+		needs: b.Deps(c.Needs, lookup(st)), neededBy: b.Deps(by, lookup(st)), Subtasks: mapSlice(c.Subtasks, func(s board.Subtask) subtaskView {
+			return subtaskView{Subtask: s, Status: flow.SubtaskStatus(e, s)}
+		})}
 }
 
 func newTaskListCmd(d Deps) *cobra.Command {
 	var status string
-	var asJSON bool
+	var asJSON, ready bool
 	cmd := &cobra.Command{
-		Use:     "list [-s <status>] [--json]",
+		Use:     "list [-s <status>] [--ready] [--json]",
 		Aliases: []string{"ls"},
 		Short:   "List tasks with their columns",
 		Args:    cobra.NoArgs,
@@ -151,8 +220,11 @@ func newTaskListCmd(d Deps) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				views := slices.DeleteFunc(mapSlice(b.Cards, func(c board.Card) view { return viewOf(e, c) }),
-					func(v view) bool { return status != "" && v.Status != board.Status(status) })
+				st := statuses(e, b)
+				views := slices.DeleteFunc(mapSlice(b.Cards, func(c board.Card) view { return viewOf(e, b, st, c) }),
+					func(v view) bool {
+						return status != "" && v.Status != board.Status(status) || ready && !board.Ready(v.Card, v.Status, lookup(st))
+					})
 				if asJSON {
 					return printJSON(d, views)
 				}
@@ -162,6 +234,7 @@ func newTaskListCmd(d Deps) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&status, "status", "s", "", "only tasks in this column")
+	cmd.Flags().BoolVar(&ready, "ready", false, "only todo tasks whose needs are all done")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print JSON")
 	return cmd
 }
@@ -176,18 +249,15 @@ func renderTasks(views []view) string {
 }
 
 func markers(v view) string {
-	var m []string
+	m := []string{"[" + string(v.Type) + "]"}
 	if v.Branch != "" {
 		m = append(m, "("+v.Branch+")")
 	}
 	if v.Human {
 		m = append(m, "[human]")
 	}
-	if len(v.Tags) > 0 {
-		m = append(m, "["+strings.Join(v.Tags, ",")+"]")
-	}
-	if len(m) == 0 {
-		return ""
+	if v.Blocked {
+		m = append(m, "[blocked]")
 	}
 	return "  " + strings.Join(m, " ")
 }
@@ -212,10 +282,11 @@ func newTaskShowCmd(d Deps) *cobra.Command {
 				if !ok {
 					return fmt.Errorf("no task #%d", id)
 				}
+				v := viewOf(e, b, statusesOf(e, b, around(b, c)), c)
 				if asJSON {
-					return printJSON(d, viewOf(e, c))
+					return printJSON(d, v)
 				}
-				d.Printf("%s", renderTask(viewOf(e, c)))
+				d.Printf("%s", renderTask(v))
 				return nil
 			})
 		},
@@ -230,6 +301,7 @@ func renderTask(v view) string {
 	if v.Description != "" {
 		fmt.Fprintf(&b, "\n%s\n", strings.TrimRight(v.Description, "\n"))
 	}
+	b.WriteString(depsText("Needs", v.needs) + depsText("Needed by", v.neededBy))
 	if len(v.Subtasks) > 0 {
 		b.WriteString("\nSubtasks:\n")
 		for _, s := range v.Subtasks {
@@ -248,6 +320,33 @@ func renderTask(v view) string {
 	return b.String()
 }
 
+// warnUnfinishedNeeds warns, never refuses, when task id needs tasks that are not done.
+func warnUnfinishedNeeds(e *flow.Env, id int) {
+	path, err := flow.BoardPath(e)
+	if err != nil {
+		return
+	}
+	b, err := board.Read(path)
+	c, ok := b.Card(id)
+	if err != nil || !ok || len(c.Needs) == 0 {
+		return
+	}
+	st := statusesOf(e, b, c.Needs)
+	if un := board.Unfinished(c, lookup(st)); len(un) > 0 {
+		e.Warn("task #%d has unfinished needs: %s", id, strings.Join(mapSlice(un, func(n int) string { return fmt.Sprintf("#%d (%s)", n, st[n]) }), ", "))
+	}
+}
+
+func depsText(title string, refs []board.Dep) string {
+	if len(refs) == 0 {
+		return ""
+	}
+	lines := mapSlice(refs, func(r board.Dep) string {
+		return fmt.Sprintf("  #%-4d %-9s %s\n", r.ID, r.Status, orElse(r.Branch, "(no branch)"))
+	})
+	return "\n" + title + ":\n" + strings.Join(lines, "")
+}
+
 func printJSON(d Deps, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err == nil {
@@ -259,13 +358,14 @@ func printJSON(d Deps, v any) error {
 // ---- edit
 
 func newTaskEditCmd(d Deps) *cobra.Command {
-	var title, desc, tags string
+	var title, desc, typ, needs string
 	cmd := &cobra.Command{
-		Use:   "edit [--title <t>] [-d <description>] [-t <tags>] <n>[/<subtask>]",
-		Short: "Change a task's title, description or tags, or a subtask's description; with no flags, open $EDITOR",
+		Use:   "edit [--title <t>] [-d <description>] [--type regular|hotfix] [--needs <ids>] <n>[/<subtask>]",
+		Short: "Change a task's title, description, type or needs, or a subtask's description; with no flags, open $EDITOR",
 		Long: "With flags, sets those fields. Without, opens your editor with the title on the first line and\n" +
 			"the description below a blank line, like a commit message (needs a terminal). <n>/<subtask>\n" +
-			"edits a subtask's description (-d, or the editor).",
+			"edits a subtask's description (-d, or the editor). --type works only while the task has no branch.\n" +
+			"--needs replaces the ids of the tasks that should be done first; an empty value clears them.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, sub, err := parseRef(args[0])
@@ -273,41 +373,65 @@ func newTaskEditCmd(d Deps) *cobra.Command {
 				return err
 			}
 			f := cmd.Flags()
-			byFlags := f.Changed("title") || f.Changed("description") || f.Changed("tags")
+			byFlags := f.Changed("title") || f.Changed("description") || f.Changed("type") || f.Changed("needs")
 			if sub != "" {
-				if f.Changed("title") || f.Changed("tags") {
+				if f.Changed("title") || f.Changed("type") || f.Changed("needs") {
 					return errors.New("a subtask has only a description (-d); its name is its work branch")
 				}
 				return withBoard(cmd.Context(), d, func(e *flow.Env, path string) error {
 					return editSubtask(cmd.Context(), d, e, path, id, sub, desc, byFlags)
 				})
 			}
+			deps, err := parseNeeds(needs)
+			if err != nil {
+				return err
+			}
 			return withBoard(cmd.Context(), d, func(e *flow.Env, path string) error {
-				return updateCard(path, id, func(c board.Card) (board.Card, error) {
-					if !byFlags {
-						return editInEditor(cmd.Context(), d, e, c)
-					}
-					if f.Changed("title") {
-						if strings.TrimSpace(title) == "" {
-							return c, errors.New("empty title; task not changed")
+				return board.Update(path, func(b board.Board) (board.Board, error) {
+					b, err := cardEdit(b, id, func(c board.Card) (board.Card, error) {
+						if !byFlags {
+							return editInEditor(cmd.Context(), d, e, c)
 						}
-						c.Title = strings.TrimSpace(title)
+						if f.Changed("title") {
+							if strings.TrimSpace(title) == "" {
+								return c, errors.New("empty title; task not changed")
+							}
+							c.Title = strings.TrimSpace(title)
+						}
+						if f.Changed("description") {
+							c.Description = desc
+						}
+						if f.Changed("type") {
+							return withType(c, typ)
+						}
+						return c, nil
+					})
+					if err != nil || !f.Changed("needs") {
+						return b, err
 					}
-					if f.Changed("description") {
-						c.Description = desc
-					}
-					if f.Changed("tags") {
-						c.Tags = splitTags(tags)
-					}
-					return c, nil
+					return b.SetNeeds(id, deps)
 				})
 			})
 		},
 	}
 	cmd.Flags().StringVar(&title, "title", "", "new title")
 	cmd.Flags().StringVarP(&desc, "description", "d", "", "new description (Markdown)")
-	cmd.Flags().StringVarP(&tags, "tags", "t", "", "new comma-separated tags (empty clears)")
+	cmd.Flags().StringVar(&needs, "needs", "", "ids of the tasks that should be done first (empty clears)")
+	cmd.Flags().StringVar(&typ, "type", "", "new type: regular or hotfix (only before the task has a branch)")
 	return cmd
+}
+
+// withType sets the type of a task that has no branch yet; with one, the type follows the branch.
+func withType(c board.Card, typ string) (board.Card, error) {
+	t, err := parseType(typ)
+	if err != nil {
+		return c, err
+	}
+	if c.Branch != "" {
+		return c, fmt.Errorf("task #%d already has a branch; its type follows the branch", c.ID)
+	}
+	c.Type = t
+	return c, nil
 }
 
 // editSubtask sets a subtask's description from -d, or from the editor when no flag was given. The editor
@@ -485,7 +609,7 @@ func newTaskSyncCmd(d Deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync [-n]",
 		Short: "Bring the board in line with branches made or renamed with plain git",
-		Long: "Adds tasks for feature and hotfix branches that have none, subtasks for unknown work branches,\n" +
+		Long: "Adds tasks for regular and hotfix branches that have none, subtasks for unknown work branches,\n" +
 			"relinks a task whose branch was renamed (same tip), and records every branch's tip so a later\n" +
 			"merge-and-delete still reads as done. -n prints the changes without writing them.",
 		Args: cobra.NoArgs,
@@ -535,10 +659,12 @@ func newTaskPromptCmd(d Deps) *cobra.Command {
 					return fmt.Errorf("no task #%d", id)
 				}
 				p, err := promptOf(e, c, sub)
-				if err == nil {
-					d.Printf("%s", renderPrompt(p))
+				if err != nil {
+					return err
 				}
-				return err
+				p.Needs = b.Deps(c.Needs, lookup(statusesOf(e, b, c.Needs)))
+				d.Printf("%s", renderPrompt(p))
+				return nil
 			})
 		},
 	}
@@ -552,10 +678,12 @@ type prompt struct {
 	Branch, Dir string // Dir is empty when the branch has no worktree
 	Kind        flow.Kind
 	Name        string // the branch's name for flowtree commands
+	Arg         string // what `task start` takes: <name> or, for a hotfix, <version>
+	Needs       []board.Dep
 }
 
 func promptOf(e *flow.Env, c board.Card, sub string) (prompt, error) {
-	p := prompt{ID: c.ID, Title: c.Title, Desc: c.Description, Branch: c.Branch}
+	p := prompt{ID: c.ID, Title: c.Title, Desc: c.Description, Branch: c.Branch, Arg: startArg(flow.TypeOf(e.S, c))}
 	if sub != "" {
 		i := slices.IndexFunc(c.Subtasks, func(s board.Subtask) bool { return s.Name == sub })
 		if i < 0 {
@@ -591,18 +719,45 @@ func renderPrompt(p prompt) string {
 			fmt.Fprintf(&b, "%s\n\n", strings.TrimSpace(p.Sub.Description))
 		}
 	}
+	b.WriteString(needsText(p.Needs))
 	b.WriteString("## Where and how\n\n")
 	b.WriteString(whereText(p))
 	return b.String()
 }
 
+// needsText lists the tasks this one needs; for one that is not done it says how to get its work in.
+func needsText(needs []board.Dep) string {
+	if len(needs) == 0 {
+		return ""
+	}
+	return "## Needs\n\nThese tasks should be done first:\n\n" + strings.Join(mapSlice(needs, needLine), "") + "\n"
+}
+
+func needLine(r board.Dep) string {
+	switch {
+	case r.Status == board.Done:
+		return fmt.Sprintf("- #%d (done)\n", r.ID)
+	case r.Status == board.Abandoned:
+		return fmt.Sprintf("- #%d (abandoned): its work will not come; ask whether this task still needs it.\n", r.ID)
+	case r.Status == board.Missing:
+		return fmt.Sprintf("- #%d (missing): no such task on the board; ignore it.\n", r.ID)
+	case r.Branch == "":
+		return fmt.Sprintf("- #%d (%s): not started, no branch yet.\n", r.ID, r.Status)
+	}
+	return fmt.Sprintf("- #%d (%s): not in develop yet; merge its branch first with `git merge %s`.\n", r.ID, r.Status, r.Branch)
+}
+
 func whereText(p prompt) string {
 	if p.Branch == "" {
-		return fmt.Sprintf("- No branch yet. Start one with `flowtree feature start -T %d <name>` (or `hotfix start`).\n", p.ID)
+		return fmt.Sprintf("- No branch yet. Start one with `flowtree task start %d %s`.\n", p.ID, p.Arg)
+	}
+	ref := p.Name
+	if p.Kind == flow.Work {
+		ref = fmt.Sprintf("%d/%s", p.ID, p.Name)
 	}
 	dir := fmt.Sprintf("`%s`", p.Dir)
 	if p.Dir == "" {
-		dir = fmt.Sprintf("none yet; create it with `flowtree %s checkout %s`", p.Kind, p.Name)
+		dir = fmt.Sprintf("none yet; create it with `flowtree %s`", checkoutCmd(p, ref))
 	}
 	lines := []string{
 		fmt.Sprintf("- Branch: `%s`", p.Branch),
@@ -611,9 +766,17 @@ func whereText(p prompt) string {
 	}
 	if p.Kind == flow.Work {
 		lines = append(lines, "- Do not merge, rebase or push. When it is done, it is finished into its parent with "+
-			fmt.Sprintf("`flowtree work finish %s`.", p.Name))
+			fmt.Sprintf("`flowtree work finish %s`.", ref))
 	} else {
-		lines = append(lines, fmt.Sprintf("- When it is ready, mark it with `flowtree %s review %s`; it is finished with `flowtree %s finish %s`.", p.Kind, p.Name, p.Kind, p.Name))
+		lines = append(lines, fmt.Sprintf("- When it is ready, mark it with `flowtree task review %d`; it is finished with `flowtree task finish %d`.", p.ID, p.ID))
 	}
 	return strings.Join(lines, "\n") + "\n"
+}
+
+// checkoutCmd is the command that creates the worktree: tasks by number, work branches by "<n>/<sub>".
+func checkoutCmd(p prompt, ref string) string {
+	if p.Kind == flow.Work {
+		return "work checkout " + ref
+	}
+	return fmt.Sprintf("task checkout %d", p.ID)
 }

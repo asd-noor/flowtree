@@ -36,6 +36,7 @@ func newTaskStartCmd(d Deps) *cobra.Command {
 				if err != nil {
 					return nil, err
 				}
+				warnUnfinishedNeeds(e, id)
 				return flow.PlanStart(e, flow.StartOpts{Kind: kind, Name: args[1], Base: optArg(args, 2), Task: id, Fetch: fetch})
 			})
 		},

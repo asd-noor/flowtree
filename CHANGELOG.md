@@ -30,6 +30,12 @@ All notable changes to flowtree are documented here. The format follows
 - `task start`, `task track` and the other `task` lifecycle verbs, with shell completion of the tasks that have no
   branch for `task start`.
 - `--type regular|hotfix` on `task add` and `task edit`; `task list --json` and `task show` report the type.
+- Task dependencies: `task add --needs 5,6` and `task edit <n> --needs ...` (`""` clears) record the tasks that
+  should be done first; unknown ids, a self-reference and cycles are refused. `task list` marks `[blocked]` tasks
+  and `--ready` lists the todo tasks whose needs are done; `task show` and `--json` (`needs`, `needed_by`,
+  `blocked`) report them, `flowtree board` shows a `blocked` mark and the lists in the detail pane, and
+  `task prompt` names needed tasks and how to merge an unfinished one. `task start` and `task finish` warn about
+  unfinished needs and go ahead. Nothing is gated or merged for you.
 
 ### Migration
 

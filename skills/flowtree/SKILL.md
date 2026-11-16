@@ -127,7 +127,8 @@ Use `flowtree task start|finish|delete` or `flowtree release start|finish|delete
 **Board** (the repository's tasks; columns follow git, never move them by hand)
 ```sh
 flowtree task list --json            # pick work from todo; skip tasks with "human": true or in the backlog
-flowtree task prompt <n>[/<sub>]     # your brief: read it first and work from it
+flowtree task list --ready           # todo tasks whose needed tasks are all done; skip "blocked": true ones
+flowtree task prompt <n>[/<sub>]     # your brief: read it first and work from it; merge the branch of a needed task it names first
 flowtree task show <n> --json        # description, subtasks, comments
 flowtree task comment <n> "..."      # report progress
 flowtree task start <n> <name>       # take task #n: its branch, in doing (a hotfix task takes a version)

@@ -215,11 +215,11 @@ from before types read their type from the branch prefix. Starting, reviewing an
 
 | Command | Effect |
 |---------|--------|
-| `task add [-d <text>] [-t <tags>] [--type regular|hotfix] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. `--type` defaults to regular. |
-| `task list [-s <status>] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned, and their type (`[regular]`, `[hotfix]`). `--json` always has `"type"`. |
-| `task show [--json] <n>` | Type, description, subtasks and comments of a task. |
-| `task edit [--title <t>] [-d <text>] [-t <tags>] [--type regular|hotfix] <n>[/<sub>]` | Change fields (`--type` only while the task has no branch; after that it follows the branch); with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
-| `task prompt <n>[/<sub>]` | Print the task (or subtask) as a Markdown brief: descriptions, branch, absolute worktree path, how it is finished. Hand it to whoever works on it. |
+| `task add [-d <text>] [-t <tags>] [--type regular|hotfix] [--needs <ids>] [--backlog] [--human] <title>...` | New task in todo (or the backlog); prints `#<n>`. `--type` defaults to regular. `--needs 5,6` (or `#5,#6`) lists the tasks that should be done first; see [Dependencies](#dependencies). |
+| `task list [-s <status>] [--ready] [--json]` | Tasks with their columns: backlog, todo, doing, review, done, abandoned, and their type (`[regular]`, `[hotfix]`), and `[blocked]` when a needed task is not done. `--ready` keeps the todo tasks whose needs are all done. `--json` always has `"type"` and `"blocked"`, plus `"needs"` and `"needed_by"` when there are any. |
+| `task show [--json] <n>` | Type, description, needs and needed by (id, status, branch), subtasks and comments of a task. |
+| `task edit [--title <t>] [-d <text>] [-t <tags>] [--type regular|hotfix] [--needs <ids>] <n>[/<sub>]` | Change fields (`--type` only while the task has no branch; after that it follows the branch; `--needs` replaces the list, `--needs ""` clears it); with no flags it opens `$EDITOR` (title line, blank line, description). `<n>/<sub>` edits a subtask's description. |
+| `task prompt <n>[/<sub>]` | Print the task (or subtask) as a Markdown brief: descriptions, branch, absolute worktree path, how it is finished, and the tasks it needs (with a `git merge <branch>` hint for one not done yet). Hand it to whoever works on it. |
 | `task comment [--author <name>] <n> <text>...` | Add a comment (author defaults to git `user.name`). |
 | `task todo <n>`, `task backlog <n>` | Move a task that has no branch between todo and the backlog. |
 | `task human [--off] <n>` | Mark a task as one for a person; `--off` clears it. |
@@ -230,7 +230,15 @@ from before types read their type from the branch prefix. Starting, reviewing an
 | `task finish [flags] <n>` | Merge the task's branch: regular into develop; hotfix into master, tagged, and back into develop. Regular tasks take `--push`, `--keep`, `--keeplocal`, `--keepremote`, `-D/--force-delete`, `--dry-run`; hotfix tasks also `--fetch`, `--squash`, `--sign`, `--signingkey`, `--message`, `--messagefile`, `--notag`, `--nobackmerge`, `--tagname`. A flag the type does not take is an error before anything changes. Refused while work branches are open. |
 | `task delete [-f] [-r] [--dry-run] <n>` | Delete the task's branch and worktree without merging. |
 | `task track <n> <remote branch>` | Check out an existing remote `regular/...` or `hotfix/...` branch and link it to task `<n>`, which must exist, have no branch and be of that type. Creates no task. |
-| `board` | Terminal kanban for people (cards show a `regular`/`hotfix` badge); needs a terminal (without one, use `task list`). |
+| `board` | Terminal kanban for people (cards show a `regular`/`hotfix` badge and `blocked`; the detail pane lists needs and needed by); needs a terminal (without one, use `task list`). |
+
+### Dependencies
+
+A task can need other tasks (`task add --needs`, `task edit --needs`). The list is stored on the task; "needed by"
+is derived. A task is blocked while any task it needs is not done (an abandoned one still blocks; the listing shows
+its status). `--needs` is refused for an unknown task, the task itself, or a cycle (`#5 -> #6 -> #5`). Nothing is
+gated: `task start` and `task finish` only warn on stderr and go ahead, and nothing merges for you. `task prompt` tells
+the worker to merge the branch of a needed task that is not done yet. Old free-text "Needs #n" lines are not read.
 
 `board` shows the six columns side by side (`#id title`, `[h]` marks human tasks). `h j k l` or the arrow keys move,
 `enter`/`tab` toggles the detail pane (branch, tags, description, subtasks, comments; long lines wrap), `J`/`K`

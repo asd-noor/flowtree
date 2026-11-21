@@ -196,7 +196,7 @@ A task's column is never set by hand; it follows from git:
 | todo | no branch yet |
 | doing | the branch exists |
 | review | review was asked for at the branch's current tip |
-| done | the branch (or its last known tip, once deleted) has commits of its own and is merged into its target: develop for a regular branch, master for a hotfix, the parent for a subtask |
+| done | the branch is deleted and its last known tip has commits of its own and is merged into its target: develop for a regular branch, master for a hotfix, the parent for a subtask |
 | abandoned | the branch is gone and was not merged |
 
 The flow commands keep the board up to date (a board failure only prints a warning; git is never rolled back):

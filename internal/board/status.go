@@ -24,7 +24,7 @@ var Columns = []Status{Backlog, Todo, Doing, Review, Done, Abandoned}
 type Facts struct {
 	Exists bool   // the branch exists
 	Tip    string // its tip, when it exists
-	Merged bool   // its tip (or the last known tip, once gone) has commits of its own and is in its target
+	Merged bool   // the branch is gone and its last known tip has commits of its own and is in its target
 }
 
 // StatusOf is the column of a card whose branch has the given facts.

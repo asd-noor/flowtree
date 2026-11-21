@@ -32,18 +32,15 @@ func (s Settings) Target(branch string) string {
 	return s.BaseOf(k, branch)
 }
 
-// BranchFacts says whether branch exists and whether it is merged into its target. Once the branch is
-// gone, the last known tip stands in for it. A tip equal to start has no commits of its own and so
-// never counts as merged.
+// BranchFacts says whether branch exists and whether it is merged into its target. Only a branch that
+// is gone counts as merged, judged by its last known tip: while it exists, git cannot tell its own
+// merged work from commits it took from another branch. A tip equal to start has no commits of its
+// own and so never counts as merged.
 func BranchFacts(e *Env, branch, start, lastTip string) board.Facts {
 	g := e.MainGit()
 	tip, exists := Rev(g, "refs/heads/"+branch)
-	known := lastTip
-	if exists {
-		known = tip
-	}
 	target := e.S.Target(branch)
-	merged := known != "" && known != start && target != "" && g.Ok("merge-base", "--is-ancestor", known, target)
+	merged := !exists && lastTip != "" && lastTip != start && target != "" && g.Ok("merge-base", "--is-ancestor", lastTip, target)
 	return board.Facts{Exists: exists, Tip: tip, Merged: merged}
 }
 

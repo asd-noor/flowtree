@@ -56,9 +56,29 @@ func TestSubtaskTargetIsItsParent(t *testing.T) {
 	commit(t, repo, "x.txt", "x")
 	testutil.Git(t, repo, "checkout", "-q", "regular/a")
 	testutil.Git(t, repo, "merge", "-q", "--ff-only", "work/regular/a/x")
+	tip := strings.TrimSpace(testutil.Git(t, repo, "rev-parse", "work/regular/a/x"))
+	testutil.Git(t, repo, "branch", "-q", "-d", "work/regular/a/x")
 	start := strings.TrimSpace(testutil.Git(t, repo, "rev-parse", "develop"))
-	if got := flow.SubtaskStatus(e, board.Subtask{Branch: "work/regular/a/x", Start: start}); got != board.Done {
+	if got := flow.SubtaskStatus(e, board.Subtask{Branch: "work/regular/a/x", Start: start, Tip: tip}); got != board.Done {
 		t.Errorf("subtask merged into its parent: %s", got)
+	}
+}
+
+// A branch that only took another branch's commits stays doing once those land in develop.
+func TestBorrowedCommitsAreNotMerged(t *testing.T) {
+	e, repo := setup(t)
+	start := strings.TrimSpace(testutil.Git(t, repo, "rev-parse", "develop"))
+	testutil.Git(t, repo, "branch", "regular/a", "develop")
+	testutil.Git(t, repo, "branch", "regular/b", "develop")
+	testutil.Git(t, repo, "checkout", "-q", "regular/a")
+	commit(t, repo, "a.txt", "a")
+	testutil.Git(t, repo, "checkout", "-q", "regular/b")
+	testutil.Git(t, repo, "merge", "-q", "--ff-only", "regular/a")
+	testutil.Git(t, repo, "checkout", "-q", "develop")
+	testutil.Git(t, repo, "merge", "-q", "--no-ff", "--no-edit", "regular/a")
+	testutil.Git(t, repo, "branch", "-q", "-d", "regular/a")
+	if got := flow.CardStatus(e, board.Card{Branch: "regular/b", Start: start}); got != board.Doing {
+		t.Errorf("borrowed commits only: %s, want doing", got)
 	}
 }
 

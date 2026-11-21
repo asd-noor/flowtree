@@ -4,6 +4,16 @@ All notable changes to flowtree are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to follow
 [Semantic Versioning](https://semver.org/); until 1.0.0 anything may change between minor versions.
 
+## [Unreleased]
+
+### Fixed
+
+- A task whose branch still exists no longer shows as done. A branch that only took another branch's commits (for
+  example a fast-forward merge before its own first commit) showed done once those commits reached its target. A
+  task is now done only once its branch is deleted (`task finish` does that) and its last known tip, with commits
+  of its own, is merged into its target. A pull request merged on the forge stays in review or doing until
+  `task finish`.
+
 ## [v0.5.0] - 2026-11-16
 
 ### Changed

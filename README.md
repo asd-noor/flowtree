@@ -137,7 +137,7 @@ flowtree task sync                     # after branches were made or renamed wit
 ```
 
 Columns follow git rather than manual moves: a task without a branch is in todo (or the backlog), with a branch it
-is doing, and once its branch is merged into its target it is done. `task start 1 login` starts the branch of task #1 and links it
+is doing, and once its branch is merged into its target and deleted (`task finish` does both) it is done. `task start 1 login` starts the branch of task #1 and links it
 (starting, reviewing and working never create tasks; `task sync` adds them for branches made with plain git),
 `work start` adds subtasks, and `task review` moves the task to
 review until the next commit. `flowtree board` shows the columns side by side in the terminal (enter for details,
